@@ -1,0 +1,137 @@
+# ============================================================
+# ISOHub — .gitignore
+# .NET 9 + React/Vite/TypeScript
+# ============================================================
+
+# ------------------------------------------------------------
+# .NET / C#
+# ------------------------------------------------------------
+bin/
+obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+.vs/
+*.rsuser
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+*.VC.VC.opendb
+TestResults/
+[Bb]uild/
+[Rr]elease/
+[Dd]ebug/
+publish/
+artifacts/
+*.nupkg
+*.snupkg
+local.settings.json
+appsettings.Development.json
+appsettings.Local.json
+
+# ------------------------------------------------------------
+# ASP.NET Core
+# ------------------------------------------------------------
+**/wwwroot/dist/
+**/wwwroot/assets/
+# Manter wwwroot/ mas ignorar o que é gerado pelo build do frontend
+agent/Iso8583Toolkit.Agent/wwwroot/
+
+# ------------------------------------------------------------
+# Node.js / React / Vite
+# ------------------------------------------------------------
+node_modules/
+dist/
+.cache/
+.parcel-cache/
+*.local
+
+# Vite
+frontend/isohub/dist/
+frontend/isohub/.vite/
+
+# ------------------------------------------------------------
+# Logs e temporários
+# ------------------------------------------------------------
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ------------------------------------------------------------
+# Ambiente e segredos
+# ------------------------------------------------------------
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.pfx
+*.p12
+secrets.json
+**/secrets/
+
+# ------------------------------------------------------------
+# Docker
+# ------------------------------------------------------------
+docker-compose.override.yml
+.dockerignore
+
+# ------------------------------------------------------------
+# IDEs e editores
+# ------------------------------------------------------------
+.idea/
+*.swp
+*.swo
+*~
+.vscode/settings.json
+.vscode/tasks.json
+.vscode/launch.json
+.vscode/extensions.json
+!.vscode/extensions.json.example
+*.code-workspace
+
+# ------------------------------------------------------------
+# macOS / Windows / Linux
+# ------------------------------------------------------------
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# ------------------------------------------------------------
+# Testes / Cobertura
+# ------------------------------------------------------------
+coverage/
+*.coverage
+*.coveragexml
+*.trx
+BenchmarkDotNet.Artifacts/
+
+# ------------------------------------------------------------
+# NuGet
+# ------------------------------------------------------------
+*.nupkg
+*.snupkg
+.nuget/
+packages/
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+# ------------------------------------------------------------
+# Rider / JetBrains
+# ------------------------------------------------------------
+.idea/
+*.sln.iml

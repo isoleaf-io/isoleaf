@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>dotnet-Iso8583Toolkit.Agent-ca7010b7-e510-4570-b7e3-f7980819f2cb</UserSecretsId>
+    <RootNamespace>Iso8583Toolkit.Agent</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Iso8583Toolkit.IsoCore\Iso8583Toolkit.IsoCore.csproj" />
+    <ProjectReference Include="..\..\src\Iso8583Toolkit.Cards\Iso8583Toolkit.Cards.csproj" />
+    <ProjectReference Include="..\..\src\Iso8583Toolkit.Cryptography\Iso8583Toolkit.Cryptography.csproj" />
+    <ProjectReference Include="..\..\src\Iso8583Toolkit.Simulator\Iso8583Toolkit.Simulator.csproj" />
+    <ProjectReference Include="..\..\src\Iso8583Toolkit.Api\Iso8583Toolkit.Api.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="wwwroot\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Iso8583Toolkit.Agent.Tests" />
+  </ItemGroup>
+
+  <Target Name="BuildFrontend" BeforeTargets="Build" Condition="'$(Configuration)' == 'Release' AND '$(SkipFrontend)' != 'true'">
+    <Message Importance="high" Text="Building ISOHub frontend (Release)" />
+    <Exec Command="npm install" WorkingDirectory="../../frontend/isohub" />
+    <Exec Command="npm run build" WorkingDirectory="../../frontend/isohub" />
+  </Target>
+
+</Project>

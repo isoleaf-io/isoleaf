@@ -1,0 +1,261 @@
+using System.Text;
+using Iso8583Toolkit.Api.DTOs;
+using Iso8583Toolkit.Cards.Brands;
+using Iso8583Toolkit.IsoCore.Domain.Exceptions;
+using Iso8583Toolkit.IsoCore.Layouts;
+using Iso8583Toolkit.IsoCore.Parsing;
+
+namespace Iso8583Toolkit.Api.Services;
+
+public sealed class IsoParseService
+{
+    private readonly Dictionary<string, IsoLayout> _layouts;
+    private readonly IsoParser _parser;
+    private static readonly BinRangeRegistry _binRanges = new();
+
+    public IsoParseService()
+    {
+        var defaultLayout = IsoLayout.Default();
+        _layouts = new Dictionary<string, IsoLayout>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["default"] = defaultLayout
+        };
+        _parser = new IsoParser(defaultLayout);
+    }
+
+    /// <summary>
+    /// Auto-detects message format: if the input looks like a hex-encoded byte stream
+    /// (binary-hex), parses with <see cref="IsoParser.ParseFromBinaryHex"/>;
+    /// otherwise falls back to <see cref="IsoParser.ParseFromHex"/> (ASCII wire).
+    /// </summary>
+    public IsoParseResponse ParseHex(string hexMessage, string layoutName)
+    {
+        var layout = ResolveLayout(layoutName);
+
+        if (IsBinaryHex(hexMessage))
+        {
+            // Try true binary-hex wire first (bitmap 8 raw bytes, binary fields raw)
+            try
+            {
+                var msg = _parser.ParseFromBinaryHex(hexMessage, layout);
+                return MapSuccess(msg);
+            }
+            catch (IsoParseException) { /* fall through */ }
+
+            // Try ASCII wire that was hex-encoded for transport:
+            // decode hex → ASCII string → ParseFromHex
+            try
+            {
+                var asciiWire = Encoding.ASCII.GetString(Convert.FromHexString(hexMessage.Trim()));
+                var msg = _parser.ParseFromHex(asciiWire, layout);
+                return MapSuccess(msg);
+            }
+            catch { /* fall through to raw attempt */ }
+        }
+
+        try
+        {
+            var msg = _parser.ParseFromHex(hexMessage, layout);
+            return MapSuccess(msg);
+        }
+        catch (IsoParseException ex)
+        {
+            return MapError(ex);
+        }
+    }
+
+    public IsoParseResponse ParseAscii(string asciiMessage, string layoutName)
+    {
+        var layout = ResolveLayout(layoutName);
+        try
+        {
+            var msg = _parser.ParseFromAscii(asciiMessage, layout);
+            return MapSuccess(msg);
+        }
+        catch (IsoParseException ex)
+        {
+            return MapError(ex);
+        }
+    }
+
+    public IsoParseResponse ParseBinaryHex(string hexMessage, string layoutName)
+    {
+        var layout = ResolveLayout(layoutName);
+        // Binary-hex must be pure hex chars — strip internal whitespace
+        // (textareas pick up newlines on long pastes, which would otherwise
+        // throw FormatException in Convert.FromHexString).
+        var clean = new string(hexMessage.Where(c => !char.IsWhiteSpace(c)).ToArray());
+        try
+        {
+            var msg = _parser.ParseFromBinaryHex(clean, layout);
+            return MapSuccess(msg);
+        }
+        catch (IsoParseException ex)
+        {
+            return MapError(ex);
+        }
+        catch (ArgumentException ex)
+        {
+            // Convert.FromHexString failures arrive here wrapped as ArgumentException.
+            return new IsoParseResponse(Success: false, Error: ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Detects whether <paramref name="message"/> is a binary-hex encoded byte stream.
+    /// Checks: all chars are hex digits, even length, and the first 8 hex chars
+    /// (4 bytes) decode to a valid ISO 8583 MTI (4 decimal ASCII digits).
+    /// </summary>
+    private static bool IsBinaryHex(string message)
+    {
+        var trimmed = message.AsSpan().Trim();
+
+        // Binary-hex needs at least 8 hex chars for the MTI (4 bytes × 2)
+        if (trimmed.Length < 8 || trimmed.Length % 2 != 0)
+            return false;
+
+        // All characters must be hex digits
+        foreach (var c in trimmed)
+        {
+            if (!Uri.IsHexDigit(c)) return false;
+        }
+
+        // Decode first 8 hex chars → 4 bytes → check if they are ASCII decimal digits (MTI).
+        // Also try offset 10 (skipping a 5-byte TPDU) to support messages with TPDU.
+        try
+        {
+            var mtiBytes = Convert.FromHexString(trimmed[..8]);
+            var mti = Encoding.ASCII.GetString(mtiBytes);
+            if (MtiParser.IsValid(mti)) return true;
+
+            // TPDU heuristic: 5 bytes = 10 hex chars, then MTI at offset 10..18.
+            if (trimmed.Length >= 18)
+            {
+                var firstByte = Convert.FromHexString(trimmed[..2])[0];
+                var looksLikeTpdu = (firstByte >= 0x60 && firstByte <= 0x6F)
+                                    || firstByte < 0x20
+                                    || firstByte >= 0x7F;
+                if (looksLikeTpdu)
+                {
+                    var mtiAfterTpdu = Encoding.ASCII.GetString(Convert.FromHexString(trimmed[10..18]));
+                    if (MtiParser.IsValid(mtiAfterTpdu)) return true;
+                }
+            }
+
+            return false;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Parses a hex bitmap. Accepts:
+    ///   • 16 hex chars  → primary only (bits 1-64)
+    ///   • 32 hex chars  → primary + secondary (bits 1-128)
+    /// Whitespace and case are normalized.
+    /// </summary>
+    public BitmapParseResponse ParseBitmap(string hexBitmap)
+    {
+        if (string.IsNullOrWhiteSpace(hexBitmap))
+            throw new ArgumentException("Hex bitmap is required.", nameof(hexBitmap));
+
+        var clean = new string(hexBitmap.Where(c => !char.IsWhiteSpace(c)).ToArray()).ToUpperInvariant();
+        if (clean.Length != 16 && clean.Length != 32)
+            throw new ArgumentException(
+                $"Hex bitmap must be 16 (primary only) or 32 (primary + secondary) characters; got {clean.Length}.",
+                nameof(hexBitmap));
+
+        var primaryHex = clean[..16];
+        var secondaryHex = clean.Length == 32 ? clean[16..] : null;
+
+        var primary = BitmapEngine.ParseFromHex(primaryHex);
+        var hasSecondary = BitmapEngine.IsSecondaryPresent(primary);
+        var activeBits = BitmapEngine.GetActiveBits(primary).ToList();
+        var binary = string.Concat(primary.Select(b => b ? '1' : '0'));
+
+        if (secondaryHex is not null)
+        {
+            var secondary = BitmapEngine.ParseFromHex(secondaryHex);
+            // Bits 65-128 are 1-based — index i in `secondary` is bit (i + 65).
+            for (var i = 0; i < secondary.Length; i++)
+                if (secondary[i]) activeBits.Add(i + 65);
+            binary += string.Concat(secondary.Select(b => b ? '1' : '0'));
+            hasSecondary = true; // explicit even if the caller didn't flip bit 1
+        }
+
+        return new BitmapParseResponse(activeBits, hasSecondary, binary, primaryHex, secondaryHex);
+    }
+
+    public List<LayoutSummary> GetLayouts() =>
+        _layouts.Values
+            .Select(l => new LayoutSummary(l.Name, l.Version, l.Fields.Count))
+            .ToList();
+
+    /// <summary>Lists every field defined in the requested layout — used by the Builder's
+    /// Add Field modal to populate the picker dynamically.</summary>
+    public List<LayoutFieldDefinition> GetLayoutFields(string layoutName)
+    {
+        var layout = ResolveLayout(layoutName);
+        return layout.Fields
+            .Values
+            .OrderBy(f => f.BitNumber)
+            .Select(f => new LayoutFieldDefinition(
+                f.BitNumber, f.Name, f.Type.ToString(), f.MaxLength, f.Encoding.ToString()))
+            .ToList();
+    }
+
+    private IsoLayout ResolveLayout(string layoutName) =>
+        _layouts.TryGetValue(layoutName, out var layout)
+            ? layout
+            : throw new KeyNotFoundException($"Layout '{layoutName}' not found. Available: {string.Join(", ", _layouts.Keys)}");
+
+    private static IsoParseResponse MapSuccess(IsoCore.Domain.IsoMessage msg)
+    {
+        var fields = msg.Fields.Values
+            .OrderBy(f => f.BitNumber)
+            .Select(f => new IsoFieldResponse(
+                f.BitNumber,
+                f.Definition.Name,
+                f.RawValue,
+                f.DisplayValue,
+                f.Definition.Type.ToString(),
+                f.RawValue.Length))
+            .ToList();
+
+        TpduResponse? tpdu = null;
+        if (msg.TpduInfo is { } t)
+            tpdu = new TpduResponse(t.Hex, $"0x{t.Id:X2}", t.DestinationNii, t.SourceNii);
+
+        // Detect card brand from PAN (bit 2). Brand resolution is best-effort —
+        // anything not matching a known BIN range falls back to null so callers know.
+        string? detectedBrand = null;
+        if (msg.Fields.TryGetValue(2, out var panField) && !string.IsNullOrWhiteSpace(panField.RawValue))
+        {
+            try
+            {
+                var brand = _binRanges.Detect(panField.RawValue);
+                if (brand != CardBrand.Custom)
+                    detectedBrand = brand.ToString();
+            }
+            catch (ArgumentException) { /* malformed PAN — leave brand null */ }
+        }
+
+        return new IsoParseResponse(
+            Success: true,
+            Mti: msg.Mti,
+            MessageClass: MtiParser.GetMessageClass(msg.Mti),
+            MessageFunction: MtiParser.GetMessageFunction(msg.Mti),
+            HasSecondaryBitmap: msg.HasSecondaryBitmap,
+            ActiveBits: msg.GetActiveBits().ToList(),
+            Fields: fields,
+            ParsedAt: msg.ParsedAt,
+            Tpdu: tpdu,
+            DetectedBrand: detectedBrand);
+    }
+
+    private static IsoParseResponse MapError(IsoParseException ex) =>
+        new(Success: false,
+            Error: $"[{ex.Field} @ pos {ex.Position}] {ex.Message}");
+}

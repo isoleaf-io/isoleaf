@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  agent:
+    build:
+      context: .
+      dockerfile: agent/Iso8583Toolkit.Agent/Dockerfile
+    container_name: iso8583-agent
+    ports:
+      - "8080:8080"
+      - "8583:8583"
+    environment:
+      - Agent__Port=8080
+      - Agent__SimulatorDefaultPort=8583
+      - MongoDB__Enabled=false
+      - Broker__Enabled=false
+    volumes:
+      - agent_data:/app/data
+    restart: unless-stopped
+
+volumes:
+  agent_data:

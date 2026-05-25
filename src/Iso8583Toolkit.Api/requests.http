@@ -1,0 +1,326 @@
+@baseUrl = http://localhost:5101
+
+### Parse hex message (0200 authorization)
+POST {{baseUrl}}/api/iso/parse/hex
+Content-Type: application/json
+
+{
+  "hexMessage": "020072300000000000001634567890123456780600000000000001000605123000000006123000",
+  "layoutName": "default"
+}
+
+### Parse bitmap
+POST {{baseUrl}}/api/iso/parse/bitmap
+Content-Type: application/json
+
+{
+  "hexBitmap": "7230000000000000"
+}
+
+### List layouts
+GET {{baseUrl}}/api/iso/parse/layouts
+
+### Validate message
+POST {{baseUrl}}/api/iso/validate/message
+Content-Type: application/json
+
+{
+  "hexMessage": "020072300000000000001634567890123456780600000000000001000605123000000006123000",
+  "layoutName": "default",
+  "requiredBits": [2, 3, 4, 11]
+}
+
+### Validate message — missing required field
+POST {{baseUrl}}/api/iso/validate/message
+Content-Type: application/json
+
+{
+  "hexMessage": "020072300000000000001634567890123456780600000000000001000605123000000006123000",
+  "layoutName": "default",
+  "requiredBits": [2, 3, 4, 11, 41, 42]
+}
+
+### Build message
+POST {{baseUrl}}/api/iso/build/message
+Content-Type: application/json
+
+{
+  "mti": "0200",
+  "layoutName": "default",
+  "fields": [
+    { "bitNumber": 2, "value": "4111111111111111" },
+    { "bitNumber": 3, "value": "000000" },
+    { "bitNumber": 4, "value": "000000000100" },
+    { "bitNumber": 11, "value": "000001" },
+    { "bitNumber": 12, "value": "143000" },
+    { "bitNumber": 13, "value": "0412" }
+  ]
+}
+
+### Parse binary-hex message (EMV chip with PIN block)
+POST {{baseUrl}}/api/iso/parse/binary-hex
+Content-Type: application/json
+
+{
+  "hexMessage": "3031303046323343363530313238453139323530303030303030303030303030303030323136363531363830303933323635343839303030333030303030303030303030323030303034313231393336303032333635343131393336303030343132333630353032333030373630353131303030363030303233353334363531363830303933323635343839303D3237313232303131323334353637383930323336353431303033303030323335363232333332333635353632333233323333303053555045524D45524341444F2043454E5452414C20202053414F205041554C4F2020202053504252303432434E503D30313430333232393530383030303135342A4344543D30303254302A5052443D30303330373039383634F2A6B1C9D3E8A713133363639463236303841314232433344344535463630373946323730313830394631303037303630313041303341343030303039463337303441414242434344443946333630323030314539353035303038303030303430303941303332353031313539433031303039463032303630303030303030303130303035463241303230393836383230323138303039463141303230393836394630333036303030303030303030303030303334202020202020202020202020202020202020202020202020303738353831303030303836303330504F53303030313143484950434C5353593132333435363032312E342E373030353132323631",
+  "layoutName": "default"
+}
+
+### Build message (another example)
+POST {{baseUrl}}/api/iso/build/message
+Content-Type: application/json
+
+{
+  "mti": "0100",
+  "layoutName": "default",
+  "fields": [
+    { "bitNumber": 2, "value": "5555555555554444" },
+    { "bitNumber": 3, "value": "000000" },
+    { "bitNumber": 4, "value": "000000005000" },
+    { "bitNumber": 11, "value": "000123" }
+  ]
+}
+
+### ══════════════════════════════════════════════════════════════════════════
+### CARDS API
+### ══════════════════════════════════════════════════════════════════════════
+
+### Generate Visa card
+POST {{baseUrl}}/api/cards/generate
+Content-Type: application/json
+
+{
+  "brand": "Visa",
+  "cardholderName": "SILVA/JOAO",
+  "expiry": "2812"
+}
+
+### Generate Mastercard
+POST {{baseUrl}}/api/cards/generate
+Content-Type: application/json
+
+{
+  "brand": "Mastercard",
+  "cardholderName": "SANTOS/MARIA"
+}
+
+### Generate Amex
+POST {{baseUrl}}/api/cards/generate
+Content-Type: application/json
+
+{
+  "brand": "Amex"
+}
+
+### Generate Elo
+POST {{baseUrl}}/api/cards/generate
+Content-Type: application/json
+
+{
+  "brand": "Elo",
+  "cardholderName": "OLIVEIRA/PEDRO"
+}
+
+### Validate PAN (valid)
+POST {{baseUrl}}/api/cards/validate
+Content-Type: application/json
+
+{
+  "pan": "4111111111111111"
+}
+
+### Validate PAN (invalid)
+POST {{baseUrl}}/api/cards/validate
+Content-Type: application/json
+
+{
+  "pan": "4111111111111112"
+}
+
+### Detect brand
+POST {{baseUrl}}/api/cards/detect-brand
+Content-Type: application/json
+
+{
+  "pan": "5555555555554444"
+}
+
+### List brands and BIN ranges
+GET {{baseUrl}}/api/cards/brands
+
+### ══════════════════════════════════════════════════════════════════════════
+### EMV API
+### ══════════════════════════════════════════════════════════════════════════
+
+### Parse Bit 55
+POST {{baseUrl}}/api/emv/parse-bit55
+Content-Type: application/json
+
+{
+  "hexBit55": "9F2608A1B2C3D4E5F607089F2701809F100706010A03A400009F3704AABBCCDD9F3602001E95050080000400009A032501159C01009F02060000000010005F2A020986820218009F1A0209869F0306000000000000"
+}
+
+### Generate ARQC
+POST {{baseUrl}}/api/emv/generate-arqc
+Content-Type: application/json
+
+{
+  "issuerMasterKey": "0123456789ABCDEF0123456789ABCDEF",
+  "pan": "4111111111111111",
+  "panSequenceNumber": "00",
+  "atc": "001E",
+  "amountAuthorized": "000000001000",
+  "amountOther": "000000000000",
+  "terminalCountryCode": "0986",
+  "tvr": "0080000400",
+  "currencyCode": "0986",
+  "transactionDate": "250115",
+  "transactionType": "00",
+  "unpredictableNumber": "AABBCCDD",
+  "aip": "1800",
+  "iad": "06010A03A40000",
+  "profile": "Visa"
+}
+
+### Generate ARPC (Method 1 — Visa)
+POST {{baseUrl}}/api/emv/generate-arpc
+Content-Type: application/json
+
+{
+  "arqc": "A1B2C3D4E5F60708",
+  "issuerMasterKey": "0123456789ABCDEF0123456789ABCDEF",
+  "pan": "4111111111111111",
+  "panSequenceNumber": "00",
+  "atc": "001E",
+  "authResponseCode": "3030",
+  "csu": null,
+  "profile": "Visa",
+  "method": "Method1"
+}
+
+### Build Bit 55 response
+POST {{baseUrl}}/api/emv/build-response-bit55
+Content-Type: application/json
+
+{
+  "arpc": "A1B2C3D4E5F60708",
+  "authResponseCode": "3030",
+  "issuerScript72": null
+}
+
+### Full EMV flow
+POST {{baseUrl}}/api/emv/full-flow
+Content-Type: application/json
+
+{
+  "hexBit55Request": "9F2608A1B2C3D4E5F607089F2701809F100706010A03A400009F3704AABBCCDD9F3602001E95050080000400009A032501159C01009F02060000000010005F2A020986820218009F1A0209869F0306000000000000",
+  "issuerMasterKey": "0123456789ABCDEF0123456789ABCDEF",
+  "pan": "4111111111111111",
+  "panSequenceNumber": "00",
+  "authResponseCode": "3030",
+  "profile": "Visa"
+}
+
+### ══════════════════════════════════════════════════════════════════════════
+### SIMULATOR API
+### ══════════════════════════════════════════════════════════════════════════
+
+### List connected agents
+GET {{baseUrl}}/api/simulator/agents
+
+### Get agent status
+GET {{baseUrl}}/api/simulator/agents/dev-tenant/status
+
+### Start simulation session (Rebatedor)
+POST {{baseUrl}}/api/simulator/sessions
+Content-Type: application/json
+
+{
+  "tenantId": "dev-tenant",
+  "config": {
+    "tcpPort": 8583,
+    "mode": "Rebatedor",
+    "layoutName": "default",
+    "defaultResponseCode": "00",
+    "validateArqc": false,
+    "autoRespond": true,
+    "timeoutMs": 30000
+  }
+}
+
+### Stop simulation session
+DELETE {{baseUrl}}/api/simulator/sessions/SESSION_ID_HERE?tenantId=dev-tenant
+
+### Inject message into session
+POST {{baseUrl}}/api/simulator/sessions/SESSION_ID_HERE/inject
+Content-Type: application/json
+
+{
+  "tenantId": "dev-tenant",
+  "hexMessage": "0200F23C650128E1925000000000000000021665168009326548900003000000000002000041219360023654119360004123605023007605110006000235346516800932654890D27122011234567890236541003000235622332365562323233300SUPERMERCADO CENTRAL   SAO PAULO   SPBR"
+}
+
+### ══════════════════════════════════════════════════════════════════════════
+### SMART ISO BUILDER
+### ══════════════════════════════════════════════════════════════════════════
+
+### Smart build — 0200 débito chip Elo
+POST {{baseUrl}}/api/iso/build/smart
+Content-Type: application/json
+
+{
+  "mti": "0200",
+  "role": "Adquirente",
+  "brand": "Elo",
+  "transactionType": "Debito",
+  "channel": "Chip",
+  "approvalMode": "Online",
+  "installments": 1
+}
+
+### Smart build — 0100 crédito CNP Visa com PAN customizado
+POST {{baseUrl}}/api/iso/build/smart
+Content-Type: application/json
+
+{
+  "mti": "0100",
+  "role": "Adquirente",
+  "brand": "Auto",
+  "transactionType": "Credito",
+  "channel": "CNP",
+  "approvalMode": "Online",
+  "customFields": {
+    "2": "4111111111111111"
+  }
+}
+
+### Smart build — 0400 reversão crédito tarja Mastercard
+POST {{baseUrl}}/api/iso/build/smart
+Content-Type: application/json
+
+{
+  "mti": "0400",
+  "role": "Adquirente",
+  "brand": "Mastercard",
+  "transactionType": "Credito",
+  "channel": "Tarja",
+  "isReversal": true
+}
+
+### Smart build — 0800 echo test
+POST {{baseUrl}}/api/iso/build/smart
+Content-Type: application/json
+
+{
+  "mti": "0800",
+  "role": "Adquirente",
+  "brand": "Default",
+  "transactionType": "Credito",
+  "channel": "Presencial"
+}
+
+### Listar perfis disponíveis
+GET {{baseUrl}}/api/iso/build/smart/profiles
+
+### Listar regras automáticas
+GET {{baseUrl}}/api/iso/build/smart/rules
