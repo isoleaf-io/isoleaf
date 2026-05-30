@@ -1,22 +1,47 @@
 version: '3.8'
 
+# Single-container, no-dependencies deployment. The Agent serves both the
+# REST API and the React SPA on port 8080. Additional ports are exposed for
+# the Simulator's TCP listeners — add or remove to fit your test scenarios.
+
 services:
-  agent:
+  isohub:
     build:
       context: .
-      dockerfile: agent/Iso8583Toolkit.Agent/Dockerfile
-    container_name: iso8583-agent
+      dockerfile: Dockerfile
+    image: isohub-io/isohub:latest
+    container_name: isohub
     ports:
-      - "8080:8080"
+      - "8080:8080"            # HTTP — UI + REST API + SignalR
+      # Simulator TCP listeners — extend as needed.
+      - "9100:9100"
+      - "9200:9200"
       - "8583:8583"
+    volumes:
+      # Reserved for workspace persistence. Current build keeps workspace in
+      # memory; the mount means future persistent storage will survive restarts
+      # without changing compose.
+      - isohub-data:/app/data
     environment:
-      - Agent__Port=8080
-      - Agent__SimulatorDefaultPort=8583
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:8080
+      - ISOHUB_DATA_PATH=/app/data
       - MongoDB__Enabled=false
       - Broker__Enabled=false
-    volumes:
-      - agent_data:/app/data
     restart: unless-stopped
+    healthcheck:
+      test:
+        - CMD
+        - wget
+        - --quiet
+        - --tries=1
+        - --spider
+        - http://localhost:8080/api/health
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
 
 volumes:
-  agent_data:
+  isohub-data:
+    driver: local

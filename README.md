@@ -39,6 +39,9 @@ docker run -p 8080:8080 isohub-io/isohub
 
 Open [http://localhost:8080](http://localhost:8080)
 
+> Add `-p 9100:9100 -p 8583:8583` (or any port you plan to use) to expose the
+> Simulator's TCP listeners from inside the container.
+
 ### Option 2 — Docker Compose
 
 ```bash
@@ -46,6 +49,10 @@ git clone https://github.com/isohub-io/isohub.git
 cd isohub
 docker compose -f docker-compose.standalone.yml up
 ```
+
+The compose file already exposes ports `8080`, `9100`, `9200` and `8583`,
+mounts a `isohub-data` volume at `/app/data`, and runs the container with a
+`/api/health` healthcheck.
 
 ### Option 3 — Build from source
 
