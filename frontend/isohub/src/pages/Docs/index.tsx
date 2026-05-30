@@ -1,73 +1,129 @@
-import { BookOpen, Cpu, FileText, Layers, Network, Sparkles } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { BookOpen, ChevronDown, ChevronRight, Cpu, FileText, Layers, Link as LinkIcon, Network, Sparkles } from "lucide-react";
+import clsx from "clsx";
 import { AppShell } from "@/components/layout/AppShell";
 import { Card, CardBody } from "@/components/ui/Card";
-import { Badge } from "@/components/ui/Badge";
+import { DOCS_PT } from "./content.pt";
+import { DOCS_EN } from "./content.en";
+import { DocBlocks } from "./DocBlocks";
 
 interface Topic {
+  id: string;
   icon: typeof BookOpen;
-  title: string;
-  description: string;
+  titleKey: string;
+  descriptionKey: string;
 }
 
 const TOPICS: Topic[] = [
-  {
-    icon: FileText,
-    title: "ISO 8583",
-    description: "Estrutura de mensagens, bitmap primário/secundário, MTIs e definição dos 128 campos do padrão.",
-  },
-  {
-    icon: Cpu,
-    title: "EMV & Criptografia",
-    description: "Geração e validação de ARQC/ARPC, derivação de chaves, TLV, fluxo completo issuer-side.",
-  },
-  {
-    icon: Network,
-    title: "Papéis transacionais",
-    description: "Diferenças entre Adquirente, Bandeira, Emissor e Autorizador — TPDU, fields obrigatórios, echo bits.",
-  },
-  {
-    icon: BookOpen,
-    title: "Glossário",
-    description: "Termos e definições: PAN, ARQC, TPDU, IAD, Service Code, ATC, CSU, e todos os acrônimos do mundo de pagamentos.",
-  },
-  {
-    icon: Layers,
-    title: "Referência de campos",
-    description: "Tabela completa dos 128 bits ISO 8583 com tipo, encoding, tamanho e exemplos de uso.",
-  },
-  {
-    icon: Sparkles,
-    title: "Guias rápidos",
-    description: "Receitas práticas para cada módulo: como simular adquirente, gerar PAN+ARQC, montar uma reversão, etc.",
-  },
+  { id: "iso8583",  icon: FileText, titleKey: "docs.cards.iso8583.title",  descriptionKey: "docs.cards.iso8583.description" },
+  { id: "emv",      icon: Cpu,      titleKey: "docs.cards.emv.title",      descriptionKey: "docs.cards.emv.description" },
+  { id: "roles",    icon: Network,  titleKey: "docs.cards.roles.title",    descriptionKey: "docs.cards.roles.description" },
+  { id: "glossary", icon: BookOpen, titleKey: "docs.cards.glossary.title", descriptionKey: "docs.cards.glossary.description" },
+  { id: "fields",   icon: Layers,   titleKey: "docs.cards.fields.title",   descriptionKey: "docs.cards.fields.description" },
+  { id: "guides",   icon: Sparkles, titleKey: "docs.cards.guides.title",   descriptionKey: "docs.cards.guides.description" },
 ];
 
+const STORAGE_KEY = "isohub-docs-open";
+
 export default function DocsPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+
+  // One section open at a time. Persisted across reloads + honors a URL hash
+  // (e.g. /docs#iso8583) when the user lands directly on a deep link.
+  const [openId, setOpenId] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    const fromHash = window.location.hash.replace(/^#/, "");
+    if (fromHash && TOPICS.some((t) => t.id === fromHash)) return fromHash;
+    try { return localStorage.getItem(STORAGE_KEY); } catch { return null; }
+  });
+
+  useEffect(() => {
+    try {
+      if (openId) localStorage.setItem(STORAGE_KEY, openId);
+      else localStorage.removeItem(STORAGE_KEY);
+    } catch { /* ignore quota / private mode */ }
+  }, [openId]);
+
+  // Pick the right content map for the active language. Anything outside the
+  // two known locales falls back to English to match the app's fallbackLng.
+  const docs = i18n.language?.startsWith("pt") ? DOCS_PT : DOCS_EN;
+
+  const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+  const onToggle = (id: string) => {
+    const next = openId === id ? null : id;
+    setOpenId(next);
+    if (next) {
+      // Scroll the just-opened card into view once the panel has rendered.
+      setTimeout(() => cardRefs.current[next]?.scrollIntoView?.({ behavior: "smooth", block: "start" }), 80);
+      try { history.replaceState(null, "", `#${next}`); } catch { /* ignore */ }
+    } else {
+      try { history.replaceState(null, "", window.location.pathname); } catch { /* ignore */ }
+    }
+  };
+
+  const onCopyLink = (id: string) => {
+    const url = `${window.location.origin}${window.location.pathname}#${id}`;
+    try { navigator.clipboard.writeText(url); } catch { /* ignore */ }
+  };
 
   return (
     <AppShell title={t("docs.title")} subtitle={t("docs.subtitle")}>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {TOPICS.map((topic) => {
           const Icon = topic.icon;
+          const isOpen = openId === topic.id;
           return (
-            <Card key={topic.title} className="hover:border-accent/40 transition-colors">
-              <CardBody className="space-y-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="w-9 h-9 rounded-md bg-accent-bg text-accent-text flex items-center justify-center shrink-0">
-                    <Icon size={18} />
-                  </div>
-                  <Badge tone="warning" className="shrink-0">
-                    {t("docs.comingSoon")}
-                  </Badge>
-                </div>
-                <h3 className="text-sm font-semibold leading-tight">{topic.title}</h3>
-                <p className="text-xs text-text-secondary leading-relaxed">
-                  {topic.description}
-                </p>
-              </CardBody>
-            </Card>
+            <div
+              key={topic.id}
+              ref={(el) => { cardRefs.current[topic.id] = el; }}
+              id={topic.id}
+              // Span every column when open so the expanded content takes the
+              // full width of the grid; collapsed cards stay 1-column tiles.
+              className={clsx(isOpen && "md:col-span-2 lg:col-span-3")}
+            >
+              <Card className={clsx(
+                "transition-colors",
+                isOpen ? "border-accent/60" : "hover:border-accent/40"
+              )}>
+                <button
+                  type="button"
+                  onClick={() => onToggle(topic.id)}
+                  aria-expanded={isOpen}
+                  className="w-full text-left"
+                >
+                  <CardBody className="space-y-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="w-9 h-9 rounded-md bg-accent-bg text-accent-text flex items-center justify-center shrink-0">
+                        <Icon size={18} />
+                      </div>
+                      {isOpen
+                        ? <ChevronDown size={18} className="text-text-tertiary shrink-0 mt-1" />
+                        : <ChevronRight size={18} className="text-text-tertiary shrink-0 mt-1" />}
+                    </div>
+                    <h3 className="text-sm font-semibold leading-tight">{t(topic.titleKey)}</h3>
+                    <p className="text-xs text-text-secondary leading-relaxed">{t(topic.descriptionKey)}</p>
+                  </CardBody>
+                </button>
+
+                {isOpen && (
+                  <CardBody className="border-t border-[var(--border)] pt-4">
+                    <div className="flex items-center justify-end mb-3">
+                      <button
+                        type="button"
+                        onClick={() => onCopyLink(topic.id)}
+                        className="inline-flex items-center gap-1 text-xs text-text-tertiary hover:text-accent"
+                        title={t("docs.copyLink")}
+                      >
+                        <LinkIcon size={12} /> #{topic.id}
+                      </button>
+                    </div>
+                    <DocBlocks blocks={docs[topic.id]?.blocks ?? []} />
+                  </CardBody>
+                )}
+              </Card>
+            </div>
           );
         })}
       </div>
