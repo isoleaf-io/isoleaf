@@ -84,7 +84,8 @@ app.UseStaticFiles();
 app.MapControllers();
 app.MapHub<SimulatorHub>("/hubs/simulator");
 
-// SPA fallback for client-side routing — but NOT for /api or /hubs paths
+// SPA fallback for client-side routing — but NOT for /api or /hubs paths.
+// (Liveness/readiness is served by HealthController at GET /api/health.)
 app.MapFallbackToFile("index.html");
 
 app.Run();
