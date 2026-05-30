@@ -9,7 +9,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: isohub-io/isohub:latest
+    image: ghcr.io/isohub-io/isohub:latest
     container_name: isohub
     ports:
       - "8080:8080"            # HTTP — UI + REST API + SignalR
