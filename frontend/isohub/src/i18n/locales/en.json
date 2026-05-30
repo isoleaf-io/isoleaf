@@ -292,8 +292,8 @@
       "rebatedor": "Waits for inbound TCP connections and answers automatically. Simulates an authorizer/issuer.",
       "injetor": "Connects to an external TCP system and sends messages. Simulates a terminal/acquirer."
     },
-    "rebatedores": "Rebatedores",
-    "noRebatedores": "No active rebatedores",
+    "rebatedores": "Listeners",
+    "noRebatedores": "No active listeners",
     "liveLog": "Live log",
     "injector": {
       "title": "Injector",
@@ -346,7 +346,34 @@
   "docs": {
     "title": "Documentation",
     "subtitle": "Complete technical reference for ISOHub",
-    "comingSoon": "Coming soon"
+    "comingSoon": "Coming soon",
+    "copyLink": "Copy link",
+    "cards": {
+      "iso8583": {
+        "title": "ISO 8583",
+        "description": "Protocol structure: TPDU, MTI, primary/secondary bitmap and the 128 Data Elements of the standard."
+      },
+      "emv": {
+        "title": "EMV & Cryptography",
+        "description": "Bit 55, key derivation (IMK → ICC MK → Session Key), ARQC, ARPC and brand profiles."
+      },
+      "roles": {
+        "title": "Transactional roles",
+        "description": "Authorization flow: Acquirer → Brand → Issuer. TPDU, NIIs and mandatory fields per role."
+      },
+      "glossary": {
+        "title": "Glossary",
+        "description": "Payment world terms and acronyms: PAN, ARQC, ARPC, TPDU, IAD, ATC, STAN and many more."
+      },
+      "fields": {
+        "title": "Field reference",
+        "description": "Reference table of the most used ISO 8583 Data Elements with type, encoding and length."
+      },
+      "guides": {
+        "title": "Quick guides",
+        "description": "ISOHub architecture and practical recipes: parse, build, validate ARQC, simulate authorizer and injector."
+      }
+    }
   },
   "workspace": {
     "title": "Workspace",

@@ -56,7 +56,7 @@ describe("Simulator page — redesigned layout", () => {
 
   it("renders the three sections (Rebatedores, Injector, Live log)", () => {
     renderApp(<SimulatorPage />);
-    expect(screen.getByText(/^Rebatedores$/i)).toBeInTheDocument();
+    expect(screen.getByText(/^Rebatedores$|^Listeners$/i)).toBeInTheDocument();
     expect(screen.getByText(/^Injetor$|^Injector$/i)).toBeInTheDocument();
     expect(screen.getByText(/Log ao vivo|Live log/i)).toBeInTheDocument();
   });
