@@ -5,7 +5,7 @@
 [![License: ELv2](https://img.shields.io/badge/License-ELv2-blue.svg)](./LICENSE)
 [![.NET](https://img.shields.io/badge/.NET-9.0-purple.svg)](https://dotnet.microsoft.com)
 [![React](https://img.shields.io/badge/React-18-61DAFB.svg)](https://react.dev)
-[![Docker](https://img.shields.io/badge/Docker-ready-2496ED.svg)](https://hub.docker.com/r/isohub-io/isohub)
+[![Docker](https://img.shields.io/badge/Docker-ready-2496ED.svg)](https://ghcr.io/isohub-io/isohub)
 
 ---
 
@@ -34,7 +34,7 @@ no data leaves your environment.
 ### Option 1 — Docker (recommended)
 
 ```bash
-docker run -p 8080:8080 isohub-io/isohub
+docker run -p 8080:8080 ghcr.io/isohub-io/isohub:latest
 ```
 
 Open [http://localhost:8080](http://localhost:8080)
