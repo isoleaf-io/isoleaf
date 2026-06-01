@@ -29,6 +29,22 @@ no data leaves your environment.
 
 ---
 
+## Screenshots
+
+### Parser
+![Parser](docs/screenshots/parse1.png)
+
+### Builder
+![Builder](docs/screenshots/builder.png)
+
+### Simulator
+![Simulator](docs/screenshots/simulator.png)
+
+### EMV Data
+![EMV Data](docs/screenshots/emv1.png)
+
+---
+
 ## Quick Start
 
 ### Option 1 — Docker (recommended)
