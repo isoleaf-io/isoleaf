@@ -81,6 +81,42 @@ app.UseCors();
 app.UseDefaultFiles();
 app.UseStaticFiles();
 
+// ── ISOHUB_MODE=online: block crypto/simulator routes ─────────────────
+// The same image powers both local (full features) and public demo (read-only,
+// no crypto, no TCP listeners). Mode is resolved through IConfiguration so
+// it picks up env vars in prod AND in-memory overrides from tests — without
+// the process-global state that breaks xUnit parallel collections.
+var configuredMode = app.Configuration["ISOHUB_MODE"]?.Trim().ToLowerInvariant();
+if (configuredMode == "online")
+{
+    app.Use(async (context, next) =>
+    {
+        var path = context.Request.Path.Value ?? string.Empty;
+        // Block only the EMV endpoints that need IMK / cryptographic material.
+        // /api/emv/parse-bit55 and /api/emv/build-response-bit55 are pure
+        // BER-TLV assembly/disassembly — no key surface — so they stay open
+        // to match the EMV page's UI classification (requiresCrypto = false).
+        var blocked =
+            path.StartsWith("/api/simulator", StringComparison.OrdinalIgnoreCase) ||
+            path.StartsWith("/api/emv/validate", StringComparison.OrdinalIgnoreCase) ||
+            path.StartsWith("/api/emv/generate", StringComparison.OrdinalIgnoreCase) ||
+            path.StartsWith("/api/emv/full-flow", StringComparison.OrdinalIgnoreCase);
+
+        if (blocked)
+        {
+            context.Response.StatusCode = StatusCodes.Status403Forbidden;
+            await context.Response.WriteAsJsonAsync(new
+            {
+                error = "This feature is not available in the online version.",
+                hint = "Install ISOHub locally via Docker to use this feature.",
+                docker = "docker run -p 8080:8080 ghcr.io/isohub-io/isohub:latest"
+            });
+            return;
+        }
+        await next(context);
+    });
+}
+
 app.MapControllers();
 app.MapHub<SimulatorHub>("/hubs/simulator");
 

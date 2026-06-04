@@ -13,6 +13,7 @@
     "save": "Save",
     "delete": "Delete",
     "cancel": "Cancel",
+    "close": "Close",
     "confirm": "Confirm",
     "loading": "Loading...",
     "error": "Error",
@@ -107,6 +108,7 @@
     "arqcDerivedTooltip": "ARQC calculated with the IMK configured in Workspace",
     "arqcSimulated": "⚠ ARQC simulated",
     "arqcSimulatedTooltip": "Configure the IMK in Workspace for a real ARQC",
+    "arqcSimulatedOnlineTooltip": "Install ISOHub locally to configure an IMK and derive a real ARQC",
     "activeBitsLabel": "Active bits:",
     "mtiGroups": {
       "authorizations": "Authorizations",
@@ -385,6 +387,8 @@
     "processingCodes": "Processing codes",
     "cryptoKeys": "Crypto keys",
     "cryptoKeysSubtitle": "Used to derive real ARQC in the Builder",
+    "cryptoKeysOnlineTitle": "Crypto keys available in the local version only",
+    "cryptoKeysOnlineHint": "Use Docker to configure IMK and ZPK securely on your own machine.",
     "imkLabel": "Issuer Master Key (IMK-AC)",
     "imkHint": "When configured, the Builder generates a cryptographically real ARQC via EMV derivation",
     "zpkLabel": "Zone PIN Key (ZPK)",
@@ -411,5 +415,16 @@
     "saveChanges": "Save changes",
     "saved": "Saved!",
     "noTemplates": "No saved templates yet"
+  },
+  "online": {
+    "banner": {
+      "text": "You are using ISOHub Online. Some features require local installation.",
+      "installLink": "→ How to install via Docker"
+    },
+    "feature": {
+      "unavailable": "This feature is not available in the online version",
+      "reason": "This feature requires the IMK (Issuer Master Key). For security, we don't accept cryptographic keys in the online version. Install ISOHub locally.",
+      "installCta": "→ How to install"
+    }
   }
 }

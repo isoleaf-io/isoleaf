@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { CopyButton } from "@/components/ui/CopyButton";
 import { MonoText } from "@/components/ui/MonoText";
 import { Badge } from "@/components/ui/Badge";
+import { useAppConfig } from "@/contexts/AppConfigContext";
 import { useBuilderStore, type BuilderField, type BuiltMessage } from "@/store/builder";
 
 interface Props {
@@ -36,6 +37,7 @@ export function MessagePreview({ built, onSaveTemplate }: Props) {
   const navigate = useNavigate();
   const context = useBuilderStore((s) => s.context);
   const fields = useBuilderStore((s) => s.fields);
+  const { workspaceKeysEnabled } = useAppConfig();
 
   // ↩ Reversal: build a 0400 from the current message in-place.
   // Hidden for 04xx (already a reversal) and 08xx (network management).
@@ -79,7 +81,7 @@ export function MessagePreview({ built, onSaveTemplate }: Props) {
                 <Badge tone="success" title={t("builder.arqcDerivedTooltip")}>
                   {t("builder.arqcDerived")}
                 </Badge>
-              ) : (
+              ) : workspaceKeysEnabled ? (
                 <button
                   type="button"
                   onClick={() => navigate("/workspace")}
@@ -88,6 +90,12 @@ export function MessagePreview({ built, onSaveTemplate }: Props) {
                 >
                   {t("builder.arqcSimulated")}
                 </button>
+              ) : (
+                // Online mode: no IMK available — render a plain badge with a
+                // tooltip pointing to Docker, not a clickable link to Workspace.
+                <Badge tone="warning" title={t("builder.arqcSimulatedOnlineTooltip")}>
+                  {t("builder.arqcSimulated")}
+                </Badge>
               )
             )}
           </div>
