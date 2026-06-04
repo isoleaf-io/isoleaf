@@ -302,3 +302,17 @@ export interface HealthStatus {
   mongoDbConnected: boolean;
   brokerConnected: boolean;
 }
+
+/**
+ * Runtime feature flags returned by GET /api/config. Reflects the value of
+ * the ISOHUB_MODE environment variable on the server side.
+ *   - "standalone": full local Docker deployment, all features on.
+ *   - "online":     public demo, simulator + crypto features blocked at the
+ *                   API layer (403) and hidden in the UI.
+ */
+export interface AppConfig {
+  mode: "standalone" | "online" | string;
+  simulatorEnabled: boolean;
+  emvCryptoEnabled: boolean;
+  workspaceKeysEnabled: boolean;
+}

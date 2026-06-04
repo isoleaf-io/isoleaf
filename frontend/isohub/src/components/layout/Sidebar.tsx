@@ -14,6 +14,7 @@ import clsx from "clsx";
 import { StatusDot } from "@/components/ui/StatusDot";
 import { Logo } from "@/components/ui/Logo";
 import { useHealth } from "@/hooks/useHealth";
+import { useAppConfig } from "@/contexts/AppConfigContext";
 
 interface NavItem {
   to: string;
@@ -86,6 +87,18 @@ export function Sidebar() {
   const { t } = useTranslation();
   const { data, isError } = useHealth();
   const online = !isError && data?.status === "ok";
+  const { simulatorEnabled } = useAppConfig();
+
+  // Filter out sections whose items become empty when a feature is off,
+  // and the items themselves (e.g. /simulator hidden in online mode).
+  const visibleSections = sections
+    .map((section) => ({
+      ...section,
+      items: section.items.filter((item) =>
+        item.to === "/simulator" ? simulatorEnabled : true,
+      ),
+    }))
+    .filter((section) => section.items.length > 0);
 
   return (
     <aside className="w-[220px] shrink-0 bg-bg-sidebar border-r border-[var(--border)] flex flex-col">
@@ -104,7 +117,7 @@ export function Sidebar() {
       </div>
 
       <nav className="flex-1 overflow-y-auto py-3">
-        {sections.map((section) => (
+        {visibleSections.map((section) => (
           <div
             key={section.titleKey}
             className={clsx(

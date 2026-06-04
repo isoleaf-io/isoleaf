@@ -1,5 +1,7 @@
 import { api } from "./client";
-import type { HealthStatus, SavedTemplate, WorkspaceConfig } from "@/types";
+import type { AppConfig, HealthStatus, SavedTemplate, WorkspaceConfig } from "@/types";
+
+export const getAppConfig = () => api.get<AppConfig>("/config").then((r) => r.data);
 
 export const getWorkspace = () => api.get<WorkspaceConfig>("/workspace").then((r) => r.data);
 export const updateWorkspace = (cfg: WorkspaceConfig) =>

@@ -3,9 +3,10 @@ import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import * as Tabs from "@radix-ui/react-tabs";
-import { Download, Eye, EyeOff, Trash2, Upload } from "lucide-react";
+import { Download, Eye, EyeOff, Lock, Trash2, Upload } from "lucide-react";
 import clsx from "clsx";
 import { AppShell } from "@/components/layout/AppShell";
+import { useAppConfig } from "@/contexts/AppConfigContext";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input, Label } from "@/components/ui/Field";
@@ -22,6 +23,7 @@ export default function WorkspacePage() {
   const { t } = useTranslation();
   const qc = useQueryClient();
   const navigate = useNavigate();
+  const { workspaceKeysEnabled } = useAppConfig();
 
   const wsQuery = useQuery({ queryKey: ["workspace"], queryFn: getWorkspace });
 
@@ -73,7 +75,10 @@ export default function WorkspacePage() {
     setForm({ ...form, [k]: v });
 
   // Block save when either key is set to an invalid value. Empty stays valid (optional).
-  const cryptoKeysInvalid = !isHex32OrEmpty(form.imk ?? "") || !isHex32OrEmpty(form.zpk ?? "");
+  // In online mode the key fields are hidden, so the existing form value cannot become
+  // invalid through user input — short-circuit to false to avoid stale-validation locks.
+  const cryptoKeysInvalid = workspaceKeysEnabled &&
+    (!isHex32OrEmpty(form.imk ?? "") || !isHex32OrEmpty(form.zpk ?? ""));
 
   return (
     <AppShell title={t("workspace.title")} subtitle={t("workspace.subtitle")}>
@@ -123,38 +128,52 @@ export default function WorkspacePage() {
             </Card>
           </div>
 
-          <Card className="mt-6">
-            <CardHeader>
-              <div>
-                <div className="text-sm font-semibold">{t("workspace.cryptoKeys")}</div>
-                <div className="text-xs text-text-tertiary mt-0.5">
-                  {t("workspace.cryptoKeysSubtitle")}
+          {workspaceKeysEnabled ? (
+            <Card className="mt-6">
+              <CardHeader>
+                <div>
+                  <div className="text-sm font-semibold">{t("workspace.cryptoKeys")}</div>
+                  <div className="text-xs text-text-tertiary mt-0.5">
+                    {t("workspace.cryptoKeysSubtitle")}
+                  </div>
                 </div>
-              </div>
-            </CardHeader>
-            <CardBody className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <SecretField
-                label={t("workspace.imkLabel")}
-                placeholder={t("workspace.hexPlaceholder")}
-                value={form.imk ?? ""}
-                onChange={(v) => set("imk", v)}
-                hint={t("workspace.imkHint")}
-                revealTitle={t("workspace.reveal")}
-                hideTitle={t("workspace.hide")}
-                invalidMessage={t("workspace.hexInvalid")}
-              />
-              <SecretField
-                label={t("workspace.zpkLabel")}
-                placeholder={t("workspace.hexPlaceholder")}
-                value={form.zpk ?? ""}
-                onChange={(v) => set("zpk", v)}
-                hint={t("workspace.zpkHint")}
-                revealTitle={t("workspace.reveal")}
-                hideTitle={t("workspace.hide")}
-                invalidMessage={t("workspace.hexInvalid")}
-              />
-            </CardBody>
-          </Card>
+              </CardHeader>
+              <CardBody className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <SecretField
+                  label={t("workspace.imkLabel")}
+                  placeholder={t("workspace.hexPlaceholder")}
+                  value={form.imk ?? ""}
+                  onChange={(v) => set("imk", v)}
+                  hint={t("workspace.imkHint")}
+                  revealTitle={t("workspace.reveal")}
+                  hideTitle={t("workspace.hide")}
+                  invalidMessage={t("workspace.hexInvalid")}
+                />
+                <SecretField
+                  label={t("workspace.zpkLabel")}
+                  placeholder={t("workspace.hexPlaceholder")}
+                  value={form.zpk ?? ""}
+                  onChange={(v) => set("zpk", v)}
+                  hint={t("workspace.zpkHint")}
+                  revealTitle={t("workspace.reveal")}
+                  hideTitle={t("workspace.hide")}
+                  invalidMessage={t("workspace.hexInvalid")}
+                />
+              </CardBody>
+            </Card>
+          ) : (
+            <Card className="mt-6">
+              <CardBody className="flex items-start gap-3 p-5">
+                <Lock size={18} className="mt-0.5 shrink-0 text-text-tertiary" />
+                <div className="space-y-1">
+                  <div className="text-sm font-semibold">{t("workspace.cryptoKeysOnlineTitle")}</div>
+                  <div className="text-xs text-text-tertiary leading-relaxed">
+                    {t("workspace.cryptoKeysOnlineHint")}
+                  </div>
+                </div>
+              </CardBody>
+            </Card>
+          )}
 
           <div className="flex items-center gap-3 mt-4">
             <Button
