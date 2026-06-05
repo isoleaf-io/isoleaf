@@ -305,7 +305,7 @@ export const ISOHUB_ARCHITECTURE_SVG = `
   <rect x="50" y="74" width="536" height="120" rx="8"
     fill="#dbeafe" stroke="#60a5fa" stroke-width="1.5"/>
   <text x="318" y="96" font-size="13" fill="#1e40af"
-    text-anchor="middle" font-weight="700">ISOHub Agent</text>
+    text-anchor="middle" font-weight="700">ISOLeaf Agent</text>
   <text x="318" y="112" font-size="10" fill="#3b82f6"
     text-anchor="middle">ASP.NET Core 9 · porta 8080</text>
 
@@ -337,7 +337,7 @@ export const ISOHUB_ARCHITECTURE_SVG = `
   <rect x="50" y="218" width="536" height="58" rx="8"
     fill="#f3e8ff" stroke="#c084fc" stroke-width="1.5"/>
   <text x="318" y="244" font-size="13" fill="#6b21a8"
-    text-anchor="middle" font-weight="700">ISOHub Frontend</text>
+    text-anchor="middle" font-weight="700">ISOLeaf Frontend</text>
   <text x="318" y="260" font-size="9" fill="#9333ea"
     text-anchor="middle">React · TypeScript · Vite · Tailwind CSS (servido como arquivos estáticos pelo Agent)</text>
 

@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.6
 # ─────────────────────────────────────────────────────────────────────────────
-# ISOHub — multi-stage build that produces a self-contained image with both
+# ISOLeaf — multi-stage build that produces a self-contained image with both
 # the React SPA (built by Vite) and the .NET 9 Agent (which serves it).
 #
 # Stage layout:
@@ -8,7 +8,7 @@
 #   2. dotnet-build    — dotnet restore + publish; SPA already in wwwroot
 #   3. runtime         — aspnet:9.0 base, non-root user, healthcheck
 #
-# Build from repo root:  docker build -t isohub-io/isohub:latest .
+# Build from repo root:  docker build -t isoleaf-io/isoleaf:latest .
 # ─────────────────────────────────────────────────────────────────────────────
 
 # ── Stage 1: Frontend build ─────────────────────────────────────────────────
@@ -65,14 +65,14 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/*
 
 # Non-root user — fixed uid/gid for predictable volume permissions.
-RUN groupadd --system --gid 1001 isohub \
- && useradd --system --uid 1001 --gid 1001 --home /app --shell /sbin/nologin isohub
+RUN groupadd --system --gid 1001 isoleaf \
+ && useradd --system --uid 1001 --gid 1001 --home /app --shell /sbin/nologin isoleaf
 
 # Copy published artifacts and prepare data dir for future workspace persistence.
-COPY --from=dotnet-build --chown=isohub:isohub /app/publish ./
-RUN mkdir -p /app/data && chown -R isohub:isohub /app/data
+COPY --from=dotnet-build --chown=isoleaf:isoleaf /app/publish ./
+RUN mkdir -p /app/data && chown -R isoleaf:isoleaf /app/data
 
-USER isohub
+USER isoleaf
 
 EXPOSE 8080
 

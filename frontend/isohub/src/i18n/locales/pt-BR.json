@@ -1,6 +1,6 @@
 {
   "common": {
-    "appName": "ISOHub",
+    "appName": "ISOLeaf",
     "tagline": "ISO 8583 Toolkit",
     "version": "v1.0.0",
     "copy": "Copiar",
@@ -108,7 +108,7 @@
     "arqcDerivedTooltip": "ARQC calculado com IMK configurada no Workspace",
     "arqcSimulated": "⚠ ARQC simulado",
     "arqcSimulatedTooltip": "Configure a IMK no Workspace para ARQC real",
-    "arqcSimulatedOnlineTooltip": "Instale o ISOHub localmente para configurar uma IMK e gerar ARQC real",
+    "arqcSimulatedOnlineTooltip": "Instale o ISOLeaf localmente para configurar uma IMK e gerar ARQC real",
     "activeBitsLabel": "Bits ativos:",
     "mtiGroups": {
       "authorizations": "Autorizações",
@@ -347,7 +347,7 @@
   },
   "docs": {
     "title": "Documentação",
-    "subtitle": "Referência técnica completa do ISOHub",
+    "subtitle": "Referência técnica completa do ISOLeaf",
     "comingSoon": "Em breve",
     "copyLink": "Copiar link",
     "cards": {
@@ -373,7 +373,7 @@
       },
       "guides": {
         "title": "Guias rápidos",
-        "description": "Arquitetura do ISOHub e receitas práticas: parsear, gerar mensagem, validar ARQC, simular autorizador e injetor."
+        "description": "Arquitetura do ISOLeaf e receitas práticas: parsear, gerar mensagem, validar ARQC, simular autorizador e injetor."
       }
     }
   },
@@ -418,12 +418,12 @@
   },
   "online": {
     "banner": {
-      "text": "Você está usando o ISOHub Online. Algumas funcionalidades requerem instalação local.",
+      "text": "Você está usando o ISOLeaf Online. Algumas funcionalidades requerem instalação local.",
       "installLink": "→ Como instalar via Docker"
     },
     "feature": {
       "unavailable": "Esta funcionalidade não está disponível na versão online",
-      "reason": "Esta funcionalidade requer a IMK (Issuer Master Key). Por segurança, não aceitamos chaves criptográficas na versão online. Instale o ISOHub localmente.",
+      "reason": "Esta funcionalidade requer a IMK (Issuer Master Key). Por segurança, não aceitamos chaves criptográficas na versão online. Instale o ISOLeaf localmente.",
       "installCta": "→ Como instalar"
     }
   }

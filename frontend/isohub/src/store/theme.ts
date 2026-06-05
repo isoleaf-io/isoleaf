@@ -39,7 +39,7 @@ export const useThemeStore = create<ThemeState>()(
         applyTheme(next);
       },
     }),
-    { name: "isohub-theme" }
+    { name: "isoleaf-theme" }
   )
 );
 

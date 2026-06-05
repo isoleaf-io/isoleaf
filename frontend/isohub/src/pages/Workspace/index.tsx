@@ -49,7 +49,7 @@ export default function WorkspacePage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `isohub-template-${tpl.mti}-${tpl.id.slice(0, 8)}.json`;
+    a.download = `isoleaf-template-${tpl.mti}-${tpl.id.slice(0, 8)}.json`;
     a.click();
     URL.revokeObjectURL(url);
   };

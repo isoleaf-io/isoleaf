@@ -5,12 +5,12 @@ version: '3.8'
 # the Simulator's TCP listeners — add or remove to fit your test scenarios.
 
 services:
-  isohub:
+  isoleaf:
     build:
       context: .
       dockerfile: Dockerfile
-    image: ghcr.io/isohub-io/isohub:latest
-    container_name: isohub
+    image: ghcr.io/isoleaf-io/isoleaf:latest
+    container_name: isoleaf
     ports:
       - "8080:8080"            # HTTP — UI + REST API + SignalR
       # Simulator TCP listeners — extend as needed.
@@ -21,7 +21,7 @@ services:
       # Reserved for workspace persistence. Current build keeps workspace in
       # memory; the mount means future persistent storage will survive restarts
       # without changing compose.
-      - isohub-data:/app/data
+      - isoleaf-data:/app/data
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
       - ASPNETCORE_URLS=http://+:8080
@@ -43,5 +43,5 @@ services:
       start_period: 15s
 
 volumes:
-  isohub-data:
+  isoleaf-data:
     driver: local

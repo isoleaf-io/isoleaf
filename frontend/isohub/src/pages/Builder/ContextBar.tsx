@@ -48,7 +48,7 @@ const KNOWN_MTIS_FOR_HISTORY = new Set([
   "0400", "0410", "0420", "0800", "0810", "0820",
   "0600", "0610", "0620",
 ]);
-const MTI_HISTORY_KEY = "isohub-mti-history";
+const MTI_HISTORY_KEY = "isoleaf-mti-history";
 const MTI_HISTORY_MAX = 5;
 
 function loadMtiHistory(): string[] {
@@ -176,7 +176,7 @@ export function ContextBar({ context, onChange, onBuild, onClear, onOpenTemplate
           <div>
             <Label>{t("builder.mti")}</Label>
             <input
-              list="isohub-mti-options"
+              list="isoleaf-mti-options"
               value={mtiDraft}
               onChange={(e) => {
                 const v = e.target.value;
@@ -190,7 +190,7 @@ export function ContextBar({ context, onChange, onBuild, onClear, onOpenTemplate
               placeholder="0200"
               className="w-full h-9 px-3 text-sm font-mono rounded-md bg-bg-input border border-[var(--border)] focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent"
             />
-            <datalist id="isohub-mti-options">
+            <datalist id="isoleaf-mti-options">
               {MTI_GROUPS.flatMap((group) => [
                 /* Disabled separator — Chrome greys it out; other browsers just hide. */
                 <option key={`sep-${group.labelKey}`} value="" disabled>{`── ${t(group.labelKey)} ──`}</option>,

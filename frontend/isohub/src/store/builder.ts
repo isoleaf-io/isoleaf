@@ -185,7 +185,7 @@ export const useBuilderStore = create<BuilderState>()(
       acknowledgeContextChange: () => set({ contextChanged: false }),
     }),
     {
-      name: "isohub-builder",
+      name: "isoleaf-builder",
       partialize: (s) => ({ context: s.context, fields: s.fields, built: s.built }),
     }
   )

@@ -106,7 +106,7 @@ export function Sidebar() {
         <Link
           to="/parser"
           className="flex items-center gap-2.5 cursor-pointer hover:opacity-85 transition-opacity"
-          aria-label="ISOHub home"
+          aria-label="ISOLeaf home"
         >
           <Logo variant="icon" size={32} />
           <div className="leading-tight">

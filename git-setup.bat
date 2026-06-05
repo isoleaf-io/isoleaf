@@ -1,5 +1,5 @@
 :: ============================================================
-:: ISOHub — Setup Git e primeiro push
+:: ISOLeaf — Setup Git e primeiro push
 :: Execute no terminal do VS Code na pasta raiz do projeto
 :: ============================================================
 
@@ -17,7 +17,7 @@ cd E:\desenvolvimento\myprojects\iso8583-portal\Iso8583Toolkit
 git init
 
 :: PASSO 5 — Conectar ao repositório remoto
-git remote add origin https://github.com/isohub-io/isohub.git
+git remote add origin https://github.com/isoleaf-io/isoleaf.git
 
 :: PASSO 6 — Copiar os arquivos gerados para a raiz do projeto
 :: (copie LICENSE, README.md, CONTRIBUTING.md e .gitignore
@@ -54,7 +54,7 @@ git push -u origin release/v1.0.0
 
 :: ============================================================
 :: APÓS O PUSH:
-:: 1. Abrir https://github.com/isohub-io/isohub
+:: 1. Abrir https://github.com/isoleaf-io/isoleaf
 :: 2. Clicar em "Compare & pull request"
 :: 3. Base: main  ←  Compare: release/v1.0.0
 :: 4. Título: "Release v1.0.0 — Initial release"
@@ -64,6 +64,6 @@ git push -u origin release/v1.0.0
 :: 8. Criar tag:
 ::    git checkout main
 ::    git pull
-::    git tag -a v1.0.0 -m "ISOHub v1.0.0 — Initial release"
+::    git tag -a v1.0.0 -m "ISOLeaf v1.0.0 — Initial release"
 ::    git push origin v1.0.0
 :: ============================================================

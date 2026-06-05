@@ -46,8 +46,8 @@ function withConfig(ui: React.ReactElement, config: AppConfig) {
 describe("AppConfig — online vs standalone mode", () => {
   beforeEach(() => {
     try {
-      window.sessionStorage.removeItem("isohub-online-banner-dismissed");
-      window.localStorage.removeItem("isohub-docs-open");
+      window.sessionStorage.removeItem("isoleaf-online-banner-dismissed");
+      window.localStorage.removeItem("isoleaf-docs-open");
     } catch { /* ignore */ }
   });
 
@@ -55,7 +55,7 @@ describe("AppConfig — online vs standalone mode", () => {
     renderApp(withConfig(<OnlineBanner />, ONLINE_CONFIG));
     // Banner text comes from i18n; fallback locale is EN in jsdom.
     expect(
-      screen.getByText(/ISOHub Online|ISOHub Online\./i),
+      screen.getByText(/ISOLeaf Online|ISOLeaf Online\./i),
     ).toBeInTheDocument();
   });
 

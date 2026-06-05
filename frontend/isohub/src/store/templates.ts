@@ -72,7 +72,7 @@ export const useTemplatesStore = create<TemplatesState>()(
         set((s) => ({ templates: [{ ...template, id: template.id || makeId() }, ...s.templates] })),
     }),
     {
-      name: "isohub-templates",
+      name: "isoleaf-templates",
       partialize: (s) => ({ templates: s.templates }),
     }
   )

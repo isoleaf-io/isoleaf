@@ -1,17 +1,17 @@
-# ISOHub — ISO 8583 Toolkit
+# ISOLeaf — ISO 8583 Toolkit
 
 > Parse, build, simulate and debug ISO 8583 messages — all in one place.
 
 [![License: ELv2](https://img.shields.io/badge/License-ELv2-blue.svg)](./LICENSE)
 [![.NET](https://img.shields.io/badge/.NET-9.0-purple.svg)](https://dotnet.microsoft.com)
 [![React](https://img.shields.io/badge/React-18-61DAFB.svg)](https://react.dev)
-[![Docker](https://img.shields.io/badge/Docker-ready-2496ED.svg)](https://ghcr.io/isohub-io/isohub)
+[![Docker](https://img.shields.io/badge/Docker-ready-2496ED.svg)](https://ghcr.io/isoleaf-io/isoleaf)
 
 ---
 
-## What is ISOHub?
+## What is ISOLeaf?
 
-ISOHub is a standalone developer toolkit for engineers working with ISO 8583
+ISOLeaf is a standalone developer toolkit for engineers working with ISO 8583
 payment protocols. It runs entirely on your machine — no cloud, no sign-up,
 no data leaves your environment.
 
@@ -50,7 +50,7 @@ no data leaves your environment.
 ### Option 1 — Docker (recommended)
 
 ```bash
-docker run -p 8080:8080 ghcr.io/isohub-io/isohub:latest
+docker run -p 8080:8080 ghcr.io/isoleaf-io/isoleaf:latest
 ```
 
 Open [http://localhost:8080](http://localhost:8080)
@@ -61,13 +61,13 @@ Open [http://localhost:8080](http://localhost:8080)
 ### Option 2 — Docker Compose
 
 ```bash
-git clone https://github.com/isohub-io/isohub.git
-cd isohub
+git clone https://github.com/isoleaf-io/isoleaf.git
+cd isoleaf
 docker compose -f docker-compose.standalone.yml up
 ```
 
 The compose file already exposes ports `8080`, `9100`, `9200` and `8583`,
-mounts a `isohub-data` volume at `/app/data`, and runs the container with a
+mounts a `isoleaf-data` volume at `/app/data`, and runs the container with a
 `/api/health` healthcheck.
 
 ### Option 3 — Build from source
@@ -77,8 +77,8 @@ mounts a `isohub-data` volume at `/app/data`, and runs the container with a
 - [Node.js 20+](https://nodejs.org)
 
 ```bash
-git clone https://github.com/isohub-io/isohub.git
-cd isohub
+git clone https://github.com/isoleaf-io/isoleaf.git
+cd isoleaf
 
 # Build frontend
 cd frontend/isohub
@@ -132,7 +132,7 @@ Open [http://localhost:8080](http://localhost:8080)
 ## Architecture
 
 ```
-isohub/
+isoleaf/
 ├── src/
 │   ├── Iso8583Toolkit.IsoCore/        # ISO 8583 parsing and building
 │   ├── Iso8583Toolkit.Cards/          # Card generation (PAN, tracks, CVV)
@@ -141,7 +141,7 @@ isohub/
 ├── agent/
 │   └── Iso8583Toolkit.Agent/          # ASP.NET Core host + REST API + SignalR
 ├── frontend/
-│   └── isohub/                        # React + TypeScript + Vite + Tailwind
+│   └── isohub/                         # React + TypeScript + Vite + Tailwind
 └── tests/
     ├── Iso8583Toolkit.IsoCore.Tests/
     ├── Iso8583Toolkit.Cards.Tests/
@@ -168,7 +168,7 @@ Current test count: **487 tests, 0 failures**
 
 ## Configuration
 
-ISOHub stores configuration locally. No external services required.
+ISOLeaf stores configuration locally. No external services required.
 
 ### Workspace
 
@@ -198,7 +198,7 @@ Sessions are stored in memory and reset on restart. All TCP traffic stays local.
 
 ## Language Support
 
-ISOHub supports **Portuguese (pt-BR)** and **English (en)**.
+ISOLeaf supports **Portuguese (pt-BR)** and **English (en)**.
 Toggle via the language button in the top-right corner.
 
 ---
@@ -212,7 +212,7 @@ suggesting features, and submitting pull requests.
 
 ## License
 
-ISOHub is licensed under the [Elastic License 2.0](./LICENSE).
+ISOLeaf is licensed under the [Elastic License 2.0](./LICENSE).
 
 - ✅ Free for personal and internal commercial use
 - ✅ Modify and distribute for internal use
@@ -224,7 +224,7 @@ ISOHub is licensed under the [Elastic License 2.0](./LICENSE).
 
 - [ ] EMV tag decoders (TVR, AIP, TTQ, CVM List, IAD by brand)
 - [ ] Key Block decoder (ANSI TR-31)
-- [ ] ISOHub Online (hosted, no sign-up required)
+- [ ] ISOLeaf Online (hosted, no sign-up required)
 - [ ] Custom MTI response map in Simulator UI
 - [ ] ISO 8583:2003 layout support
 
