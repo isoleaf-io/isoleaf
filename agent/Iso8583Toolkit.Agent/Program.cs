@@ -108,8 +108,8 @@ if (configuredMode == "online")
             await context.Response.WriteAsJsonAsync(new
             {
                 error = "This feature is not available in the online version.",
-                hint = "Install ISOHub locally via Docker to use this feature.",
-                docker = "docker run -p 8080:8080 ghcr.io/isohub-io/isohub:latest"
+                hint = "Install ISOLeaf locally via Docker to use this feature.",
+                docker = "docker run -p 8080:8080 ghcr.io/isoleaf-io/isoleaf:latest"
             });
             return;
         }

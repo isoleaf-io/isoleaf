@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Cloud, X } from "lucide-react";
 import { useAppConfig } from "@/contexts/AppConfigContext";
 
-const DISMISS_KEY = "isohub-online-banner-dismissed";
+const DISMISS_KEY = "isoleaf-online-banner-dismissed";
 
 /**
  * Top-of-page banner shown only when the backend reports mode=online.
@@ -33,7 +33,7 @@ export function OnlineBanner() {
       <span className="flex-1">
         {t("online.banner.text")}{" "}
         <a
-          href="https://github.com/isohub-io/isohub#readme"
+          href="https://github.com/isoleaf-io/isoleaf#readme"
           target="_blank"
           rel="noreferrer"
           className="underline font-medium hover:opacity-80"

@@ -83,7 +83,7 @@ public class ConfigControllerTests
         resp.StatusCode.Should().Be(HttpStatusCode.Forbidden);
         var body = await resp.Content.ReadFromJsonAsync<JsonElement>();
         body.GetProperty("error").GetString().Should().NotBeNullOrEmpty();
-        body.GetProperty("docker").GetString().Should().Contain("ghcr.io/isohub-io/isohub");
+        body.GetProperty("docker").GetString().Should().Contain("ghcr.io/isoleaf-io/isoleaf");
     }
 
     [Fact]

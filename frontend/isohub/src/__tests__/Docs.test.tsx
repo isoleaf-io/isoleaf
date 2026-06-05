@@ -22,7 +22,7 @@ describe("Docs page", () => {
     // openId is restored from either localStorage OR the URL hash. Both persist
     // across tests in the same jsdom window — clear both so every case starts
     // with all cards collapsed.
-    try { window.localStorage.removeItem("isohub-docs-open"); } catch { /* ignore */ }
+    try { window.localStorage.removeItem("isoleaf-docs-open"); } catch { /* ignore */ }
     try { window.history.replaceState(null, "", window.location.pathname); } catch { /* ignore */ }
   });
 
@@ -81,7 +81,7 @@ describe("Docs page", () => {
     const guides = getCardByName(/Quick guides|Guias rápidos/i);
     await user.click(guides);
 
-    const matches = await screen.findAllByText(/ISOHub architecture|Arquitetura do ISOHub/i);
+    const matches = await screen.findAllByText(/ISOLeaf architecture|Arquitetura do ISOLeaf/i);
     expect(matches.length).toBeGreaterThan(0);
   });
 });

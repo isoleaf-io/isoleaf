@@ -1,13 +1,13 @@
-# Contributing to ISOHub
+# Contributing to ISOLeaf
 
-Thank you for your interest in contributing to ISOHub! This document explains
+Thank you for your interest in contributing to ISOLeaf! This document explains
 how to contribute and what falls within the scope of the open-source core.
 
 ---
 
 ## What belongs in this repository
 
-The ISOHub open-source core (`isohub-io/isohub`) includes:
+The ISOLeaf open-source core (`isoleaf-io/isoleaf`) includes:
 
 | Module | Scope |
 |--------|-------|
@@ -25,7 +25,7 @@ The ISOHub open-source core (`isohub-io/isohub`) includes:
 - Authentication / multi-user identity
 - Cloud workspace (shared templates, team features)
 - Billing or subscription management
-- ISOHub Platform (enterprise features)
+- ISOLeaf Platform (enterprise features)
 
 ---
 
@@ -33,7 +33,7 @@ The ISOHub open-source core (`isohub-io/isohub`) includes:
 
 ### Reporting bugs
 
-Open a [GitHub Issue](https://github.com/isohub-io/isohub/issues) with:
+Open a [GitHub Issue](https://github.com/isoleaf-io/isoleaf/issues) with:
 
 - A clear title describing the problem
 - Steps to reproduce
@@ -119,7 +119,7 @@ Open a GitHub Issue with the label `enhancement`. Describe:
 - **Never commit** real PANs, real cryptographic keys, or real transaction logs
 - Use the synthetic data generators already in the project for tests
 - If you find a security vulnerability, **do not open a public issue** —
-  contact us at security@isohub.dev
+  contact us at security@isoleaf.dev
 
 ---
 
@@ -132,5 +132,5 @@ same [Elastic License 2.0](./LICENSE) that covers this project.
 
 ## Questions?
 
-Open a [GitHub Discussion](https://github.com/isohub-io/isohub/discussions)
+Open a [GitHub Discussion](https://github.com/isoleaf-io/isoleaf/discussions)
 or reach out via the community channels listed in the README.

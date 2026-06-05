@@ -1,6 +1,6 @@
 {
   "common": {
-    "appName": "ISOHub",
+    "appName": "ISOLeaf",
     "tagline": "ISO 8583 Toolkit",
     "version": "v1.0.0",
     "copy": "Copy",
@@ -108,7 +108,7 @@
     "arqcDerivedTooltip": "ARQC calculated with the IMK configured in Workspace",
     "arqcSimulated": "⚠ ARQC simulated",
     "arqcSimulatedTooltip": "Configure the IMK in Workspace for a real ARQC",
-    "arqcSimulatedOnlineTooltip": "Install ISOHub locally to configure an IMK and derive a real ARQC",
+    "arqcSimulatedOnlineTooltip": "Install ISOLeaf locally to configure an IMK and derive a real ARQC",
     "activeBitsLabel": "Active bits:",
     "mtiGroups": {
       "authorizations": "Authorizations",
@@ -347,7 +347,7 @@
   },
   "docs": {
     "title": "Documentation",
-    "subtitle": "Complete technical reference for ISOHub",
+    "subtitle": "Complete technical reference for ISOLeaf",
     "comingSoon": "Coming soon",
     "copyLink": "Copy link",
     "cards": {
@@ -373,7 +373,7 @@
       },
       "guides": {
         "title": "Quick guides",
-        "description": "ISOHub architecture and practical recipes: parse, build, validate ARQC, simulate authorizer and injector."
+        "description": "ISOLeaf architecture and practical recipes: parse, build, validate ARQC, simulate authorizer and injector."
       }
     }
   },
@@ -418,12 +418,12 @@
   },
   "online": {
     "banner": {
-      "text": "You are using ISOHub Online. Some features require local installation.",
+      "text": "You are using ISOLeaf Online. Some features require local installation.",
       "installLink": "→ How to install via Docker"
     },
     "feature": {
       "unavailable": "This feature is not available in the online version",
-      "reason": "This feature requires the IMK (Issuer Master Key). For security, we don't accept cryptographic keys in the online version. Install ISOHub locally.",
+      "reason": "This feature requires the IMK (Issuer Master Key). For security, we don't accept cryptographic keys in the online version. Install ISOLeaf locally.",
       "installCta": "→ How to install"
     }
   }

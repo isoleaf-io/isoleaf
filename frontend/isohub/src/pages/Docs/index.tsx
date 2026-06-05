@@ -24,7 +24,7 @@ const TOPICS: Topic[] = [
   { id: "guides",   icon: Sparkles, titleKey: "docs.cards.guides.title",   descriptionKey: "docs.cards.guides.description" },
 ];
 
-const STORAGE_KEY = "isohub-docs-open";
+const STORAGE_KEY = "isoleaf-docs-open";
 
 export default function DocsPage() {
   const { t, i18n } = useTranslation();

@@ -196,7 +196,7 @@ Reading each bit left to right:
       {
         type: "paragraph",
         text:
-          "The fields below appear in most transactions and are essential to read any ISO 8583 message — the ISOHub Builder and Parser highlight them too.",
+          "The fields below appear in most transactions and are essential to read any ISO 8583 message — the ISOLeaf Builder and Parser highlight them too.",
       },
 
       { type: "heading", level: 3, text: "Bit 2 — PAN (Primary Account Number)" },
@@ -350,7 +350,7 @@ Reading each bit left to right:
         type: "callout",
         tone: "warning",
         text:
-          "The PIN Block is ultra-sensitive data. Never display it in clear text. ISOHub always shows it as ******** (masked).",
+          "The PIN Block is ultra-sensitive data. Never display it in clear text. ISOLeaf always shows it as ******** (masked).",
       },
 
       { type: "heading", level: 3, text: "Bit 55 — ICC Data (EMV)" },
@@ -425,7 +425,7 @@ Broken down:
       {
         type: "paragraph",
         text:
-          "ISOHub automatically supports two transmission formats for the same ISO 8583 message:",
+          "ISOLeaf automatically supports two transmission formats for the same ISO 8583 message:",
       },
       {
         type: "table",
@@ -439,7 +439,7 @@ Broken down:
         type: "callout",
         tone: "info",
         text:
-          "ASCII wire and binary-hex are just different encodings of the same ISO 8583 message. The ISOHub Parser auto-detects which one was pasted — you don't have to specify.",
+          "ASCII wire and binary-hex are just different encodings of the same ISO 8583 message. The ISOLeaf Parser auto-detects which one was pasted — you don't have to specify.",
       },
       {
         type: "code",
@@ -483,7 +483,7 @@ Broken down:
       {
         type: "paragraph",
         text:
-          "Tags the issuer wrote into the chip when the card was issued. They define the card's capabilities and configuration. ISOHub generates realistic values for these when you use the Builder with Chip channel.",
+          "Tags the issuer wrote into the chip when the card was issued. They define the card's capabilities and configuration. ISOLeaf generates realistic values for these when you use the Builder with Chip channel.",
       },
       { type: "heading", level: 3, text: "Terminal data" },
       {
@@ -539,7 +539,7 @@ Breakdown:
         type: "callout",
         tone: "info",
         text:
-          "ISOHub builds and parses BER-TLV automatically. Use EMV Data → Parse Bit 55 to break any Bit 55 into its tags. The parse is partial — if an unknown tag is found, it keeps parsing the next ones.",
+          "ISOLeaf builds and parses BER-TLV automatically. Use EMV Data → Parse Bit 55 to break any Bit 55 into its tags. The parse is partial — if an unknown tag is found, it keeps parsing the next ones.",
       },
 
       // ── 4. Tag table ───────────────────────────────────────────────
@@ -581,15 +581,15 @@ Breakdown:
           "Each level uses the previous one plus a transaction-specific input. This ensures the key that computes the ARQC is unique to THAT transaction on that card — any replay is detectable by the issuer.",
       },
 
-      // ── 6. The IMK in ISOHub ───────────────────────────────────────
-      { type: "heading", level: 2, text: "The IMK in ISOHub" },
-      { type: "heading", level: 3, text: "Why does ISOHub use the IMK?" },
+      // ── 6. The IMK in ISOLeaf ───────────────────────────────────────
+      { type: "heading", level: 2, text: "The IMK in ISOLeaf" },
+      { type: "heading", level: 3, text: "Why does ISOLeaf use the IMK?" },
       {
         type: "paragraph",
         text:
           "In production, the IMK is protected inside an HSM (Hardware Security Module) at the issuer — it is never exposed in cleartext.",
       },
-      { type: "paragraph", text: "ISOHub uses the IMK for development and testing:" },
+      { type: "paragraph", text: "ISOLeaf uses the IMK for development and testing:" },
       {
         type: "list",
         items: [
@@ -602,7 +602,7 @@ Breakdown:
         type: "callout",
         tone: "warning",
         text:
-          "Use test IMKs only — never configure a production IMK in ISOHub or any development tool. In production, the IMK must only exist inside a certified HSM.",
+          "Use test IMKs only — never configure a production IMK in ISOLeaf or any development tool. In production, the IMK must only exist inside a certified HSM.",
       },
       {
         type: "callout",
@@ -637,7 +637,7 @@ Breakdown:
       {
         type: "paragraph",
         text:
-          "Some Bit 55 tags are bitmaps where each bit has a specific meaning. ISOHub plans to ship visual decoders for these tags.",
+          "Some Bit 55 tags are bitmaps where each bit has a specific meaning. ISOLeaf plans to ship visual decoders for these tags.",
       },
       { type: "heading", level: 3, text: "TVR (Tag 95) — Terminal Verification Results" },
       { type: "paragraph", text: "5 bytes = 40 bits, each indicating one verification:" },
@@ -677,7 +677,7 @@ Breakdown:
         type: "callout",
         tone: "info",
         text:
-          "Decoders for TVR, AIP, TTQ, CVM List and other bitmap tags are on the ISOHub roadmap. When available, they will appear automatically in EMV Data → Parse Bit 55.",
+          "Decoders for TVR, AIP, TTQ, CVM List and other bitmap tags are on the ISOLeaf roadmap. When available, they will appear automatically in EMV Data → Parse Bit 55.",
       },
     ],
   },
@@ -764,7 +764,7 @@ Breakdown:
         type: "callout",
         tone: "info",
         text:
-          "Proprietary networks often define custom MTIs for functionality beyond the ISO 8583 standard, such as balance inquiries, bill payments, and network-specific services. These MTIs vary by network and are defined in each operator's technical specification — consult the documentation of the network you are integrating with. ISOHub supports custom MTIs via the \"Unknown MTI\" setting in the Simulator.",
+          "Proprietary networks often define custom MTIs for functionality beyond the ISO 8583 standard, such as balance inquiries, bill payments, and network-specific services. These MTIs vary by network and are defined in each operator's technical specification — consult the documentation of the network you are integrating with. ISOLeaf supports custom MTIs via the \"Unknown MTI\" setting in the Simulator.",
       },
 
       // ── 3. Entry modes ────────────────────────────────────────────
@@ -839,7 +839,7 @@ Breakdown:
         type: "callout",
         tone: "info",
         text:
-          "In the ISOHub Builder, the selected role (Acquirer, Brand, Issuer) determines which fields are automatically included in the generated message, following the most common Brazilian-market conventions.",
+          "In the ISOLeaf Builder, the selected role (Acquirer, Brand, Issuer) determines which fields are automatically included in the generated message, following the most common Brazilian-market conventions.",
       },
 
       // ── 5. Processing Code ────────────────────────────────────────
@@ -943,8 +943,8 @@ Breakdown:
           "Processing Code 09xxxx (cash withdrawal embedded in the purchase). Bit 4 = purchase amount + cash amount. Bit 54 = breakdown of each portion (purchase separated from cash). Allowed on some terminals and specific networks.",
       },
 
-      // ── 8. How to test in ISOHub ──────────────────────────────────
-      { type: "heading", level: 2, text: "How to use ISOHub to test these scenarios" },
+      // ── 8. How to test in ISOLeaf ──────────────────────────────────
+      { type: "heading", level: 2, text: "How to use ISOLeaf to test these scenarios" },
       {
         type: "table",
         headers: ["Scenario", "MTI", "Class", "Channel", "Description"],
@@ -967,13 +967,13 @@ Breakdown:
         type: "callout",
         tone: "warning",
         text:
-          "The \"Proprietary transactions\" row uses a custom MTI — it is NOT an ISO 8583 standard. Each network defines its own MTIs for functionality beyond the standard's scope. To simulate these MTIs in ISOHub, configure the Simulator session with \"Unknown MTI: Custom\" and set the matching response MTI.",
+          "The \"Proprietary transactions\" row uses a custom MTI — it is NOT an ISO 8583 standard. Each network defines its own MTIs for functionality beyond the standard's scope. To simulate these MTIs in ISOLeaf, configure the Simulator session with \"Unknown MTI: Custom\" and set the matching response MTI.",
       },
       {
         type: "callout",
         tone: "info",
         text:
-          "In the ISOHub Builder: In-store purchase → MTI 0100, Role Acquirer. ATM withdrawal → MTI 0200, Role Acquirer, Type Cash. Reversal → use \"Create reversal\" in the MessagePreview (generates 0400 with Bit 90 auto-filled). Echo test → MTI 0800.",
+          "In the ISOLeaf Builder: In-store purchase → MTI 0100, Role Acquirer. ATM withdrawal → MTI 0200, Role Acquirer, Type Cash. Reversal → use \"Create reversal\" in the MessagePreview (generates 0400 with Bit 90 auto-filled). Echo test → MTI 0800.",
       },
     ],
   },
@@ -1092,11 +1092,11 @@ Breakdown:
   guides: {
     id: "guides",
     blocks: [
-      { type: "heading", level: 2, text: "ISOHub architecture" },
+      { type: "heading", level: 2, text: "ISOLeaf architecture" },
       {
         type: "paragraph",
         text:
-          "ISOHub is a standalone application that runs entirely on your machine. No data leaves your environment.",
+          "ISOLeaf is a standalone application that runs entirely on your machine. No data leaves your environment.",
       },
       { type: "svg", text: ISOHUB_ARCHITECTURE_SVG },
       { type: "heading", level: 3, text: "Security" },
@@ -1117,7 +1117,7 @@ Breakdown:
       {
         type: "paragraph",
         text:
-          "ISOHub is organized in six modules. Before diving into a specific guide, it's worth quickly getting to know what each one does.",
+          "ISOLeaf is organized in six modules. Before diving into a specific guide, it's worth quickly getting to know what each one does.",
       },
 
       { type: "heading", level: 3, text: "Parser" },
@@ -1137,7 +1137,7 @@ Breakdown:
       {
         type: "paragraph",
         text:
-          "Builds complete ISO 8583 messages without having to know every field. Pick the context (role, brand, channel, transaction type) and ISOHub fills in the correct fields — including Bit 55 with a real ARQC when the IMK is configured in Workspace.",
+          "Builds complete ISO 8583 messages without having to know every field. Pick the context (role, brand, channel, transaction type) and ISOLeaf fills in the correct fields — including Bit 55 with a real ARQC when the IMK is configured in Workspace.",
       },
       {
         type: "image",
@@ -1205,7 +1205,7 @@ Breakdown:
       {
         type: "paragraph",
         text:
-          "Step-by-step walkthroughs of the most common ISOHub flows. Each guide starts from a concrete scenario and shows the exact clicks.",
+          "Step-by-step walkthroughs of the most common ISOLeaf flows. Each guide starts from a concrete scenario and shows the exact clicks.",
       },
 
       {
@@ -1226,7 +1226,7 @@ Breakdown:
         items: [
           "Open the **Parser** module.",
           "Paste the message in the text field (accepts ASCII wire, binary-hex or with TPDU).",
-          "Click **Parse →** or press `Ctrl+Enter`. ISOHub auto-detects the format.",
+          "Click **Parse →** or press `Ctrl+Enter`. ISOLeaf auto-detects the format.",
         ],
       },
       { type: "callout", tone: "info", text: "Pasting a message triggers parse automatically (300 ms debounce)." },
@@ -1309,7 +1309,7 @@ Breakdown:
           "Configure: **TCP port** (e.g. `9100`), **Role** = `Issuer`, **Default RC** = `00`, **Auto respond** on.",
           "Click **Confirm**.",
           "Point your terminal to `localhost:9100`.",
-          "ISOHub responds automatically to each received message.",
+          "ISOLeaf responds automatically to each received message.",
         ],
       },
       { type: "callout", tone: "info", text: "Click the log icon on the session card to filter the log to just that session." },
@@ -1396,7 +1396,7 @@ Breakdown:
         type: "list",
         items: [
           "**Parse Bit 55**: paste a Bit 55 in hex and see every BER-TLV tag decoded. Supports partial parse — if it hits an invalid tag, it shows what it managed to parse up to that point.",
-          "**Validate ARQC**: check whether a received ARQC is legitimate. Provide the Bit 55, the IMK and the PAN. ISOHub recomputes the derivation chain and compares against the received ARQC.",
+          "**Validate ARQC**: check whether a received ARQC is legitimate. Provide the Bit 55, the IMK and the PAN. ISOLeaf recomputes the derivation chain and compares against the received ARQC.",
           "**Generate ARQC**: produce a real ARQC from transaction data. Useful for creating realistic test data or verifying your derivation implementation.",
           "**Generate ARPC**: produce the ARPC (issuer response) from a received ARQC. Method 1 or Method 2.",
           "**Build Response**: assemble the response Bit 55 (tags `91` + `8A`) the issuer should return in the response message.",
@@ -1425,7 +1425,7 @@ Breakdown:
           "Open **EMV Data** → **Full Flow** tab.",
           "Fill in: **Bit 55** hex of the received message, **IMK-AC**, **PAN**, **PAN Sequence Number**, **Auth Response Code**.",
           "Click **Run Full EMV Flow**.",
-          "ISOHub parses Bit 55, validates the ARQC, generates the ARPC and assembles the response Bit 55 (tags `91` + `8A`).",
+          "ISOLeaf parses Bit 55, validates the ARQC, generates the ARPC and assembles the response Bit 55 (tags `91` + `8A`).",
           "Copy the response Bit 55 to include in your `0110` / `0210`.",
         ],
       },

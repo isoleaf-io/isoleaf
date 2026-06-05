@@ -86,7 +86,7 @@ function CryptoLockedPanel() {
           <div className="text-base font-semibold">{t("online.feature.unavailable")}</div>
           <p className="text-sm leading-relaxed">{t("online.feature.reason")}</p>
           <a
-            href="https://github.com/isohub-io/isohub#readme"
+            href="https://github.com/isoleaf-io/isoleaf#readme"
             target="_blank"
             rel="noreferrer"
             className="inline-flex items-center gap-1 text-sm font-medium underline hover:opacity-80"

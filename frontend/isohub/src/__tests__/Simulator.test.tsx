@@ -49,7 +49,7 @@ describe("Simulator page — redesigned layout", () => {
     (getLog as unknown as ReturnType<typeof vi.fn>).mockReset();
     (getLog as unknown as ReturnType<typeof vi.fn>).mockResolvedValue([]);
     try {
-      window.localStorage.removeItem("isohub-injector");
+      window.localStorage.removeItem("isoleaf-injector");
       window.localStorage.removeItem("simulator-logExpanded");
     } catch { /* ignore */ }
   });
@@ -300,7 +300,7 @@ describe("InjectorPanel", () => {
     (listSessions as unknown as ReturnType<typeof vi.fn>).mockResolvedValue([]);
     (getLog as unknown as ReturnType<typeof vi.fn>).mockReset();
     (getLog as unknown as ReturnType<typeof vi.fn>).mockResolvedValue([]);
-    try { window.localStorage.removeItem("isohub-injector"); } catch { /* ignore */ }
+    try { window.localStorage.removeItem("isoleaf-injector"); } catch { /* ignore */ }
   });
 
 

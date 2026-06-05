@@ -44,7 +44,7 @@ interface PersistedState {
   amountMaxReais: number;
 }
 
-const STORAGE_KEY = "isohub-injector";
+const STORAGE_KEY = "isoleaf-injector";
 const DEFAULTS: PersistedState = {
   targetHost: "localhost",
   targetPort: 8583,

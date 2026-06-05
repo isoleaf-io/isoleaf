@@ -25,7 +25,7 @@
   </ItemGroup>
 
   <Target Name="BuildFrontend" BeforeTargets="Build" Condition="'$(Configuration)' == 'Release' AND '$(SkipFrontend)' != 'true'">
-    <Message Importance="high" Text="Building ISOHub frontend (Release)" />
+    <Message Importance="high" Text="Building ISOLeaf frontend (Release)" />
     <Exec Command="npm install" WorkingDirectory="../../frontend/isohub" />
     <Exec Command="npm run build" WorkingDirectory="../../frontend/isohub" />
   </Target>

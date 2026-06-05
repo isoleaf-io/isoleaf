@@ -329,7 +329,7 @@ export const useEmvStore = create<EmvState>()(
         }),
     }),
     {
-      name: "isohub-emv",
+      name: "isoleaf-emv",
       // Persist inputs + active tab only — results are volatile (recalculated on demand).
       partialize: (s) => ({
         activeTab: s.activeTab,

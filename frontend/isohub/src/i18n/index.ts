@@ -18,7 +18,7 @@ i18n
     detection: {
       order: ["navigator", "localStorage", "htmlTag"],
       caches: ["localStorage"],
-      lookupLocalStorage: "isohub-lng",
+      lookupLocalStorage: "isoleaf-lng",
     },
   });
 

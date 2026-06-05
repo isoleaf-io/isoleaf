@@ -13,7 +13,7 @@ export function LanguageToggle() {
   const switchLng = () => {
     const next = isPt ? "en" : "pt-BR";
     i18n.changeLanguage(next);
-    localStorage.setItem("isohub-lng", next);
+    localStorage.setItem("isoleaf-lng", next);
     setLng(next);
   };
 

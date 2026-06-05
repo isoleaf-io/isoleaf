@@ -196,7 +196,7 @@ Lendo cada bit da esquerda para a direita:
       {
         type: "paragraph",
         text:
-          "Os campos a seguir aparecem na maioria das transações e são essenciais para entender qualquer mensagem ISO 8583 — o ISOHub também os destaca no Builder e no Parser.",
+          "Os campos a seguir aparecem na maioria das transações e são essenciais para entender qualquer mensagem ISO 8583 — o ISOLeaf também os destaca no Builder e no Parser.",
       },
 
       { type: "heading", level: 3, text: "Bit 2 — PAN (Primary Account Number)" },
@@ -350,7 +350,7 @@ Lendo cada bit da esquerda para a direita:
         type: "callout",
         tone: "warning",
         text:
-          "O PIN Block é dado ultrassensível. Nunca exibir em texto claro. O ISOHub exibe sempre como ******** (mascarado).",
+          "O PIN Block é dado ultrassensível. Nunca exibir em texto claro. O ISOLeaf exibe sempre como ******** (mascarado).",
       },
 
       { type: "heading", level: 3, text: "Bit 55 — ICC Data (EMV)" },
@@ -425,7 +425,7 @@ Quebrada parte a parte:
       {
         type: "paragraph",
         text:
-          "O ISOHub suporta automaticamente dois formatos de transmissão da mesma mensagem ISO 8583:",
+          "O ISOLeaf suporta automaticamente dois formatos de transmissão da mesma mensagem ISO 8583:",
       },
       {
         type: "table",
@@ -439,7 +439,7 @@ Quebrada parte a parte:
         type: "callout",
         tone: "info",
         text:
-          "ASCII wire e binary-hex são apenas encodings diferentes da mesma mensagem ISO 8583. O Parser do ISOHub detecta automaticamente qual formato foi colado — você não precisa indicar.",
+          "ASCII wire e binary-hex são apenas encodings diferentes da mesma mensagem ISO 8583. O Parser do ISOLeaf detecta automaticamente qual formato foi colado — você não precisa indicar.",
       },
       {
         type: "code",
@@ -483,7 +483,7 @@ Quebrada parte a parte:
       {
         type: "paragraph",
         text:
-          "Tags que o emissor gravou no chip quando emitiu o cartão. Definem as capacidades e configurações do cartão. O ISOHub gera valores realistas para estas quando você usa o Builder com canal Chip.",
+          "Tags que o emissor gravou no chip quando emitiu o cartão. Definem as capacidades e configurações do cartão. O ISOLeaf gera valores realistas para estas quando você usa o Builder com canal Chip.",
       },
       { type: "heading", level: 3, text: "Dados do terminal" },
       {
@@ -539,7 +539,7 @@ Decompondo:
         type: "callout",
         tone: "info",
         text:
-          "O ISOHub monta e parseia BER-TLV automaticamente. Use Dados EMV → Parse Bit 55 para decompor qualquer Bit 55 em suas tags. O parse é parcial — se encontrar uma tag desconhecida, continua parseando as próximas.",
+          "O ISOLeaf monta e parseia BER-TLV automaticamente. Use Dados EMV → Parse Bit 55 para decompor qualquer Bit 55 em suas tags. O parse é parcial — se encontrar uma tag desconhecida, continua parseando as próximas.",
       },
 
       // ── 4. Tabela de tags ───────────────────────────────────────────
@@ -581,15 +581,15 @@ Decompondo:
           "Cada nível usa o anterior + um dado específico da transação. Isso garante que a chave que calcula o ARQC seja única para AQUELA transação naquele cartão — qualquer replay é detectável pelo emissor.",
       },
 
-      // ── 6. A IMK no ISOHub ──────────────────────────────────────────
-      { type: "heading", level: 2, text: "A IMK no ISOHub" },
-      { type: "heading", level: 3, text: "Por que o ISOHub usa a IMK?" },
+      // ── 6. A IMK no ISOLeaf ──────────────────────────────────────────
+      { type: "heading", level: 2, text: "A IMK no ISOLeaf" },
+      { type: "heading", level: 3, text: "Por que o ISOLeaf usa a IMK?" },
       {
         type: "paragraph",
         text:
           "Em produção, a IMK fica protegida em um HSM (Hardware Security Module) do emissor — nunca é exposta em texto claro.",
       },
-      { type: "paragraph", text: "O ISOHub usa a IMK para fins de desenvolvimento e testes:" },
+      { type: "paragraph", text: "O ISOLeaf usa a IMK para fins de desenvolvimento e testes:" },
       {
         type: "list",
         items: [
@@ -602,7 +602,7 @@ Decompondo:
         type: "callout",
         tone: "warning",
         text:
-          "Use apenas IMKs de teste — nunca configure uma IMK de produção no ISOHub ou em qualquer ferramenta de desenvolvimento. Em produção, a IMK só deve existir dentro de um HSM certificado.",
+          "Use apenas IMKs de teste — nunca configure uma IMK de produção no ISOLeaf ou em qualquer ferramenta de desenvolvimento. Em produção, a IMK só deve existir dentro de um HSM certificado.",
       },
       {
         type: "callout",
@@ -637,7 +637,7 @@ Decompondo:
       {
         type: "paragraph",
         text:
-          "Algumas tags do Bit 55 são bitmaps onde cada bit tem um significado específico. O ISOHub planeja implementar decodificadores visuais para essas tags.",
+          "Algumas tags do Bit 55 são bitmaps onde cada bit tem um significado específico. O ISOLeaf planeja implementar decodificadores visuais para essas tags.",
       },
       { type: "heading", level: 3, text: "TVR (Tag 95) — Terminal Verification Results" },
       { type: "paragraph", text: "5 bytes = 40 bits, cada um indicando uma verificação:" },
@@ -677,7 +677,7 @@ Decompondo:
         type: "callout",
         tone: "info",
         text:
-          "Os decodificadores de TVR, AIP, TTQ, CVM List e outras tags de bitmap estão no roadmap do ISOHub. Quando disponíveis, aparecerão automaticamente no módulo Dados EMV → Parse Bit 55.",
+          "Os decodificadores de TVR, AIP, TTQ, CVM List e outras tags de bitmap estão no roadmap do ISOLeaf. Quando disponíveis, aparecerão automaticamente no módulo Dados EMV → Parse Bit 55.",
       },
     ],
   },
@@ -764,7 +764,7 @@ Decompondo:
         type: "callout",
         tone: "info",
         text:
-          "Redes proprietárias frequentemente definem MTIs customizados para funcionalidades que vão além do padrão ISO 8583, como extratos, pagamentos de contas e serviços específicos. Esses MTIs variam por rede e são definidos na especificação técnica de cada operador — consulte a documentação da rede com que está integrando. O ISOHub suporta MTIs customizados via configuração \"MTI desconhecido\" no Simulador.",
+          "Redes proprietárias frequentemente definem MTIs customizados para funcionalidades que vão além do padrão ISO 8583, como extratos, pagamentos de contas e serviços específicos. Esses MTIs variam por rede e são definidos na especificação técnica de cada operador — consulte a documentação da rede com que está integrando. O ISOLeaf suporta MTIs customizados via configuração \"MTI desconhecido\" no Simulador.",
       },
 
       // ── 3. Modos de entrada ──────────────────────────────────────
@@ -839,7 +839,7 @@ Decompondo:
         type: "callout",
         tone: "info",
         text:
-          "No ISOHub Builder, o papel selecionado (Adquirente, Bandeira, Emissor) determina quais campos são automaticamente incluídos na mensagem gerada, seguindo as convenções mais comuns do mercado brasileiro.",
+          "No ISOLeaf Builder, o papel selecionado (Adquirente, Bandeira, Emissor) determina quais campos são automaticamente incluídos na mensagem gerada, seguindo as convenções mais comuns do mercado brasileiro.",
       },
 
       // ── 5. Processing Code ───────────────────────────────────────
@@ -943,8 +943,8 @@ Decompondo:
           "Processing Code 09xxxx (saque embutido na compra). O Bit 4 = valor da compra + valor do saque. O Bit 54 = breakdown dos valores (compra separado do saque). Permitido em alguns terminais e redes específicas.",
       },
 
-      // ── 8. Como testar no ISOHub ─────────────────────────────────
-      { type: "heading", level: 2, text: "Como usar o ISOHub para testar esses cenários" },
+      // ── 8. Como testar no ISOLeaf ─────────────────────────────────
+      { type: "heading", level: 2, text: "Como usar o ISOLeaf para testar esses cenários" },
       {
         type: "table",
         headers: ["Cenário", "MTI", "Classe", "Canal", "Descrição"],
@@ -967,13 +967,13 @@ Decompondo:
         type: "callout",
         tone: "warning",
         text:
-          "A linha \"Transações proprietárias\" usa MTI customizado — não é um padrão ISO 8583. Cada rede define seus próprios MTIs para funcionalidades que vão além do escopo do padrão. Para simular esses MTIs no ISOHub, configure a sessão do Simulador com \"MTI desconhecido: Custom\" e defina o MTI de resposta correspondente.",
+          "A linha \"Transações proprietárias\" usa MTI customizado — não é um padrão ISO 8583. Cada rede define seus próprios MTIs para funcionalidades que vão além do escopo do padrão. Para simular esses MTIs no ISOLeaf, configure a sessão do Simulador com \"MTI desconhecido: Custom\" e defina o MTI de resposta correspondente.",
       },
       {
         type: "callout",
         tone: "info",
         text:
-          "No ISOHub Builder: Compra em loja → MTI 0100, Papel Adquirente. Saque em ATM → MTI 0200, Papel Adquirente, Tipo Saque. Reversão → use \"Criar reversão\" no MessagePreview (gera 0400 com Bit 90 preenchido automaticamente). Echo test → MTI 0800.",
+          "No ISOLeaf Builder: Compra em loja → MTI 0100, Papel Adquirente. Saque em ATM → MTI 0200, Papel Adquirente, Tipo Saque. Reversão → use \"Criar reversão\" no MessagePreview (gera 0400 com Bit 90 preenchido automaticamente). Echo test → MTI 0800.",
       },
     ],
   },
@@ -1092,11 +1092,11 @@ Decompondo:
   guides: {
     id: "guides",
     blocks: [
-      { type: "heading", level: 2, text: "Arquitetura do ISOHub" },
+      { type: "heading", level: 2, text: "Arquitetura do ISOLeaf" },
       {
         type: "paragraph",
         text:
-          "O ISOHub é uma aplicação standalone que roda inteiramente na sua máquina. Nenhum dado sai do seu ambiente.",
+          "O ISOLeaf é uma aplicação standalone que roda inteiramente na sua máquina. Nenhum dado sai do seu ambiente.",
       },
       { type: "svg", text: ISOHUB_ARCHITECTURE_SVG },
       { type: "heading", level: 3, text: "Segurança" },
@@ -1117,7 +1117,7 @@ Decompondo:
       {
         type: "paragraph",
         text:
-          "O ISOHub é organizado em seis módulos. Antes de mergulhar em um guia específico, vale conhecer rapidamente o que cada um faz.",
+          "O ISOLeaf é organizado em seis módulos. Antes de mergulhar em um guia específico, vale conhecer rapidamente o que cada um faz.",
       },
 
       { type: "heading", level: 3, text: "Parser" },
@@ -1137,7 +1137,7 @@ Decompondo:
       {
         type: "paragraph",
         text:
-          "Gera mensagens ISO 8583 completas sem precisar conhecer cada campo. Selecione o contexto (papel, bandeira, canal, tipo de transação) e o ISOHub preenche automaticamente os campos corretos — incluindo o Bit 55 com ARQC real quando a IMK está configurada no Workspace.",
+          "Gera mensagens ISO 8583 completas sem precisar conhecer cada campo. Selecione o contexto (papel, bandeira, canal, tipo de transação) e o ISOLeaf preenche automaticamente os campos corretos — incluindo o Bit 55 com ARQC real quando a IMK está configurada no Workspace.",
       },
       {
         type: "image",
@@ -1205,7 +1205,7 @@ Decompondo:
       {
         type: "paragraph",
         text:
-          "Passo a passo dos fluxos mais comuns no ISOHub. Cada guia parte de um cenário concreto e mostra os cliques exatos.",
+          "Passo a passo dos fluxos mais comuns no ISOLeaf. Cada guia parte de um cenário concreto e mostra os cliques exatos.",
       },
 
       {
@@ -1226,7 +1226,7 @@ Decompondo:
         items: [
           "Abra o módulo **Parser**.",
           "Cole a mensagem no campo de texto (aceita ASCII wire, binary-hex ou com TPDU).",
-          "Clique **Parsear →** ou pressione `Ctrl+Enter`. O ISOHub detecta o formato automaticamente.",
+          "Clique **Parsear →** ou pressione `Ctrl+Enter`. O ISOLeaf detecta o formato automaticamente.",
         ],
       },
       { type: "callout", tone: "info", text: "Colar uma mensagem já dispara o parse automaticamente (300 ms de debounce)." },
@@ -1309,7 +1309,7 @@ Decompondo:
           "Configure: **Porta TCP** (ex.: `9100`), **Papel** = `Emissor`, **RC padrão** = `00`, **Resposta automática** ligada.",
           "Clique **Confirmar**.",
           "Aponte seu terminal para `localhost:9100`.",
-          "O ISOHub responde automaticamente a cada mensagem recebida.",
+          "O ISOLeaf responde automaticamente a cada mensagem recebida.",
         ],
       },
       { type: "callout", tone: "info", text: "Clique no ícone de log no card da sessão para filtrar o log apenas dessa sessão." },
@@ -1396,7 +1396,7 @@ Decompondo:
         type: "list",
         items: [
           "**Parse Bit 55**: cole um Bit 55 em hex e veja todas as tags BER-TLV decodificadas. Suporta parse parcial — se encontrar uma tag inválida, mostra o que conseguiu parsear até aquele ponto.",
-          "**Validate ARQC**: valide se um ARQC recebido é legítimo. Informe o Bit 55, a IMK e o PAN. O ISOHub recalcula a cadeia de derivação e compara com o ARQC recebido.",
+          "**Validate ARQC**: valide se um ARQC recebido é legítimo. Informe o Bit 55, a IMK e o PAN. O ISOLeaf recalcula a cadeia de derivação e compara com o ARQC recebido.",
           "**Generate ARQC**: gere um ARQC real a partir de dados de transação. Útil para criar dados de teste realistas ou verificar sua implementação de derivação.",
           "**Generate ARPC**: gere o ARPC (resposta do emissor) a partir do ARQC recebido. Method 1 ou Method 2.",
           "**Build Response**: monte o Bit 55 de resposta (tags `91` + `8A`) que o emissor deve retornar na mensagem de resposta.",
@@ -1425,7 +1425,7 @@ Decompondo:
           "Abra **Dados EMV** → aba **Full Flow**.",
           "Preencha: **Bit 55** hex da mensagem recebida, **IMK-AC**, **PAN**, **PAN Sequence Number**, **Auth Response Code**.",
           "Clique **Run Full EMV Flow**.",
-          "O ISOHub parseia o Bit 55, valida o ARQC, gera o ARPC e monta o Bit 55 de resposta (tags `91` + `8A`).",
+          "O ISOLeaf parseia o Bit 55, valida o ARQC, gera o ARPC e monta o Bit 55 de resposta (tags `91` + `8A`).",
           "Copie o Bit 55 de resposta para incluir na sua `0110` / `0210`.",
         ],
       },

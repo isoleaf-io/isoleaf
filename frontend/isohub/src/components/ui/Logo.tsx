@@ -129,7 +129,7 @@ export function Logo({ size = 40, variant = "icon", className }: LogoProps) {
     return (
       <svg
         role="img"
-        aria-label="ISOHub"
+        aria-label="ISOLeaf"
         viewBox="0 0 310 308"
         height={size}
         width={(size * 310) / 308}
@@ -145,7 +145,7 @@ export function Logo({ size = 40, variant = "icon", className }: LogoProps) {
     return (
       <svg
         role="img"
-        aria-label="ISOHub"
+        aria-label="ISOLeaf"
         viewBox="0 0 200 230"
         height={size}
         width={(size * 200) / 230}
@@ -161,7 +161,7 @@ export function Logo({ size = 40, variant = "icon", className }: LogoProps) {
   return (
     <svg
       role="img"
-      aria-label="ISOHub — ISO 8583 Toolkit"
+      aria-label="ISOLeaf — ISO 8583 Toolkit"
       viewBox="0 0 520 308"
       height={size}
       width={(size * 520) / 308}
