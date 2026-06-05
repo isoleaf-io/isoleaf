@@ -12,9 +12,9 @@ import {
 } from "lucide-react";
 import clsx from "clsx";
 import { StatusDot } from "@/components/ui/StatusDot";
-import { Logo } from "@/components/ui/Logo";
 import { useHealth } from "@/hooks/useHealth";
 import { useAppConfig } from "@/contexts/AppConfigContext";
+import { APP_VERSION } from "@/version";
 
 interface NavItem {
   to: string;
@@ -87,7 +87,9 @@ export function Sidebar() {
   const { t } = useTranslation();
   const { data, isError } = useHealth();
   const online = !isError && data?.status === "ok";
-  const { simulatorEnabled } = useAppConfig();
+  const config = useAppConfig();
+  const { simulatorEnabled, mode } = config;
+  const isOnlineMode = mode === "online";
 
   // Filter out sections whose items become empty when a feature is off,
   // and the items themselves (e.g. /simulator hidden in online mode).
@@ -102,19 +104,13 @@ export function Sidebar() {
 
   return (
     <aside className="w-[220px] shrink-0 bg-bg-sidebar border-r border-[var(--border)] flex flex-col">
-      <div className="px-5 py-5">
-        <Link
-          to="/parser"
-          className="flex items-center gap-2.5 cursor-pointer hover:opacity-85 transition-opacity"
-          aria-label="ISOLeaf home"
-        >
-          <Logo variant="icon" size={32} />
-          <div className="leading-tight">
-            <div className="text-sm font-semibold">{t("common.appName")}</div>
-            <div className="text-[11px] text-text-tertiary">{t("common.version")}</div>
-          </div>
-        </Link>
-      </div>
+      <Link
+        to="/parser"
+        className="flex items-center justify-center px-4 py-3 cursor-pointer hover:opacity-85 transition-opacity"
+        aria-label="ISOLeaf home"
+      >
+        <img src="/logo.svg" alt="ISOLeaf" className="h-32 w-auto" draggable={false} />
+      </Link>
 
       <nav className="flex-1 overflow-y-auto py-3">
         {visibleSections.map((section) => (
@@ -144,6 +140,23 @@ export function Sidebar() {
         <StatusDot status={online ? "online" : "offline"} />
         <span className="text-xs text-text-secondary">
           {online ? t("common.agentOnline") : t("common.agentOffline")}
+        </span>
+      </div>
+
+      {/* Version + deployment mode — static identity, kept distinct from the
+          live agent connection state above so they don't read as one signal. */}
+      <div className="px-4 py-2 border-t border-[var(--border)] flex items-center gap-2 text-xs text-text-tertiary">
+        <span>v{APP_VERSION}</span>
+        <span aria-hidden>·</span>
+        <span
+          className={clsx(
+            "px-1.5 py-0.5 rounded text-[10px] font-medium",
+            isOnlineMode
+              ? "bg-accent-bg/40 text-accent-text"
+              : "bg-success-bg/40 text-success-text",
+          )}
+        >
+          {isOnlineMode ? "Online" : "Standalone"}
         </span>
       </div>
     </aside>
