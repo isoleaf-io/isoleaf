@@ -1429,6 +1429,43 @@ Decompondo:
           "Copie o Bit 55 de resposta para incluir na sua `0110` / `0210`.",
         ],
       },
+
+      { type: "divider" },
+
+      { type: "heading", level: 2, text: "Comunidade e suporte" },
+      {
+        type: "list",
+        items: [
+          "💬 [Discussions no GitHub](https://github.com/isoleaf-io/isoleaf/discussions) — dúvidas, ideias e feedback",
+          "🐛 [Issues no GitHub](https://github.com/isoleaf-io/isoleaf/issues) — bugs e solicitações de features",
+          "📧 Email: **contato@isoleaf.dev** — para parcerias e consultas enterprise",
+        ],
+      },
+    ],
+  },
+
+  community: {
+    id: "community",
+    blocks: [
+      {
+        type: "paragraph",
+        text:
+          "Sua opinião é fundamental para o ISOLeaf crescer. Use os canais abaixo para reportar bugs, sugerir features ou entrar em contato.",
+      },
+      {
+        type: "list",
+        items: [
+          "💬 [GitHub Discussions](https://github.com/isoleaf-io/isoleaf/discussions) — dúvidas, ideias e feedback",
+          "🐛 [GitHub Issues](https://github.com/isoleaf-io/isoleaf/issues) — bugs e solicitações de features",
+          "📧 [contato@isoleaf.dev](mailto:contato@isoleaf.dev) — parcerias e consultas enterprise",
+        ],
+      },
+      {
+        type: "callout",
+        tone: "info",
+        text:
+          "Para reportar bugs com segurança, evite incluir dados sensíveis nos prints e mensagens (PAN, ARQC real, chaves). Use exemplos mascarados como nos guias.",
+      },
     ],
   },
 };

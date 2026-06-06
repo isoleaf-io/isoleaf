@@ -51,7 +51,11 @@ export default function BuilderPage() {
     if (hydrated.current) return;
     const state = location.state as
       | {
-          fromParser?: { mti: string; fields: Array<{ bitNumber: number; value: string; name: string; type: string; length: number }> };
+          fromParser?: {
+            mti: string;
+            fields: Array<{ bitNumber: number; value: string; name: string; type: string; length: number }>;
+            originalWire?: string;
+          };
           fromBitmap?: { bits: number[] };
         }
       | null;
@@ -73,7 +77,14 @@ export default function BuilderPage() {
         dependsOn: [],
         dependents: [],
       }));
-      useBuilderStore.getState().loadFromParser(builderFields, state.fromParser.mti);
+      // Pass the original wire so the preview is pre-filled — saves the user
+      // an extra click and avoids a Generate that might silently mutate fields
+      // the Builder doesn't recognize.
+      useBuilderStore.getState().loadFromParser(
+        builderFields,
+        state.fromParser.mti,
+        state.fromParser.originalWire ? { wire: state.fromParser.originalWire } : undefined,
+      );
       window.history.replaceState({}, "");
       return;
     }

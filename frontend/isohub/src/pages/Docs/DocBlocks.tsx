@@ -18,7 +18,10 @@ interface Props {
  */
 function renderInline(text: string): ReactNode {
   const parts: ReactNode[] = [];
-  const regex = /\*\*([^*]+)\*\*|`([^`]+)`/g;
+  // Order of alternates matters: link pattern is checked first because its
+  // outer brackets would otherwise be matched as literal text after the
+  // bold/code patterns consume their delimiters.
+  const regex = /\[([^\]]+)\]\(([^)]+)\)|\*\*([^*]+)\*\*|`([^`]+)`/g;
   let lastIndex = 0;
   let key = 0;
   let match: RegExpExecArray | null;
@@ -26,19 +29,33 @@ function renderInline(text: string): ReactNode {
     if (match.index > lastIndex) {
       parts.push(text.slice(lastIndex, match.index));
     }
-    if (match[1] !== undefined) {
+    if (match[1] !== undefined && match[2] !== undefined) {
+      // [text](url) — mailto: links don't need target=_blank.
+      const isExternal = !match[2].startsWith("mailto:");
+      parts.push(
+        <a
+          key={key++}
+          href={match[2]}
+          target={isExternal ? "_blank" : undefined}
+          rel={isExternal ? "noreferrer" : undefined}
+          className="text-accent underline hover:opacity-80"
+        >
+          {match[1]}
+        </a>,
+      );
+    } else if (match[3] !== undefined) {
       parts.push(
         <strong key={key++} className="font-semibold text-text-primary">
-          {match[1]}
+          {match[3]}
         </strong>,
       );
-    } else if (match[2] !== undefined) {
+    } else if (match[4] !== undefined) {
       parts.push(
         <code
           key={key++}
           className="text-[0.85em] bg-bg-tertiary px-1 py-0.5 rounded font-mono text-text-mono"
         >
-          {match[2]}
+          {match[4]}
         </code>,
       );
     }

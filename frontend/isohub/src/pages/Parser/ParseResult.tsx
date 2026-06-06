@@ -70,6 +70,20 @@ export function ParseResult({ result, onOpenInBuilder }: Props) {
                 TPDU: <MonoText className="ml-1">{result.tpdu.hex}</MonoText>
               </Badge>
             )}
+            {result.lengthPrefix && (
+              <Badge tone={result.lengthPrefix.match ? "success" : "warning"}>
+                {result.lengthPrefix.match
+                  ? t("parser.lengthPrefixOk", {
+                      hex: result.lengthPrefix.hex,
+                      bytes: result.lengthPrefix.expectedLength,
+                    })
+                  : t("parser.lengthPrefixMismatch", {
+                      hex: result.lengthPrefix.hex,
+                      expected: result.lengthPrefix.expectedLength,
+                      actual: result.lengthPrefix.actualLength,
+                    })}
+              </Badge>
+            )}
             {ctxBadges.map((b, i) => (
               <Badge key={i} tone={b.tone}>
                 {b.label}

@@ -73,8 +73,10 @@ export function MessagePreview({ built, onSaveTemplate }: Props) {
       <CardHeader>
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold">{t("builder.messageGenerated")}</span>
-            <Badge tone="success">{built.profileUsed}</Badge>
+            <span className="text-sm font-semibold">
+              {built.fromParser ? t("builder.messageFromParser") : t("builder.messageGenerated")}
+            </span>
+            <Badge tone={built.fromParser ? "accent" : "success"}>{built.profileUsed}</Badge>
             {built.tpdu && <Badge tone="warning">TPDU: <MonoText className="ml-1">{built.tpdu}</MonoText></Badge>}
             {built.activeBits.includes(55) && (
               built.arqcIsSimulated === false ? (

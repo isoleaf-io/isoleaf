@@ -58,6 +58,9 @@
     "field": "Campo",
     "value": "Valor",
     "noResult": "Nenhuma mensagem parseada ainda",
+    "separatorsStripped": "Separadores removidos automaticamente",
+    "lengthPrefixOk": "Length prefix: 0x{{hex}} ({{bytes}} bytes) ✓",
+    "lengthPrefixMismatch": "⚠ Length prefix 0x{{hex}} indica {{expected}} bytes mas a mensagem tem {{actual}}",
     "errors_one": "1 erro",
     "errors_other": "{{count}} erros",
     "showBitmap": "Mostrar bitmap",
@@ -102,6 +105,7 @@
     "createReversal": "Criar reversão",
     "createReversalTooltip": "Cria um 0400 com bit 90 preenchido a partir desta mensagem",
     "messageGenerated": "Mensagem gerada",
+    "messageFromParser": "Mensagem original (do Parser)",
     "saveTemplate": "Salvar template",
     "openInParser": "Abrir no Parser",
     "arqcDerived": "✓ ARQC derivado",
@@ -236,6 +240,9 @@
   "simulator": {
     "title": "Simulador",
     "subtitle": "Suba sessões TCP e acompanhe o tráfego em tempo real",
+    "lockedTitle": "Simulador TCP",
+    "lockedReason": "O Simulador TCP requer instalação local do ISOLeaf.\nEsta funcionalidade abre portas TCP na sua máquina para simular autorizadores e injetores de mensagens.\nPor razões de segurança, não está disponível na versão online.",
+    "lockedInstallCta": "→ Como instalar localmente",
     "newSession": "Nova sessão",
     "sessions": "Sessões",
     "log": "Log ao vivo",
@@ -374,6 +381,10 @@
       "guides": {
         "title": "Guias rápidos",
         "description": "Arquitetura do ISOLeaf e receitas práticas: parsear, gerar mensagem, validar ARQC, simular autorizador e injetor."
+      },
+      "community": {
+        "title": "Comunidade & Suporte",
+        "description": "Feedback, dúvidas e contato direto — Discussions, Issues e email."
       }
     }
   },

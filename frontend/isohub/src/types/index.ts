@@ -22,6 +22,16 @@ export interface IsoParseResponse {
   error?: string;
   /** Card brand inferred from bit 2 (PAN). Null/absent when PAN is missing or unmappable. */
   detectedBrand?: string | null;
+  /**
+   * Optional 2-byte big-endian length prefix detected after the TPDU.
+   * `match` is true when the declared length equals the actual payload bytes.
+   */
+  lengthPrefix?: {
+    hex: string;
+    expectedLength: number;
+    actualLength: number;
+    match: boolean;
+  } | null;
 }
 
 export interface BitmapParseResponse {

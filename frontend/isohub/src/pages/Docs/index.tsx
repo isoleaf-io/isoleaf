@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { BookOpen, ChevronDown, ChevronRight, Cpu, FileText, Layers, Link as LinkIcon, Network, Sparkles } from "lucide-react";
+import { BookOpen, ChevronDown, ChevronRight, Cpu, FileText, Layers, Link as LinkIcon, MessageCircle, Network, Sparkles } from "lucide-react";
 import clsx from "clsx";
 import { AppShell } from "@/components/layout/AppShell";
 import { Card, CardBody } from "@/components/ui/Card";
@@ -22,6 +22,7 @@ const TOPICS: Topic[] = [
   { id: "glossary", icon: BookOpen, titleKey: "docs.cards.glossary.title", descriptionKey: "docs.cards.glossary.description" },
   { id: "fields",   icon: Layers,   titleKey: "docs.cards.fields.title",   descriptionKey: "docs.cards.fields.description" },
   { id: "guides",   icon: Sparkles, titleKey: "docs.cards.guides.title",   descriptionKey: "docs.cards.guides.description" },
+  { id: "community", icon: MessageCircle, titleKey: "docs.cards.community.title", descriptionKey: "docs.cards.community.description" },
 ];
 
 const STORAGE_KEY = "isoleaf-docs-open";
