@@ -78,6 +78,13 @@ public sealed class IsoParser
             pos = 5;
         }
 
+        // Length prefix detection is intentionally NOT applied to ASCII wire.
+        // In ASCII wire "00FE" is 4 literal ASCII characters, not bytes
+        // 0x00 0xFE, so what looks like a length prefix is indistinguishable
+        // from real field data (e.g. an MTI starting with "00"). Length
+        // prefixes only show up in true binary wire — see DetectLengthPrefixBytes.
+        LengthPrefixInfo? lengthPrefix = null;
+
         // ── MTI ─────────────────────────────────────────────────────────────
         const int mtiLen = 4;
         if (raw.Length < pos + mtiLen)
@@ -156,6 +163,7 @@ public sealed class IsoParser
             RawHex          = hexMessage,
             Tpdu            = tpdu?.Hex,
             TpduInfo        = tpdu,
+            LengthPrefix    = lengthPrefix,
             ParsedAt        = DateTime.UtcNow
         };
     }
@@ -235,13 +243,50 @@ public sealed class IsoParser
 
         var pos = 0;
 
-        // ── Optional TPDU (5 bytes before MTI) ───────────────────────────────
-        TpduInfo? tpdu = null;
-        if (data.Length >= 9 && LooksLikeTpduFirstByte((char)data[0]) &&
-            MtiParser.IsValid(Encoding.ASCII.GetString(data, 5, 4)))
+        // ── Optional 2-byte big-endian length prefix (TCP framing) ──────────
+        // OUTERMOST framing layer — probed first so a prefix starting with
+        // 0x00 doesn't get mistaken for a TPDU first byte. The length prefix
+        // is purely INFORMATIVE: when detected we always strip the 2 bytes
+        // and continue parsing the ENTIRE remaining payload, regardless of
+        // whether the declared length matches. The Match flag is just for
+        // the UI to surface the discrepancy.
+        var lengthPrefix = DetectLengthPrefixBytes(data, pos);
+        if (lengthPrefix is not null)
         {
-            tpdu = BuildTpduInfo(data[0..5]);
-            pos = 5;
+            pos += 2;
+        }
+
+        // ── Optional TPDU before MTI ─────────────────────────────────────────
+        // Two encodings coexist in real wires:
+        //   (A) Raw 5-byte TPDU — first byte 0x60..0x6F (or non-printable),
+        //       followed directly by the 4-byte ASCII MTI.
+        //   (B) Builder-style 10-char ASCII-hex TPDU — the 5 TPDU bytes are
+        //       each written out as two ASCII hex chars (so it looks like
+        //       "6000020001" on the wire), followed by the 4-byte ASCII MTI.
+        // We try (A) first because it's cheaper to confirm; if it doesn't
+        // match, we fall through to (B).
+        TpduInfo? tpdu = null;
+        if (data.Length >= pos + 9 && LooksLikeTpduFirstByte((char)data[pos]) &&
+            MtiParser.IsValid(Encoding.ASCII.GetString(data, pos + 5, 4)))
+        {
+            tpdu = BuildTpduInfo(data[pos..(pos + 5)]);
+            pos += 5;
+        }
+        else if (data.Length >= pos + 14 &&
+                 AllBytesAreHexChars(data, pos, 10) &&
+                 MtiParser.IsValid(Encoding.ASCII.GetString(data, pos + 10, 4)))
+        {
+            // Decode the 10 ASCII hex chars to 5 binary TPDU bytes — and only
+            // accept the detection if the first byte is in the usual TPDU ID
+            // range (0x60-0x6F). This second guard is what stops a real MTI
+            // like "0200" from being misread as a TPDU when followed by what
+            // happens to look like another MTI further on.
+            var tpduBytes = Convert.FromHexString(Encoding.ASCII.GetString(data, pos, 10));
+            if (tpduBytes[0] >= 0x60 && tpduBytes[0] <= 0x6F)
+            {
+                tpdu = BuildTpduInfo(tpduBytes);
+                pos += 10;
+            }
         }
 
         // ── MTI (4 ASCII bytes) ─────────────────────────────────────────────
@@ -314,8 +359,62 @@ public sealed class IsoParser
             RawHex          = hexMessage,
             Tpdu            = tpdu?.Hex,
             TpduInfo        = tpdu,
+            LengthPrefix    = lengthPrefix,
             ParsedAt        = DateTime.UtcNow
         };
+    }
+
+    /// <summary>
+    /// Binary-hex counterpart of <see cref="DetectLengthPrefix"/>. Looks at
+    /// 2 bytes (big-endian uint16) starting at <paramref name="pos"/> in the
+    /// decoded byte array.
+    /// </summary>
+    private static LengthPrefixInfo? DetectLengthPrefixBytes(byte[] data, int pos)
+    {
+        // Need 2 prefix bytes + at least 4 more (MTI minimum).
+        if (data.Length < pos + 6) return null;
+
+        // A real length-prefix byte is non-printable (0x00-0x1F): typical
+        // messages are < 256 bytes so the high byte is 0x00, very long ones
+        // might reach 0x01-0x0F. This single check excludes both MTI digits
+        // (0x30-0x39) AND TPDU IDs (0x60-0x6F) — without it, a wire that
+        // starts with a TPDU would be misidentified as carrying a length
+        // prefix and silently lose the first 2 TPDU bytes.
+        if (data[pos] >= 0x20) return null;
+
+        // The 4 bytes following the candidate prefix must look like an MTI.
+        // Two layouts are valid:
+        //   [prefix(2)][MTI(4)]...                — MTI candidate at pos+2
+        //   [prefix(2)][TPDU(5)][MTI(4)]...       — MTI candidate at pos+7
+        // Printable-ASCII is the loosest sane gate: it accepts decimal MTIs
+        // ("0200"), custom hex MTIs ("91FF"), AND any future weirdness
+        // without requiring this code to evolve in lockstep with MtiParser.
+        if (!LooksLikePrintableAscii(data, pos + 2, 4) &&
+            !LooksLikePrintableAscii(data, pos + 7, 4))
+        {
+            return null;
+        }
+
+        var declared = (data[pos] << 8) | data[pos + 1];
+        var actual   = data.Length - pos - 2;
+        var hex      = Convert.ToHexString(data, pos, 2);
+
+        // Always return — including the Match=false case. The length prefix
+        // is INFORMATIVE only: the caller strips the 2 bytes and parses the
+        // entire remaining payload regardless. The UI uses Match to colour
+        // the badge (green when sizes line up, amber when they diverge).
+        return new LengthPrefixInfo(hex, declared, actual, declared == actual);
+    }
+
+    private static bool LooksLikePrintableAscii(byte[] data, int offset, int count)
+    {
+        if (offset + count > data.Length) return false;
+        for (var i = offset; i < offset + count; i++)
+        {
+            var b = data[i];
+            if (b < 0x20 || b > 0x7E) return false;
+        }
+        return true;
     }
 
     // ── Internal — ASCII wire ────────────────────────────────────────────────
@@ -556,28 +655,21 @@ public sealed class IsoParser
                 $"{varType} declared length {len} exceeds MaxLength {def.MaxLength} for bit {bitNumber}.");
         pos += prefixLen;
 
-        // For ASCII: len = bytes to read.
-        // For Binary the wire has two conventions:
-        //   (1) Raw bytes — bytes = len / 2 (real-world capture).
-        //   (2) ASCII bytes of the hex chars — bytes = len (Builder convention).
-        // Peek `len` bytes: if all are ASCII hex digits, use (2); else (1).
-        byte[] rawBytes;
-        string value;
-        if (isBinary && pos + len <= data.Length && AllBytesAreHexChars(data, pos, len))
-        {
-            rawBytes = data[pos..(pos + len)];
-            value    = Encoding.ASCII.GetString(data, pos, len);
-            pos += len;
-        }
-        else
-        {
-            var bytesNeeded = isBinary ? len / 2 : len;
-            EnsureBytesAvailable(data, pos, bytesNeeded, fieldLabel);
-
-            rawBytes = data[pos..(pos + bytesNeeded)];
-            value    = ExtractFieldValue(data, pos, bytesNeeded, isBinary);
-            pos += bytesNeeded;
-        }
+        // In both wire conventions the LLVAR/LLLVAR prefix declares the
+        // BYTE COUNT of the value that follows:
+        //   • Raw binary wire (real TCP capture): `len` raw bytes of TLV.
+        //   • Builder hex-ASCII convention: `len` ASCII bytes, each holding
+        //     one hex character (so the textual value happens to also be
+        //     `len` chars long — same count, different interpretation).
+        // The earlier `len / 2` for the raw branch was wrong: it would only
+        // be correct if the wire declared "hex char count" instead of bytes,
+        // which doesn't happen in real wire.
+        EnsureBytesAvailable(data, pos, len, fieldLabel);
+        var rawBytes = data[pos..(pos + len)];
+        var value    = isBinary && AllBytesAreHexChars(data, pos, len)
+            ? Encoding.ASCII.GetString(data, pos, len)  // Builder convention: preserve the hex string
+            : ExtractFieldValue(data, pos, len, isBinary);
+        pos += len;
 
         return (value, rawBytes, pos);
     }

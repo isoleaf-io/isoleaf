@@ -12,13 +12,21 @@ public sealed record IsoParseResponse(
     DateTime? ParsedAt = null,
     TpduResponse? Tpdu = null,
     /// <summary>Card brand inferred from bit 2 (PAN). Null when bit 2 is absent or unmappable.</summary>
-    string? DetectedBrand = null);
+    string? DetectedBrand = null,
+    /// <summary>2-byte big-endian length prefix detected after the TPDU, if any.</summary>
+    LengthPrefixResponse? LengthPrefix = null);
 
 public sealed record TpduResponse(
     string Hex,
     string Id,
     string DestinationNii,
     string SourceNii);
+
+public sealed record LengthPrefixResponse(
+    string Hex,
+    int ExpectedLength,
+    int ActualLength,
+    bool Match);
 
 public sealed record BitmapParseResponse(
     List<int> ActiveBits,

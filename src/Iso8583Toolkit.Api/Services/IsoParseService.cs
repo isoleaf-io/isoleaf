@@ -120,13 +120,49 @@ public sealed class IsoParseService
             if (!Uri.IsHexDigit(c)) return false;
         }
 
-        // Decode first 8 hex chars → 4 bytes → check if they are ASCII decimal digits (MTI).
-        // Also try offset 10 (skipping a 5-byte TPDU) to support messages with TPDU.
+        // Three layouts can match binary-hex:
+        //   (a) [MTI]…                    → MTI at offset 0
+        //   (b) [length-prefix 2B][MTI]…  → MTI at offset 4
+        //   (c) [TPDU 5B][MTI]…           → MTI at offset 10
+        // Length-prefix (b) is the case the user's bug report hit — without
+        // it, a TCP-framed wire was being routed to the ASCII-wire fallback
+        // (which then tries to read "01FE…" as a 4-decimal-digit MTI).
         try
         {
             var mtiBytes = Convert.FromHexString(trimmed[..8]);
             var mti = Encoding.ASCII.GetString(mtiBytes);
             if (MtiParser.IsValid(mti)) return true;
+
+            // Length-prefix heuristic. The prefix's first byte is always
+            // non-printable (0x00-0x1F) — typical messages are < 256 bytes
+            // so the high byte is 0x00; longer ones might reach 0x01-0x0F.
+            // Three follow-up layouts can sit after the prefix:
+            //   (b1) [prefix][MTI ASCII]                — MTI at hex offset 4
+            //   (b2) [prefix][raw 5B TPDU][MTI ASCII]   — MTI at hex offset 14
+            //   (b3) [prefix][TPDU as 10 ASCII chars]
+            //        [MTI ASCII]                       — MTI at hex offset 24
+            // The MTI candidate is checked as printable ASCII rather than
+            // strict decimal so custom hex MTIs (e.g. "91FF") also route to
+            // the binary parser. b3 is implicitly covered by b1 because the
+            // TPDU's ASCII hex chars at offset 4 are themselves printable.
+            if (trimmed.Length >= 12)
+            {
+                var firstByte = Convert.FromHexString(trimmed[..2])[0];
+                if (firstByte < 0x20)
+                {
+                    if (IsAsciiPrintable(Convert.FromHexString(trimmed[4..12]))) return true;
+
+                    // (b2) — raw 5-byte TPDU between the prefix and the MTI.
+                    // The raw TPDU bytes are typically non-printable (e.g.
+                    // 0x60 0x00 0x02 …), so the offset-4 check above fails;
+                    // probe offset 14 to find the MTI past the TPDU.
+                    if (trimmed.Length >= 22 &&
+                        IsAsciiPrintable(Convert.FromHexString(trimmed[14..22])))
+                    {
+                        return true;
+                    }
+                }
+            }
 
             // TPDU heuristic: 5 bytes = 10 hex chars, then MTI at offset 10..18.
             if (trimmed.Length >= 18)
@@ -148,6 +184,15 @@ public sealed class IsoParseService
         {
             return false;
         }
+    }
+
+    private static bool IsAsciiPrintable(byte[] bytes)
+    {
+        foreach (var b in bytes)
+        {
+            if (b < 0x20 || b > 0x7E) return false;
+        }
+        return true;
     }
 
     /// <summary>
@@ -228,6 +273,10 @@ public sealed class IsoParseService
         if (msg.TpduInfo is { } t)
             tpdu = new TpduResponse(t.Hex, $"0x{t.Id:X2}", t.DestinationNii, t.SourceNii);
 
+        LengthPrefixResponse? lengthPrefix = null;
+        if (msg.LengthPrefix is { } lp)
+            lengthPrefix = new LengthPrefixResponse(lp.Hex, lp.ExpectedLength, lp.ActualLength, lp.Match);
+
         // Detect card brand from PAN (bit 2). Brand resolution is best-effort —
         // anything not matching a known BIN range falls back to null so callers know.
         string? detectedBrand = null;
@@ -252,7 +301,8 @@ public sealed class IsoParseService
             Fields: fields,
             ParsedAt: msg.ParsedAt,
             Tpdu: tpdu,
-            DetectedBrand: detectedBrand);
+            DetectedBrand: detectedBrand,
+            LengthPrefix: lengthPrefix);
     }
 
     private static IsoParseResponse MapError(IsoParseException ex) =>

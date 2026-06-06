@@ -1429,6 +1429,43 @@ Breakdown:
           "Copy the response Bit 55 to include in your `0110` / `0210`.",
         ],
       },
+
+      { type: "divider" },
+
+      { type: "heading", level: 2, text: "Community & Support" },
+      {
+        type: "list",
+        items: [
+          "💬 [GitHub Discussions](https://github.com/isoleaf-io/isoleaf/discussions) — questions, ideas and feedback",
+          "🐛 [GitHub Issues](https://github.com/isoleaf-io/isoleaf/issues) — bug reports and feature requests",
+          "📧 Email: **contato@isoleaf.dev** — for partnerships and enterprise inquiries",
+        ],
+      },
+    ],
+  },
+
+  community: {
+    id: "community",
+    blocks: [
+      {
+        type: "paragraph",
+        text:
+          "Your feedback is essential for ISOLeaf to grow. Use the channels below to report bugs, suggest features or get in touch.",
+      },
+      {
+        type: "list",
+        items: [
+          "💬 [GitHub Discussions](https://github.com/isoleaf-io/isoleaf/discussions) — questions, ideas and feedback",
+          "🐛 [GitHub Issues](https://github.com/isoleaf-io/isoleaf/issues) — bug reports and feature requests",
+          "📧 [contato@isoleaf.dev](mailto:contato@isoleaf.dev) — partnerships and enterprise inquiries",
+        ],
+      },
+      {
+        type: "callout",
+        tone: "info",
+        text:
+          "When reporting bugs, please avoid including sensitive data in screenshots and messages (real PAN, real ARQC, keys). Use masked examples like the ones shown in the guides.",
+      },
     ],
   },
 };

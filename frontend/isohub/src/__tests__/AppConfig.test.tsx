@@ -15,11 +15,22 @@ vi.mock("@/api/workspace", () => ({
   getTemplate: vi.fn(),
   deleteTemplate: vi.fn(),
 }));
+vi.mock("@/api/simulator", () => ({
+  listSessions: vi.fn().mockResolvedValue([]),
+  startSession: vi.fn(),
+  stopSession: vi.fn(),
+  getLog: vi.fn().mockResolvedValue([]),
+  clearLog: vi.fn(),
+}));
+vi.mock("@/hooks/useSimulatorHub", () => ({
+  useSimulatorHub: () => {},
+}));
 
 import { OnlineBanner } from "@/components/layout/OnlineBanner";
 import { Sidebar } from "@/components/layout/Sidebar";
 import EmvPage from "@/pages/Emv";
 import WorkspacePage from "@/pages/Workspace";
+import SimulatorPage from "@/pages/Simulator";
 
 const ONLINE_CONFIG: AppConfig = {
   mode: "online",
@@ -64,14 +75,31 @@ describe("AppConfig — online vs standalone mode", () => {
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
 
-  it("Simulator menu hidden when simulatorEnabled is false", () => {
+  it("Simulator menu stays visible in online mode (locked, not hidden)", () => {
+    // Earlier iteration hid /simulator entirely; current behaviour keeps it in
+    // the menu with a lock icon so users can discover the feature.
     renderApp(withConfig(<Sidebar />, ONLINE_CONFIG));
-    // The /simulator NavLink should be absent. Other nav items still present.
     const navLinks = screen.getAllByRole("link");
     const hrefs = navLinks.map((el) => el.getAttribute("href"));
-    expect(hrefs).not.toContain("/simulator");
-    // sanity: at least parser is still there
+    expect(hrefs).toContain("/simulator");
     expect(hrefs).toContain("/parser");
+  });
+
+  it("Agent status row hidden in online mode", () => {
+    // The "Agent online/offline" row is only meaningful when the user is
+    // running the Agent themselves — hide it on the public demo.
+    renderApp(withConfig(<Sidebar />, ONLINE_CONFIG));
+    expect(
+      screen.queryByText(/Agent online|Agent offline|Agente online|Agente offline/i),
+    ).not.toBeInTheDocument();
+  });
+
+  it("Agent status row visible in standalone mode", () => {
+    renderApp(withConfig(<Sidebar />, STANDALONE_CONFIG));
+    // jsdom can't reach the live agent so it renders "offline" — either label is fine.
+    expect(
+      screen.getByText(/Agent online|Agent offline|Agente online|Agente offline/i),
+    ).toBeInTheDocument();
   });
 
   it("EMV crypto tabs disabled when emvCryptoEnabled is false", async () => {
@@ -97,5 +125,14 @@ describe("AppConfig — online vs standalone mode", () => {
     });
     expect(screen.queryByLabelText(/^IMK$/i)).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/^ZPK$/i)).not.toBeInTheDocument();
+  });
+
+  it("Simulator page renders locked panel when simulatorEnabled is false", () => {
+    renderApp(withConfig(<SimulatorPage />, ONLINE_CONFIG));
+    // Locked panel surfaces "TCP Simulator" in both the title and reason copy
+    // (jsdom falls back to EN). getAllByText handles the multiple matches.
+    expect(screen.getAllByText(/TCP Simulator|Simulador TCP/i).length).toBeGreaterThan(0);
+    // The normal Simulator UI never mounts: no "+ New session" button.
+    expect(screen.queryByText(/\+ New session|\+ Nova sessão/i)).not.toBeInTheDocument();
   });
 });

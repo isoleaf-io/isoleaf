@@ -203,6 +203,17 @@ Toggle via the language button in the top-right corner.
 
 ---
 
+## Community & Support
+
+- 💬 **Discussions**: [github.com/isoleaf-io/isoleaf/discussions](https://github.com/isoleaf-io/isoleaf/discussions)
+  — Questions, ideas and show & tell
+- 🐛 **Issues**: [github.com/isoleaf-io/isoleaf/issues](https://github.com/isoleaf-io/isoleaf/issues)
+  — Bug reports and feature requests
+- 📧 **Email**: contato@isoleaf.dev
+  — Direct contact for partnerships and enterprise inquiries
+
+---
+
 ## Contributing
 
 See [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines on reporting bugs,

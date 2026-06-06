@@ -266,10 +266,15 @@ public sealed class IsoParserIntegrationTests
         // Part 2: bit 52 PIN Block — 8 raw bytes, already hex
         var part2PinBlock = "4F2A6B1C9D3E8A71";
 
-        // Part 3: bit 55 LLLVAR prefix "166" as ASCII bytes
-        var part3Prefix = AsciiToHex("166");
+        // Part 3: bit 55 LLLVAR prefix as 3 ASCII digits.
+        // The prefix declares the WIRE BYTE COUNT of the value that follows.
+        // part4Emv below is 83 raw TLV bytes (hex-encoded inline), so the
+        // prefix is "083" — not "166" (the old "166" assumed the parser
+        // would interpret the prefix as hex-char-count and divide by 2,
+        // a quirk that broke real-world wires).
+        var part3Prefix = AsciiToHex("083");
 
-        // Part 4: bit 55 EMV value — 83 raw bytes, already hex
+        // Part 4: bit 55 EMV value — 83 raw bytes, written here in hex.
         var part4Emv =
             "9F2608A1B2C3D4E5F6079F2701809F100706010A03A400009F3704AABBCCDD" +
             "9F3602001E950500800004009A032501159C01009F02060000000010005F2A02" +

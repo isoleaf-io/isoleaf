@@ -22,7 +22,9 @@ import { Input, Label, Select, Toggle } from "@/components/ui/Field";
 import { MonoText } from "@/components/ui/MonoText";
 import { listSessions, startSession, stopSession, getLog, clearLog } from "@/api/simulator";
 import { useSimulatorHub } from "@/hooks/useSimulatorHub";
+import { useAppConfig } from "@/contexts/AppConfigContext";
 import { InjectorPanel } from "./InjectorPanel";
+import { SimulatorLockedPanel } from "./SimulatorLockedPanel";
 import type { MessageLogEntry, SimulatorSession } from "@/types";
 
 const STATUS_TONE: Record<string, "accent" | "success" | "warning" | "danger" | "neutral"> = {
@@ -35,8 +37,20 @@ const STATUS_TONE: Record<string, "accent" | "success" | "warning" | "danger" | 
 export default function SimulatorPage() {
   const { t } = useTranslation();
   const qc = useQueryClient();
+  const { simulatorEnabled } = useAppConfig();
   const [filter, setFilter] = useState<"all" | "received" | "sent" | "errors" | "rejected">("all");
   const [showForm, setShowForm] = useState(false);
+
+  // Online mode: backend blocks /api/simulator/* with 403. Render the locked
+  // panel instead of the live UI so users see why the feature isn't running
+  // (and how to enable it locally) before hitting any 403s.
+  if (!simulatorEnabled) {
+    return (
+      <AppShell title={t("simulator.title")} subtitle={t("simulator.subtitle")}>
+        <SimulatorLockedPanel />
+      </AppShell>
+    );
+  }
 
   // Live log is collapsed by default — most users only care about the Injector
   // panel above. Persist the choice so it survives a reload.

@@ -58,6 +58,9 @@
     "field": "Field",
     "value": "Value",
     "noResult": "No message parsed yet",
+    "separatorsStripped": "Separators removed automatically",
+    "lengthPrefixOk": "Length prefix: 0x{{hex}} ({{bytes}} bytes) ✓",
+    "lengthPrefixMismatch": "⚠ Length prefix 0x{{hex}} expects {{expected}} bytes but message has {{actual}}",
     "errors_one": "1 error",
     "errors_other": "{{count}} errors",
     "showBitmap": "Show bitmap",
@@ -102,6 +105,7 @@
     "createReversal": "Create reversal",
     "createReversalTooltip": "Builds a 0400 with bit 90 populated from this message",
     "messageGenerated": "Generated message",
+    "messageFromParser": "Original message (from Parser)",
     "saveTemplate": "Save template",
     "openInParser": "Open in Parser",
     "arqcDerived": "✓ ARQC derived",
@@ -236,6 +240,9 @@
   "simulator": {
     "title": "Simulator",
     "subtitle": "Run TCP simulation sessions and watch traffic in real time",
+    "lockedTitle": "TCP Simulator",
+    "lockedReason": "The TCP Simulator requires a local ISOLeaf installation.\nThis feature opens TCP ports on your machine to simulate authorizers and message injectors.\nFor security reasons, it is not available in the online version.",
+    "lockedInstallCta": "→ How to install locally",
     "newSession": "New session",
     "sessions": "Sessions",
     "log": "Live log",
@@ -374,6 +381,10 @@
       "guides": {
         "title": "Quick guides",
         "description": "ISOLeaf architecture and practical recipes: parse, build, validate ARQC, simulate authorizer and injector."
+      },
+      "community": {
+        "title": "Community & Support",
+        "description": "Feedback, questions and direct contact — Discussions, Issues and email."
       }
     }
   },

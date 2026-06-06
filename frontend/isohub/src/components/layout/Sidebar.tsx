@@ -6,6 +6,7 @@ import {
   Cpu,
   CreditCard,
   LayoutGrid,
+  Lock,
   Radio,
   Settings,
   Zap,
@@ -62,7 +63,7 @@ const FOOTER_NAV: NavItem = {
   icon: Settings,
 };
 
-function NavRow({ item }: { item: NavItem }) {
+function NavRow({ item, locked }: { item: NavItem; locked?: boolean }) {
   const { t } = useTranslation();
   const Icon = item.icon;
   return (
@@ -78,7 +79,8 @@ function NavRow({ item }: { item: NavItem }) {
       }
     >
       <Icon size={15} />
-      {t(item.labelKey)}
+      <span className="flex-1">{t(item.labelKey)}</span>
+      {locked && <Lock size={11} className="text-text-tertiary shrink-0" />}
     </NavLink>
   );
 }
@@ -91,16 +93,10 @@ export function Sidebar() {
   const { simulatorEnabled, mode } = config;
   const isOnlineMode = mode === "online";
 
-  // Filter out sections whose items become empty when a feature is off,
-  // and the items themselves (e.g. /simulator hidden in online mode).
-  const visibleSections = sections
-    .map((section) => ({
-      ...section,
-      items: section.items.filter((item) =>
-        item.to === "/simulator" ? simulatorEnabled : true,
-      ),
-    }))
-    .filter((section) => section.items.length > 0);
+  // In online mode the Simulator stays in the menu so users can discover it,
+  // but it's marked with a lock icon and the page itself renders a locked
+  // panel instead of the live UI. (Earlier iteration hid the item entirely;
+  // that hid the feature too well — users didn't know it existed.)
 
   return (
     <aside className="w-[220px] shrink-0 bg-bg-sidebar border-r border-[var(--border)] flex flex-col">
@@ -113,7 +109,7 @@ export function Sidebar() {
       </Link>
 
       <nav className="flex-1 overflow-y-auto py-3">
-        {visibleSections.map((section) => (
+        {sections.map((section) => (
           <div
             key={section.titleKey}
             className={clsx(
@@ -125,7 +121,11 @@ export function Sidebar() {
               {t(section.titleKey)}
             </div>
             {section.items.map((item) => (
-              <NavRow key={item.to} item={item} />
+              <NavRow
+                key={item.to}
+                item={item}
+                locked={item.to === "/simulator" && !simulatorEnabled}
+              />
             ))}
           </div>
         ))}
@@ -136,12 +136,17 @@ export function Sidebar() {
         <NavRow item={FOOTER_NAV} />
       </div>
 
-      <div className="px-4 py-3 border-t border-[var(--border)] flex items-center gap-2">
-        <StatusDot status={online ? "online" : "offline"} />
-        <span className="text-xs text-text-secondary">
-          {online ? t("common.agentOnline") : t("common.agentOffline")}
-        </span>
-      </div>
+      {/* Agent status — only meaningful in standalone mode. In online mode
+          the Agent is always running on the demo server and the user has no
+          control over it, so the row would only add noise. */}
+      {!isOnlineMode && (
+        <div className="px-4 py-3 border-t border-[var(--border)] flex items-center gap-2">
+          <StatusDot status={online ? "online" : "offline"} />
+          <span className="text-xs text-text-secondary">
+            {online ? t("common.agentOnline") : t("common.agentOffline")}
+          </span>
+        </div>
+      )}
 
       {/* Version + deployment mode — static identity, kept distinct from the
           live agent connection state above so they don't read as one signal. */}

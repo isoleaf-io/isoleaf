@@ -50,6 +50,12 @@ public sealed class IsoMessage
     /// <summary>Parsed TPDU parts when <see cref="Tpdu"/> is present.</summary>
     public TpduInfo? TpduInfo { get; init; }
 
+    /// <summary>
+    /// Optional 2-byte big-endian length prefix detected after the TPDU.
+    /// <c>null</c> when no plausible prefix was present.
+    /// </summary>
+    public LengthPrefixInfo? LengthPrefix { get; init; }
+
     /// <summary>UTC timestamp at which this message was parsed.</summary>
     public DateTime ParsedAt { get; init; } = DateTime.UtcNow;
 
