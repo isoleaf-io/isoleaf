@@ -1,6 +1,6 @@
 import { useMutation } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { CheckCircle2, ChevronRight, RotateCcw, XCircle, Zap } from "lucide-react";
 import clsx from "clsx";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";

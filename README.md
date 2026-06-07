@@ -211,6 +211,8 @@ Toggle via the language button in the top-right corner.
   — Bug reports and feature requests
 - 📧 **Email**: contato@isoleaf.dev
   — Direct contact for partnerships and enterprise inquiries
+- 🔒 **Security**: [SECURITY.md](./SECURITY.md)
+  — Report vulnerabilities responsibly
 
 ---
 

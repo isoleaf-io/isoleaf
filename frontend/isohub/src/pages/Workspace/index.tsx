@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import * as Tabs from "@radix-ui/react-tabs";
 import { Download, Eye, EyeOff, Lock, Trash2, Upload } from "lucide-react";
 import clsx from "clsx";

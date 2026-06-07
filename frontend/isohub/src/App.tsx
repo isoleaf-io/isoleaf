@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes } from "react-router-dom";
+﻿import { Navigate, Route, Routes } from "react-router";
 import ParserPage from "./pages/Parser";
 import BuilderPage from "./pages/Builder";
 import CardsPage from "./pages/Cards";

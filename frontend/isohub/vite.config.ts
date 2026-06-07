@@ -17,7 +17,7 @@ export default defineConfig({
       output: {
         manualChunks: {
           // React core — rarely changes, long cache life.
-          "vendor-react": ["react", "react-dom", "react-router-dom"],
+          "vendor-react": ["react", "react-dom", "react-router"],
           // State + data fetching primitives.
           "vendor-query": ["@tanstack/react-query", "zustand", "axios"],
           // Radix UI primitives (every @radix-ui/* listed in package.json).
