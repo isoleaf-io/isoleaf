@@ -72,6 +72,59 @@ function lengthPrefixHex(charCount: number): string {
   return v.toString(16).toUpperCase().padStart(4, "0");
 }
 
+/**
+ * True when the string is a non-empty even-length sequence of hex digits.
+ * Mirrors `IsoWireHelper.IsBinaryHex` on the backend so both sides agree on
+ * what "binary-hex" means when sizing the length prefix.
+ */
+function isHex(s: string): boolean {
+  return s.length > 0 && s.length % 2 === 0 && /^[0-9A-Fa-f]+$/.test(s);
+}
+
+/**
+ * Returns the wire byte count that the length prefix should declare.
+ * Binary-hex wire: 2 hex chars per wire byte → length/2.
+ * ASCII wire: every char goes on the wire as itself → length.
+ */
+function calculateWireCharCount(wire: string): number {
+  if (!wire) return 0;
+  return isHex(wire) ? wire.length / 2 : wire.length;
+}
+
+/**
+ * Mirrors `IsoWireHelper.StripLengthPrefix` on the backend. If the first
+ * 4 hex chars look like a length prefix (first byte non-printable, the 4
+ * bytes that follow look like a printable ASCII MTI candidate at offset
+ * 4 or after a raw 5-byte TPDU at offset 14), returns the payload without
+ * those 4 chars. Otherwise returns the wire unchanged.
+ */
+function stripLengthPrefix(wire: string): { payload: string; detectedPrefix: string | null } {
+  if (!isHex(wire) || wire.length < 12) return { payload: wire, detectedPrefix: null };
+
+  const firstByte = parseInt(wire.substring(0, 2), 16);
+  if (firstByte >= 0x20) return { payload: wire, detectedPrefix: null };
+
+  // Same two-layout check used backend-side: [prefix][MTI] or [prefix][TPDU][MTI].
+  const printableAt = (charOffset: number, byteCount: number): boolean => {
+    if (charOffset + byteCount * 2 > wire.length) return false;
+    for (let i = 0; i < byteCount; i++) {
+      const b = parseInt(wire.substring(charOffset + i * 2, charOffset + i * 2 + 2), 16);
+      if (b < 0x20 || b > 0x7E) return false;
+    }
+    return true;
+  };
+
+  if (!printableAt(4, 4) && !(wire.length >= 22 && printableAt(14, 4))) {
+    return { payload: wire, detectedPrefix: null };
+  }
+
+  return {
+    payload: wire.substring(4),
+    detectedPrefix: wire.substring(0, 4).toUpperCase(),
+  };
+}
+
+
 function loadPersisted(): PersistedState {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -188,19 +241,17 @@ export function InjectorPanel() {
     if (!persisted.message.trim()) return;
     setBusy(true);
     const startedAt = performance.now();
-    // Prepend the 4-hex-char length prefix when enabled. Length counts the
-    // chars in the trimmed message (matches what the backend forwards on
-    // the wire). The prefix itself is NOT counted — same convention used
-    // by the Builder preview.
+    // The length prefix is computed and prepended by the backend (as 2 raw
+    // binary bytes) — we just pass the flag. Concatenating it here as ASCII
+    // hex chars was the previous bug: receivers got "000A" inside the body
+    // and failed to parse the MTI.
     const trimmed = persisted.message.trim();
-    const wireMessage = persisted.includeLengthPrefix
-      ? `${lengthPrefixHex(trimmed.length)}${trimmed}`
-      : trimmed;
     try {
       const res: InjectDirectResponse = await injectDirect({
         targetHost: persisted.targetHost,
         targetPort: persisted.targetPort,
-        message: wireMessage,
+        message: trimmed,
+        includeLengthPrefix: persisted.includeLengthPrefix,
         includeTpdu: persisted.includeTpdu,
         // Variations are continuous-mode only — the unit-mode button must always
         // forward the message verbatim so power users can test exact payloads.
@@ -309,24 +360,38 @@ export function InjectorPanel() {
               onChange={(v) => setPersistedField("includeTpdu", v)}
               label={t("simulator.injector.includeTpdu")}
             />
-            <Toggle
-              checked={persisted.includeLengthPrefix}
-              onChange={(v) => setPersistedField("includeLengthPrefix", v)}
-              label={t("simulator.includeLengthPrefix")}
-            />
+            <div title={t("simulator.injector.includeLengthPrefixDescription")}>
+              <Toggle
+                checked={persisted.includeLengthPrefix}
+                onChange={(v) => setPersistedField("includeLengthPrefix", v)}
+                label={t("simulator.includeLengthPrefix")}
+              />
+            </div>
           </div>
         </div>
 
-        {persisted.includeLengthPrefix && persisted.message.trim().length > 0 && (
-          <div className="text-xs text-text-tertiary -mt-1" data-testid="injector-length-preview">
-            {t("simulator.includeLengthPrefixHint")}{" "}
-            <span className="font-mono text-accent">
-              [{lengthPrefixHex(persisted.message.trim().length)}]
-            </span>{" "}
-            {persisted.message.trim().slice(0, 40)}
-            {persisted.message.trim().length > 40 ? "…" : ""}
-          </div>
-        )}
+        {persisted.includeLengthPrefix && persisted.message.trim().length > 0 && (() => {
+          // The user may have pasted a wire that already starts with a
+          // length prefix — strip it client-side so the preview shows the
+          // recomputed prefix for the PAYLOAD (matches what the backend
+          // actually sends after the same strip).
+          const trimmed = persisted.message.trim();
+          const { payload, detectedPrefix } = stripLengthPrefix(trimmed);
+          const charCount = calculateWireCharCount(payload);
+          return (
+            <div className="text-xs text-text-tertiary -mt-1" data-testid="injector-length-preview">
+              {t("simulator.includeLengthPrefixHint")}{" "}
+              <span className="font-mono text-accent">[{lengthPrefixHex(charCount)}]</span>{" "}
+              {payload.slice(0, 40)}{payload.length > 40 ? "…" : ""}
+              {detectedPrefix && (
+                <div className="text-text-tertiary mt-0.5">
+                  <span className="opacity-70">↳</span>{" "}
+                  {t("simulator.injector.detectedPrefixHint", { prefix: detectedPrefix })}
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         {/* Mensagem */}
         <div>

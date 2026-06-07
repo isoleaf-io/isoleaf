@@ -467,9 +467,7 @@ public sealed class IsoParser
                 var slice = raw.Substring(pos, charsNeeded);
 
                 value    = def.Encoding == IsoFieldEncoding.Binary ? slice : slice;
-                rawBytes = def.Encoding == IsoFieldEncoding.Binary
-                    ? Convert.FromHexString(slice)
-                    : Encoding.ASCII.GetBytes(slice);
+                rawBytes = ToBytesSafe(slice, def.Encoding);
                 pos += charsNeeded;
                 break;
             }
@@ -492,9 +490,7 @@ public sealed class IsoParser
                 var slice = raw.Substring(pos, charsNeeded);
 
                 value    = slice;
-                rawBytes = def.Encoding == IsoFieldEncoding.Binary
-                    ? Convert.FromHexString(slice)
-                    : Encoding.ASCII.GetBytes(slice);
+                rawBytes = ToBytesSafe(slice, def.Encoding);
                 pos += charsNeeded;
                 break;
             }
@@ -517,9 +513,7 @@ public sealed class IsoParser
                 var slice = raw.Substring(pos, charsNeeded);
 
                 value    = slice;
-                rawBytes = def.Encoding == IsoFieldEncoding.Binary
-                    ? Convert.FromHexString(slice)
-                    : Encoding.ASCII.GetBytes(slice);
+                rawBytes = ToBytesSafe(slice, def.Encoding);
                 pos += charsNeeded;
                 break;
             }
@@ -542,9 +536,7 @@ public sealed class IsoParser
                 var slice = raw.Substring(pos, charsNeeded);
 
                 value    = slice;
-                rawBytes = def.Encoding == IsoFieldEncoding.Binary
-                    ? Convert.FromHexString(slice)
-                    : Encoding.ASCII.GetBytes(slice);
+                rawBytes = ToBytesSafe(slice, def.Encoding);
                 pos += charsNeeded;
                 break;
             }
@@ -746,6 +738,32 @@ public sealed class IsoParser
     /// produces for Binary fields — the bytes are the ASCII codes of the hex chars,
     /// not the raw bytes themselves.
     /// </summary>
+    /// <summary>
+    /// Converts an ASCII-wire slice into the byte[] representation that
+    /// downstream code expects. For Binary fields the slice is typically a
+    /// hex string (Builder convention) — but real-world wires may inline
+    /// raw bytes that surface here as a string containing non-hex chars
+    /// or having odd length. Both cases would crash <c>Convert.FromHexString</c>,
+    /// so we fall back to the raw ASCII bytes in that case rather than
+    /// killing the whole parse over a Bit 55 oddity.
+    /// </summary>
+    private static byte[] ToBytesSafe(string slice, IsoFieldEncoding encoding)
+    {
+        if (encoding != IsoFieldEncoding.Binary)
+            return Encoding.ASCII.GetBytes(slice);
+
+        // Binary field: try hex decode first, fall back to ASCII bytes.
+        // Odd length OR any non-hex char → can't decode; preserve the
+        // bytes as-is and let the consumer inspect the raw value.
+        if ((slice.Length & 1) != 0) return Encoding.ASCII.GetBytes(slice);
+        foreach (var c in slice)
+        {
+            var isHex = (c >= '0' && c <= '9') || (c >= 'A' && c <= 'F') || (c >= 'a' && c <= 'f');
+            if (!isHex) return Encoding.ASCII.GetBytes(slice);
+        }
+        return Convert.FromHexString(slice);
+    }
+
     private static bool AllBytesAreHexChars(byte[] data, int offset, int length)
     {
         if (length == 0) return false;

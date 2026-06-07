@@ -56,6 +56,19 @@ public sealed class SimulatorController : ControllerBase
         return NoContent();
     }
 
+    /// <summary>
+    /// Updates the Issuer-role Bit-55 handling for a running session. The
+    /// next inbound message will use the new config — no restart needed.
+    /// </summary>
+    [HttpPut("sessions/{id}/emv-config")]
+    public IActionResult UpdateEmvConfig(string id, [FromBody] EmvResponseConfig config)
+    {
+        var session = _store.GetSession(id);
+        if (session is null) return NotFound(new { error = $"Session '{id}' not found." });
+        session.EmvResponse = config ?? EmvResponseConfig.Default;
+        return Ok(new { sessionId = id, emvResponse = session.EmvResponse });
+    }
+
     [HttpPost("sessions/{id}/inject")]
     public async Task<IActionResult> Inject(string id, [FromBody] InjectMessageRequest request)
     {
@@ -115,7 +128,14 @@ public sealed class SimulatorController : ControllerBase
             request.TargetHost, request.TargetPort);
 
         var sw = System.Diagnostics.Stopwatch.StartNew();
-        var msg = request.Message!.Trim();
+        var rawMsg = request.Message!.Trim();
+
+        // If the user pasted a wire that already starts with a length prefix
+        // (e.g. "0171303230..."), strip it before parsing — otherwise the
+        // prefix bytes leak into the body and the receiver fails on the MTI.
+        // The detected prefix is echoed back to the UI so the user can see
+        // what was found.
+        var (msg, detectedPrefix) = Iso8583Toolkit.IsoCore.Parsing.IsoWireHelper.StripLengthPrefix(rawMsg);
 
         // Convert the message to bytes. We accept ASCII wire or binary-hex.
         // The heuristic "every char is hex" is ambiguous — most ASCII wires are
@@ -135,7 +155,7 @@ public sealed class SimulatorController : ControllerBase
         catch
         {
             // ASCII path didn't parse — try binary-hex if the input is a clean hex string.
-            if (LooksLikeHexString(msg))
+            if (Iso8583Toolkit.IsoCore.Parsing.IsoWireHelper.IsBinaryHex(msg))
             {
                 try { bodyBytes = Convert.FromHexString(msg); }
                 catch (FormatException ex)
@@ -195,8 +215,12 @@ public sealed class SimulatorController : ControllerBase
             }
         }
 
-        // 2-byte big-endian length prefix is the framing the rebatedor uses.
-        var lenPrefix = new[] { (byte)((bodyBytes.Length >> 8) & 0xFF), (byte)(bodyBytes.Length & 0xFF) };
+        // 2-byte big-endian length prefix is the framing most rebatedores use.
+        // Optional — the InjectorPanel exposes this via a UI toggle so users
+        // can test receivers that expect un-framed bytes too.
+        var lenPrefix = request.IncludeLengthPrefix
+            ? new[] { (byte)((bodyBytes.Length >> 8) & 0xFF), (byte)(bodyBytes.Length & 0xFF) }
+            : null;
 
         try
         {
@@ -218,18 +242,48 @@ public sealed class SimulatorController : ControllerBase
             }
 
             using var stream = client.GetStream();
-            await stream.WriteAsync(lenPrefix);
+            if (lenPrefix is not null)
+                await stream.WriteAsync(lenPrefix);
             await stream.WriteAsync(bodyBytes);
+
+            // Un-framed mode: half-close the send side so the rebatedor's
+            // read-until-close drain sees EOF and knows the message is over.
+            // Without this both sides deadlock — the injetor waits for a
+            // response, the rebatedor waits for the connection to close.
+            // We can still read the response on the receive half-channel.
+            if (!request.IncludeLengthPrefix)
+                client.Client.Shutdown(System.Net.Sockets.SocketShutdown.Send);
 
             using var readCts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             byte[] respBody;
             try
             {
-                respBody = await ReadFramedAsync(stream, readCts.Token);
+                // The response is framed iff the request was — symmetric framing
+                // is the convention. When un-framed, the rebatedor signals end of
+                // message by closing its own send side, so we drain to EOF.
+                respBody = request.IncludeLengthPrefix
+                    ? await ReadFramedAsync(stream, readCts.Token)
+                    : await ReadUntilCloseAsync(stream, readCts.Token);
             }
             catch (OperationCanceledException)
             {
                 return Ok(new InjectDirectResponse(Success: false, Error: "Response timeout (30s)."));
+            }
+            catch (IOException ex) when (ex.Message.Contains("Connection closed", StringComparison.Ordinal))
+            {
+                // The peer closed mid-frame — most common cause is a mismatch
+                // between Injetor's IncludeLengthPrefix and Rebatedor's
+                // HeaderSize. The old surfacing was "Message cannot be null or
+                // empty" later on; that hid the real cause.
+                return Ok(new InjectDirectResponse(Success: false,
+                    Error: BuildFramingMismatchError(request.IncludeLengthPrefix)));
+            }
+
+            if (respBody.Length == 0)
+            {
+                // Un-framed mode + peer closed without writing anything.
+                return Ok(new InjectDirectResponse(Success: false,
+                    Error: BuildFramingMismatchError(request.IncludeLengthPrefix)));
             }
 
             sw.Stop();
@@ -291,7 +345,14 @@ public sealed class SimulatorController : ControllerBase
                 Error: parseError,
                 RequestHex: Convert.ToHexString(requestBodyBytes),
                 RequestFields: requestFields,
-                RequestMti: reqMti));
+                RequestMti: reqMti,
+                DetectedLengthPrefix: detectedPrefix is null
+                    ? null
+                    : new DetectedLengthPrefixDto(
+                        detectedPrefix.Hex,
+                        detectedPrefix.ExpectedLength,
+                        detectedPrefix.ActualLength,
+                        detectedPrefix.Match)));
         }
         catch (Exception ex)
         {
@@ -299,16 +360,6 @@ public sealed class SimulatorController : ControllerBase
         }
     }
 
-    private static bool LooksLikeHexString(string s)
-    {
-        if ((s.Length & 1) != 0) return false;
-        foreach (var c in s)
-        {
-            var isHex = (c >= '0' && c <= '9') || (c >= 'A' && c <= 'F') || (c >= 'a' && c <= 'f');
-            if (!isHex) return false;
-        }
-        return true;
-    }
 
     private static async Task<byte[]> ReadFramedAsync(NetworkStream stream, CancellationToken ct)
     {
@@ -321,6 +372,33 @@ public sealed class SimulatorController : ControllerBase
         var body = new byte[len];
         await ReadExactAsync(stream, body, ct);
         return body;
+    }
+
+    /// <summary>
+    /// Un-framed mode counterpart: drain the stream until the peer half-closes
+    /// its send side. Used when <c>IncludeLengthPrefix=false</c> and the
+    /// rebatedor responds without a length prefix.
+    /// </summary>
+    private static async Task<byte[]> ReadUntilCloseAsync(NetworkStream stream, CancellationToken ct)
+    {
+        using var ms = new MemoryStream();
+        await stream.CopyToAsync(ms, ct);
+        return ms.ToArray();
+    }
+
+    /// <summary>
+    /// Friendly diagnostic for the most common cause of an empty/closed
+    /// response: the Injetor and Rebatedor disagreeing on framing. Exposed
+    /// (internal) so it can be unit-tested without standing up a TCP listener.
+    /// </summary>
+    internal static string BuildFramingMismatchError(bool injectorIncludeLengthPrefix)
+    {
+        var injectorMode = injectorIncludeLengthPrefix ? "ON" : "OFF";
+        var expectedListenerMode = injectorIncludeLengthPrefix
+            ? "HeaderSize=2 (Expect length prefix ON)"
+            : "HeaderSize=0 (Expect length prefix OFF)";
+        return $"Empty response — check Length prefix settings match between Injetor and Listener. " +
+               $"Injetor: IncludeLengthPrefix={injectorMode}; Listener must be: {expectedListenerMode}.";
     }
 
     private static async Task ReadExactAsync(NetworkStream stream, byte[] buffer, CancellationToken ct)
@@ -362,7 +440,11 @@ public sealed record InjectDirectRequest(
     bool VaryAmount = false,
     // Amounts are in cents — the UI presents reais but converts on submit.
     long AmountMin = 100,
-    long AmountMax = 50_000);
+    long AmountMax = 50_000,
+    // When true, prepend a 2-byte big-endian length prefix to the TCP frame
+    // (the framing most rebatedores use). Default true preserves the existing
+    // behavior for any callers that don't set it explicitly.
+    bool IncludeLengthPrefix = true);
 
 public sealed record InjectDirectFieldDto(int BitNumber, string Name, string Value);
 
@@ -380,4 +462,17 @@ public sealed record InjectDirectResponse(
     /// the variation flags refreshed STAN/timestamps/RRN on the wire.</summary>
     List<InjectDirectFieldDto>? RequestFields = null,
     /// <summary>MTI of the request (after variations).</summary>
-    string? RequestMti = null);
+    string? RequestMti = null,
+    /// <summary>
+    /// 2-byte length prefix that was detected at the start of the user's
+    /// input wire and stripped before sending. Null when no plausible prefix
+    /// was present. Useful for the UI to show "we noticed your wire already
+    /// had a prefix and stripped it for you".
+    /// </summary>
+    DetectedLengthPrefixDto? DetectedLengthPrefix = null);
+
+public sealed record DetectedLengthPrefixDto(
+    string Hex,
+    int ExpectedLength,
+    int ActualLength,
+    bool Match);

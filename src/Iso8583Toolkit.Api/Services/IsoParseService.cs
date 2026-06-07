@@ -114,17 +114,14 @@ public sealed class IsoParseService
     /// </summary>
     private static bool IsBinaryHex(string message)
     {
-        var trimmed = message.AsSpan().Trim();
+        var trimmedString = message.Trim();
+        var trimmed = trimmedString.AsSpan();
 
-        // Binary-hex needs at least 8 hex chars for the MTI (4 bytes × 2)
-        if (trimmed.Length < 8 || trimmed.Length % 2 != 0)
+        // Binary-hex needs at least 8 hex chars for the MTI (4 bytes × 2).
+        // The "all chars are hex" gate lives in IsoWireHelper.IsBinaryHex so
+        // the agent/frontend/tests all share the same definition.
+        if (trimmed.Length < 8 || !IsoWireHelper.IsBinaryHex(trimmedString))
             return false;
-
-        // All characters must be hex digits
-        foreach (var c in trimmed)
-        {
-            if (!Uri.IsHexDigit(c)) return false;
-        }
 
         // Three layouts can match binary-hex:
         //   (a) [MTI]…                    → MTI at offset 0

@@ -64,7 +64,81 @@ public sealed class AutoResponder
                 builder.WithField(bit, value);
         }
 
+        // 8. Bit 55 handling — Echo or GenerateArpc per EmvResponse config.
+        // Issuer-role echo list above intentionally omits Bit 55 because the
+        // shape depends on policy; we set it here. Echo (default) copies the
+        // request value verbatim; GenerateArpc tries the full crypto path
+        // and falls back to Echo on any failure.
+        var requestBit55 = request.GetFieldValue(55);
+        if (requestBit55 is not null)
+        {
+            var emvCfg = config.EmvResponse ?? EmvResponseConfig.Default;
+            var responseBit55 = emvCfg.Mode == EmvResponseMode.GenerateArpc
+                ? TryGenerateArpcBit55(request, requestBit55, emvCfg, config, responseCode)
+                ?? requestBit55  // fallback to echo
+                : requestBit55;
+            builder.WithField(55, responseBit55);
+        }
+
         return builder.Build();
+    }
+
+    /// <summary>
+    /// Attempts the GenerateArpc pipeline: skip proprietary header, parse TLV,
+    /// extract ARQC/ATC, derive ARPC, build response Bit 55 (tag 91 + 8A).
+    /// Returns <c>null</c> if any required input is missing or the crypto
+    /// step throws — caller should then fall back to echo.
+    /// </summary>
+    private static string? TryGenerateArpcBit55(
+        IsoMessage request, string bit55Hex, EmvResponseConfig emvCfg,
+        SessionConfig sessionCfg, string responseCode)
+    {
+        try
+        {
+            var trimmed = bit55Hex.AsSpan(emvCfg.ProprietaryHeaderBytes * 2);
+            if (trimmed.Length < 4) return null;
+
+            var tags = Cryptography.Tlv.TlvParser.Parse(trimmed.ToString());
+            var arqc = tags.FirstOrDefault(t => t.Tag == "9F26")?.Value;
+            var atc  = tags.FirstOrDefault(t => t.Tag == "9F36")?.Value;
+            if (arqc is null || atc is null) return null;
+
+            var pan = request.GetFieldValue(2);
+            var psn = request.GetFieldValue(23) ?? "00";
+            if (pan is null) return null;
+
+            var imk = string.IsNullOrEmpty(emvCfg.ImkOverride)
+                ? sessionCfg.IssuerMasterKey
+                : emvCfg.ImkOverride;
+            if (string.IsNullOrEmpty(imk)) return null;
+
+            // The field named `IccMasterKey` on ArpcInput actually receives
+            // the IMK — the calculator derives the ICC key internally using
+            // PAN + PSN. Confusing name but verified at the implementation.
+            var method = emvCfg.Brand?.Equals("Mastercard", StringComparison.OrdinalIgnoreCase) == true
+                ? Cryptography.Emv.ArpcMethod.Method2
+                : Cryptography.Emv.ArpcMethod.Method1;
+
+            var arpcInput = new Cryptography.Emv.ArpcInput(
+                Arqc: arqc,
+                IccMasterKey: imk,
+                Pan: pan,
+                PanSequenceNumber: psn,
+                Atc: atc,
+                AuthResponseCode: responseCode,
+                Csu: null,
+                Profile: Cryptography.Emv.EmvProfile.Visa, // informational
+                Method: method);
+
+            var arpc = Cryptography.Emv.ArpcCalculator.CalculateArpc(arpcInput);
+            return new Cryptography.Emv.EmvCryptoService()
+                .BuildBit55Response(arpc, responseCode);
+        }
+        catch
+        {
+            // Any failure → caller falls back to echo.
+            return null;
+        }
     }
 
     /// <summary>

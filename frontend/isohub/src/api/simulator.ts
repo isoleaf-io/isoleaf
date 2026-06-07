@@ -1,5 +1,5 @@
 import { api } from "./client";
-import type { MessageLogEntry, SimulatorSession } from "@/types";
+import type { EmvResponseConfig, MessageLogEntry, SimulatorSession } from "@/types";
 
 export const listSessions = () => api.get<SimulatorSession[]>("/simulator/sessions").then((r) => r.data);
 
@@ -10,6 +10,9 @@ export const stopSession = (id: string) => api.delete(`/simulator/sessions/${id}
 
 export const injectMessage = (id: string, hexMessage: string) =>
   api.post(`/simulator/sessions/${id}/inject`, { hexMessage }).then((r) => r.data);
+
+export const updateEmvConfig = (id: string, config: EmvResponseConfig) =>
+  api.put(`/simulator/sessions/${id}/emv-config`, config).then((r) => r.data);
 
 export interface InjectDirectRequest {
   targetHost: string;
@@ -24,6 +27,11 @@ export interface InjectDirectRequest {
   /** Bounds for Bit 4 randomisation, in cents. */
   amountMin?: number;
   amountMax?: number;
+  /**
+   * Prepend the 2-byte big-endian length prefix when writing to the socket.
+   * Defaults true server-side (the framing most rebatedores use).
+   */
+  includeLengthPrefix?: boolean;
 }
 
 export interface InjectDirectResponseFieldDto {

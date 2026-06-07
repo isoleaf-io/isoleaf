@@ -267,6 +267,28 @@ export interface SimulatorSession {
   targetHost?: string | null;
   /** Remote port for Injetor sessions; null for Rebatedor. */
   targetPort?: number | null;
+  /**
+   * Wire framing the session uses. 2 = 2-byte big-endian length prefix
+   * (default, standard for acquirer/network connections). 0 = un-framed
+   * (1 connect = 1 message; for terminals without framing).
+   */
+  headerSize?: number;
+  /**
+   * How the Issuer-role session handles Bit 55 in its responses. Only
+   * meaningful when role = "Emissor"; ignored otherwise.
+   */
+  emvResponse?: EmvResponseConfig;
+}
+
+export type EmvResponseMode = "Echo" | "GenerateArpc";
+
+export interface EmvResponseConfig {
+  mode: EmvResponseMode;
+  /** Bytes (NOT chars) of proprietary header to skip before the TLV parse. */
+  proprietaryHeaderBytes: number;
+  /** Null → use Workspace IMK; if that's also null, falls back to Echo. */
+  imkOverride?: string | null;
+  brand: string;
 }
 
 export interface MessageLogEntry {
