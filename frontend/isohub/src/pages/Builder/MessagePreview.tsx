@@ -1,4 +1,5 @@
-﻿import * as Tabs from "@radix-ui/react-tabs";
+﻿import { useEffect, useState } from "react";
+import * as Tabs from "@radix-ui/react-tabs";
 import { useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
 import { ChevronRight, RotateCcw, Save } from "lucide-react";
@@ -9,6 +10,18 @@ import { MonoText } from "@/components/ui/MonoText";
 import { Badge } from "@/components/ui/Badge";
 import { useAppConfig } from "@/contexts/AppConfigContext";
 import { useBuilderStore, type BuilderField, type BuiltMessage } from "@/store/builder";
+
+const INCLUDE_LENGTH_STORAGE_KEY = "isoleaf-builder-include-length";
+
+/**
+ * Encodes a uint16 byte count as a 4-hex-char big-endian string (the on-wire
+ * length prefix). Clamps overflow to 0xFFFF — a 64KB ISO 8583 frame is already
+ * far beyond anything realistic.
+ */
+function lengthPrefixHex(charCount: number): string {
+  const v = Math.min(charCount, 0xffff);
+  return v.toString(16).toUpperCase().padStart(4, "0");
+}
 
 interface Props {
   built: BuiltMessage;
@@ -44,6 +57,23 @@ export function MessagePreview({ built, onSaveTemplate }: Props) {
   const mtiClass = context.mti.slice(0, 2);
   const canReverse = mtiClass !== "04" && mtiClass !== "08";
 
+  // Length prefix toggle — persisted on its own key so it survives Generate
+  // round-trips without bloating the BuiltMessage store entry.
+  const [includeLengthPrefix, setIncludeLengthPrefix] = useState<boolean>(() => {
+    try { return localStorage.getItem(INCLUDE_LENGTH_STORAGE_KEY) === "true"; }
+    catch { return false; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem(INCLUDE_LENGTH_STORAGE_KEY, String(includeLengthPrefix)); }
+    catch { /* private-browsing or storage disabled — silently no-op */ }
+  }, [includeLengthPrefix]);
+
+  // Length = chars in the ASCII wire that goes on the TCP socket
+  // (TPDU chars when present + ASCII body chars). Same value drives both the
+  // header badge and the optional 2-byte prefix prepended by Copy.
+  const asciiWireLength = (built.tpdu?.length ?? 0) + built.ascii.length;
+  const prefixHex = lengthPrefixHex(asciiWireLength);
+
   const createReversal = () => {
     const originalMti = context.mti;
     const echoed: BuilderField[] = fields
@@ -78,6 +108,11 @@ export function MessagePreview({ built, onSaveTemplate }: Props) {
             </span>
             <Badge tone={built.fromParser ? "accent" : "success"}>{built.profileUsed}</Badge>
             {built.tpdu && <Badge tone="warning">TPDU: <MonoText className="ml-1">{built.tpdu}</MonoText></Badge>}
+            {asciiWireLength > 0 && (
+              <Badge tone="neutral" title={t("builder.lengthPrefix")}>
+                {t("builder.lengthPrefixValue", { hex: prefixHex, chars: asciiWireLength })}
+              </Badge>
+            )}
             {built.activeBits.includes(55) && (
               built.arqcIsSimulated === false ? (
                 <Badge tone="success" title={t("builder.arqcDerivedTooltip")}>
@@ -150,7 +185,11 @@ export function MessagePreview({ built, onSaveTemplate }: Props) {
             const showTpduPrefix = !!built.tpdu && kind !== "bitmap";
             // For binary-hex view, TPDU is already raw hex; for ASCII wire we prepend the
             // 10-hex literal (matches what goes on the TCP socket if the simulator forwards it).
-            const wireValue = showTpduPrefix ? `${built.tpdu}${body ?? ""}` : (body ?? "");
+            const baseWire = showTpduPrefix ? `${built.tpdu}${body ?? ""}` : (body ?? "");
+            // Length prefix only applies to ASCII/binary tabs (the bitmap view is
+            // standalone). Copy gets the raw 4 hex chars; visual gets "[XXXX] " for clarity.
+            const showPrefix = includeLengthPrefix && kind !== "bitmap" && baseWire.length > 0;
+            const copyValue = showPrefix ? `${prefixHex}${baseWire}` : baseWire;
             return (
               <Tabs.Content key={kind} value={kind}>
                 {showTpduPrefix && (
@@ -164,12 +203,27 @@ export function MessagePreview({ built, onSaveTemplate }: Props) {
                 )}
                 <div className="relative">
                   <pre className="bg-bg-input border border-[var(--border)] rounded-md py-3 pl-3 pr-10 font-mono text-xs text-text-primary whitespace-pre-wrap break-all max-h-[180px] overflow-auto">
-                    {wireValue || "â€”"}
+                    {showPrefix && (
+                      <span className="text-accent" data-testid="length-prefix-visual">[{prefixHex}] </span>
+                    )}
+                    {baseWire || "—"}
                   </pre>
                   <div className="absolute top-2 right-2">
-                    <CopyButton value={wireValue} />
+                    <CopyButton value={copyValue} />
                   </div>
                 </div>
+                {kind !== "bitmap" && (
+                  <label className="mt-2 flex items-center gap-2 text-xs text-text-secondary cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={includeLengthPrefix}
+                      onChange={(e) => setIncludeLengthPrefix(e.target.checked)}
+                      className="rounded border-[var(--border)]"
+                    />
+                    <span>{t("builder.includeLengthPrefix")}</span>
+                    <span className="text-text-tertiary">{t("builder.includeLengthPrefixHint")}</span>
+                  </label>
+                )}
                 {kind === "bitmap" && built.activeBits.length > 0 && (
                   <div className="text-xs text-text-tertiary mt-2">
                     {t("builder.activeBitsLabel")} <MonoText>{built.activeBits.join(", ")}</MonoText>

@@ -42,6 +42,11 @@ interface PersistedState {
   /** Amounts are expressed to the user in BRL; backend converts to cents. */
   amountMinReais: number;
   amountMaxReais: number;
+  /**
+   * Prepend a 2-byte big-endian length prefix (encoded as 4 ASCII hex chars)
+   * to the message before injection. Off by default; toggled by the user.
+   */
+  includeLengthPrefix: boolean;
 }
 
 const STORAGE_KEY = "isoleaf-injector";
@@ -55,7 +60,17 @@ const DEFAULTS: PersistedState = {
   varyAmount: false,
   amountMinReais: 1,
   amountMaxReais: 500,
+  includeLengthPrefix: false,
 };
+
+/**
+ * Encodes the message char count as a 4-hex-char big-endian uint16. Clamped
+ * to 0xFFFF — any practical ISO 8583 frame fits well below that.
+ */
+function lengthPrefixHex(charCount: number): string {
+  const v = Math.min(charCount, 0xffff);
+  return v.toString(16).toUpperCase().padStart(4, "0");
+}
 
 function loadPersisted(): PersistedState {
   try {
@@ -173,11 +188,19 @@ export function InjectorPanel() {
     if (!persisted.message.trim()) return;
     setBusy(true);
     const startedAt = performance.now();
+    // Prepend the 4-hex-char length prefix when enabled. Length counts the
+    // chars in the trimmed message (matches what the backend forwards on
+    // the wire). The prefix itself is NOT counted — same convention used
+    // by the Builder preview.
+    const trimmed = persisted.message.trim();
+    const wireMessage = persisted.includeLengthPrefix
+      ? `${lengthPrefixHex(trimmed.length)}${trimmed}`
+      : trimmed;
     try {
       const res: InjectDirectResponse = await injectDirect({
         targetHost: persisted.targetHost,
         targetPort: persisted.targetPort,
-        message: persisted.message.trim(),
+        message: wireMessage,
         includeTpdu: persisted.includeTpdu,
         // Variations are continuous-mode only — the unit-mode button must always
         // forward the message verbatim so power users can test exact payloads.
@@ -280,14 +303,30 @@ export function InjectorPanel() {
               onChange={(e) => setPersistedField("targetPort", Number(e.target.value))}
             />
           </div>
-          <div className="pb-1">
+          <div className="pb-1 flex flex-col gap-1.5">
             <Toggle
               checked={persisted.includeTpdu}
               onChange={(v) => setPersistedField("includeTpdu", v)}
               label={t("simulator.injector.includeTpdu")}
             />
+            <Toggle
+              checked={persisted.includeLengthPrefix}
+              onChange={(v) => setPersistedField("includeLengthPrefix", v)}
+              label={t("simulator.includeLengthPrefix")}
+            />
           </div>
         </div>
+
+        {persisted.includeLengthPrefix && persisted.message.trim().length > 0 && (
+          <div className="text-xs text-text-tertiary -mt-1" data-testid="injector-length-preview">
+            {t("simulator.includeLengthPrefixHint")}{" "}
+            <span className="font-mono text-accent">
+              [{lengthPrefixHex(persisted.message.trim().length)}]
+            </span>{" "}
+            {persisted.message.trim().slice(0, 40)}
+            {persisted.message.trim().length > 40 ? "…" : ""}
+          </div>
+        )}
 
         {/* Mensagem */}
         <div>
