@@ -57,6 +57,8 @@ public sealed class TcpSessionManager
             AutoRespond = config.AutoRespond,
             TargetHost = config.TargetHost,
             TargetPort = config.TargetPort,
+            HeaderSize = config.HeaderSize,
+            EmvResponse = config.EmvResponse,
             Status = SessionStatus.Starting
         };
         _store.AddSession(session);

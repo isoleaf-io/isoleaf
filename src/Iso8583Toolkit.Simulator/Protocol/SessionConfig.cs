@@ -50,6 +50,14 @@ public sealed record SessionConfig
     public string? UnknownMtiCustomValue { get; init; }
 
     /// <summary>
+    /// How the Issuer-role simulator handles Bit 55 in responses. Defaults
+    /// to <see cref="EmvResponseMode.Echo"/> — copy the incoming value
+    /// verbatim, which works for any payload shape including networks that
+    /// prepend a proprietary header before the TLV body.
+    /// </summary>
+    public EmvResponseConfig EmvResponse { get; init; } = EmvResponseConfig.Default;
+
+    /// <summary>
     /// Resolves whether the response should carry a TPDU, given the mode and
     /// whether the inbound message actually had one.
     /// </summary>

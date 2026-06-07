@@ -9,6 +9,7 @@ import {
   ChevronRight,
   PowerOff,
   ScrollText,
+  Settings,
   Wifi,
   WifiOff,
   X,
@@ -25,6 +26,7 @@ import { useSimulatorHub } from "@/hooks/useSimulatorHub";
 import { useAppConfig } from "@/contexts/AppConfigContext";
 import { InjectorPanel } from "./InjectorPanel";
 import { SimulatorLockedPanel } from "./SimulatorLockedPanel";
+import { EmvResponseConfigModal } from "./EmvResponseConfigModal";
 import type { MessageLogEntry, SimulatorSession } from "@/types";
 
 const STATUS_TONE: Record<string, "accent" | "success" | "warning" | "danger" | "neutral"> = {
@@ -359,11 +361,32 @@ function SessionRow({
 }) {
   const { t } = useTranslation();
   const isActive = session.status === "active" || session.status === "starting";
+  // Backend serializes enum values in lowercase ("emissor", "active") — match
+  // case-insensitively so a future serialization policy change doesn't silently
+  // hide the EMV config button.
+  const isIssuer = session.role?.toLowerCase() === "emissor";
+  const [emvModalOpen, setEmvModalOpen] = useState(false);
+  // Local optimistic mirror so the badge updates immediately on save (the
+  // store-side update only surfaces on the next sessions refetch).
+  const [localEmvConfig, setLocalEmvConfig] = useState(session.emvResponse);
+  const effectiveEmv = localEmvConfig ?? session.emvResponse;
+  const emvMode = effectiveEmv?.mode ?? "Echo";
+
   return (
     <div className="p-3 rounded-md bg-bg-input border border-[var(--border)]">
       <div className="flex items-center justify-between mb-2">
         <Badge tone={STATUS_TONE[session.status] ?? "neutral"}>{session.status}</Badge>
         <div className="flex items-center gap-1">
+          {isIssuer && isActive && (
+            <button
+              onClick={() => setEmvModalOpen(true)}
+              title={t("simulator.emvConfig.title")}
+              className="p-1 text-text-tertiary hover:text-text-primary"
+              data-testid="emv-config-button"
+            >
+              <Settings size={14} />
+            </button>
+          )}
           <button
             onClick={onViewLog}
             title={t("simulator.log.viewLog")}
@@ -388,12 +411,44 @@ function SessionRow({
         </div>
       </div>
       <div className="font-mono text-xs text-text-secondary mb-1">port {session.tcpPort}</div>
-      <div className="text-xs text-text-tertiary flex justify-between">
-        <span>{session.role}</span>
+      <div className="text-xs text-text-tertiary flex justify-between items-center gap-2">
+        <span className="flex items-center gap-1.5 flex-wrap">
+          {session.role}
+          <Badge
+            tone={session.headerSize === 0 ? "warning" : "success"}
+            className="text-[10px] px-1 py-0"
+            title={
+              session.headerSize === 0
+                ? t("simulator.framingWithoutPrefixHint")
+                : t("simulator.framingWithPrefixHint")
+            }
+          >
+            {session.headerSize === 0
+              ? t("simulator.framingWithoutPrefix")
+              : t("simulator.framingWithPrefix")}
+          </Badge>
+          {isIssuer && (
+            <Badge
+              tone={emvMode === "GenerateArpc" ? "accent" : "neutral"}
+              className="text-[10px] px-1 py-0"
+            >
+              {emvMode === "GenerateArpc"
+                ? t("simulator.emvConfig.badgeArpc")
+                : t("simulator.emvConfig.badgeEcho")}
+            </Badge>
+          )}
+        </span>
         <span title={t("simulator.log.transactionsTooltip")}>
           {t("simulator.log.transactions", { count: session.messagesProcessed })}
         </span>
       </div>
+      <EmvResponseConfigModal
+        open={emvModalOpen}
+        sessionId={session.sessionId}
+        initialConfig={effectiveEmv}
+        onSaved={(saved) => setLocalEmvConfig(saved)}
+        onClose={() => setEmvModalOpen(false)}
+      />
     </div>
   );
 }
@@ -536,6 +591,11 @@ function SessionForm({
     tpduMode: "Optional",
     unknownMtiResponse: "Derive",
     unknownMtiCustomValue: "",
+    // When true → backend's MessageFramer uses HeaderSize=2 (standard
+    // acquirer/network framing). When false → HeaderSize=0 (1 connect = 1
+    // message, no length prefix on the wire — typical for POS terminals
+    // with proprietary protocols).
+    expectLengthPrefix: true,
   });
 
   const TPDU_HINTS: Record<string, string> = {
@@ -683,13 +743,27 @@ function SessionForm({
           onChange={(v) => setCfg({ ...cfg, validateArqc: v })}
           label={t("simulator.validateArqc")}
         />
+        <div>
+          <Toggle
+            checked={cfg.expectLengthPrefix}
+            onChange={(v) => setCfg({ ...cfg, expectLengthPrefix: v })}
+            label={t("simulator.expectLengthPrefix")}
+          />
+          <div className="text-xs text-text-tertiary mt-1">
+            {t("simulator.expectLengthPrefixHint")}
+          </div>
+        </div>
         <div className="flex gap-2 pt-2">
           <Button
             onClick={() => {
               // mode is always "Rebatedor" — the form no longer offers a choice.
+              // expectLengthPrefix is a UI-side concept; the backend reads
+              // `headerSize` from SessionConfig (0 = un-framed, 2 = standard).
+              const { expectLengthPrefix, ...rest } = cfg;
               const payload = {
-                ...cfg,
+                ...rest,
                 sessionId: crypto.randomUUID(),
+                headerSize: expectLengthPrefix ? 2 : 0,
                 unknownMtiCustomValue:
                   cfg.unknownMtiResponse === "Custom" ? cfg.unknownMtiCustomValue : null,
               };

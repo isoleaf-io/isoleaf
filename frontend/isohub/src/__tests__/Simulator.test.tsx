@@ -31,7 +31,7 @@ vi.mock("@/hooks/useSimulatorHub", () => ({
 }));
 
 import SimulatorPage from "@/pages/Simulator";
-import { listSessions, injectDirect, getLog } from "@/api/simulator";
+import { listSessions, injectDirect, getLog, startSession } from "@/api/simulator";
 
 async function openNewSessionForm() {
   const user = userEvent.setup();
@@ -102,6 +102,168 @@ describe("Simulator page — redesigned layout", () => {
     expect(
       screen.getByText(/credenciadora\/adquirente|Simulates the acquirer/i)
     ).toBeInTheDocument();
+  });
+
+  it("Nova sessão form defaults Esperar Length prefix to ON (headerSize=2)", async () => {
+    const user = await openNewSessionForm();
+    const mock = startSession as unknown as ReturnType<typeof vi.fn>;
+    mock.mockReset();
+    mock.mockResolvedValueOnce({});
+
+    // Default state of the toggle is ON; submit immediately and check the payload.
+    await user.click(screen.getByRole("button", { name: /^Confirmar$|^Confirm$/i }));
+
+    expect(mock).toHaveBeenCalledTimes(1);
+    expect(mock.mock.calls[0][0].headerSize).toBe(2);
+    // The UI-side `expectLengthPrefix` is stripped from the payload — only
+    // the backend-facing `headerSize` should be sent.
+    expect("expectLengthPrefix" in mock.mock.calls[0][0]).toBe(false);
+  });
+
+  it("Nova sessão form sends headerSize=0 when toggle is turned off", async () => {
+    const user = await openNewSessionForm();
+    const mock = startSession as unknown as ReturnType<typeof vi.fn>;
+    mock.mockReset();
+    mock.mockResolvedValueOnce({});
+
+    // The Toggle component is a custom <span> (no native role); the clickable
+    // pill is the first child of the wrapping label, which is the parent of
+    // the text we can query for.
+    const textSpan = screen.getByText(/Esperar Length prefix|Expect length prefix/i);
+    const togglePill = textSpan.parentElement!.firstElementChild as HTMLElement;
+    await user.click(togglePill);
+
+    await user.click(screen.getByRole("button", { name: /^Confirmar$|^Confirm$/i }));
+
+    expect(mock).toHaveBeenCalledTimes(1);
+    expect(mock.mock.calls[0][0].headerSize).toBe(0);
+  });
+
+  it("SessionCard shows 'Com prefix' badge when headerSize=2", async () => {
+    (listSessions as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce([
+      {
+        sessionId: "rebat-1", tcpPort: 9100, mode: "rebatedor", role: "Emissor",
+        layoutName: "default", defaultResponseCode: "00", validateArqc: false,
+        autoRespond: true, status: "active",
+        startedAt: new Date().toISOString(), messagesProcessed: 0, messagesRejected: 0,
+        headerSize: 2,
+      },
+    ]);
+
+    renderApp(<SimulatorPage />);
+    await screen.findByText(/port 9100/);
+    expect(await screen.findByText(/^Com prefix$|^With prefix$/i)).toBeInTheDocument();
+    expect(screen.queryByText(/^Sem prefix$|^No prefix$/i)).toBeNull();
+  });
+
+  it("SessionCard shows EMV config button only for Issuer role", async () => {
+    (listSessions as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce([
+      // Issuer/Emissor — config button should be visible.
+      {
+        sessionId: "rebat-issuer", tcpPort: 9100, mode: "rebatedor", role: "Emissor",
+        layoutName: "default", defaultResponseCode: "00", validateArqc: false,
+        autoRespond: true, status: "active",
+        startedAt: new Date().toISOString(), messagesProcessed: 0, messagesRejected: 0,
+        headerSize: 2,
+        emvResponse: { mode: "Echo", proprietaryHeaderBytes: 0, brand: "Visa" },
+      },
+      // Acquirer — should NOT have the config button.
+      {
+        sessionId: "rebat-acquirer", tcpPort: 9101, mode: "rebatedor", role: "Adquirente",
+        layoutName: "default", defaultResponseCode: "00", validateArqc: false,
+        autoRespond: true, status: "active",
+        startedAt: new Date().toISOString(), messagesProcessed: 0, messagesRejected: 0,
+        headerSize: 2,
+      },
+    ]);
+
+    renderApp(<SimulatorPage />);
+    await screen.findByText(/port 9100/);
+    await screen.findByText(/port 9101/);
+
+    // Exactly one EMV config button — for the Issuer session only.
+    const buttons = screen.queryAllByTestId("emv-config-button");
+    expect(buttons).toHaveLength(1);
+  });
+
+  it("SessionCard shows ARPC badge when EMV mode is GenerateArpc", async () => {
+    (listSessions as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce([
+      {
+        sessionId: "rebat-arpc", tcpPort: 9100, mode: "rebatedor", role: "Emissor",
+        layoutName: "default", defaultResponseCode: "00", validateArqc: false,
+        autoRespond: true, status: "active",
+        startedAt: new Date().toISOString(), messagesProcessed: 0, messagesRejected: 0,
+        headerSize: 2,
+        emvResponse: { mode: "GenerateArpc", proprietaryHeaderBytes: 4, brand: "Visa" },
+      },
+    ]);
+
+    renderApp(<SimulatorPage />);
+    await screen.findByText(/port 9100/);
+    expect(await screen.findByText(/Bit 55: ARPC/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Bit 55: Echo/i)).toBeNull();
+  });
+
+  it("SessionCard shows Echo badge by default for Issuer", async () => {
+    (listSessions as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce([
+      {
+        sessionId: "rebat-echo", tcpPort: 9100, mode: "rebatedor", role: "Emissor",
+        layoutName: "default", defaultResponseCode: "00", validateArqc: false,
+        autoRespond: true, status: "active",
+        startedAt: new Date().toISOString(), messagesProcessed: 0, messagesRejected: 0,
+        headerSize: 2,
+        emvResponse: { mode: "Echo", proprietaryHeaderBytes: 0, brand: "Visa" },
+      },
+    ]);
+
+    renderApp(<SimulatorPage />);
+    await screen.findByText(/port 9100/);
+    expect(await screen.findByText(/Bit 55: Echo/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Bit 55: ARPC/i)).toBeNull();
+  });
+
+  it("EMV config modal reveals ARPC fields only when GenerateArpc selected", async () => {
+    (listSessions as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce([
+      {
+        sessionId: "rebat-1", tcpPort: 9100, mode: "rebatedor", role: "Emissor",
+        layoutName: "default", defaultResponseCode: "00", validateArqc: false,
+        autoRespond: true, status: "active",
+        startedAt: new Date().toISOString(), messagesProcessed: 0, messagesRejected: 0,
+        headerSize: 2,
+        emvResponse: { mode: "Echo", proprietaryHeaderBytes: 0, brand: "Visa" },
+      },
+    ]);
+
+    const user = userEvent.setup();
+    renderApp(<SimulatorPage />);
+    await screen.findByText(/port 9100/);
+
+    // Open the modal — ARPC fields hidden because Echo is selected.
+    await user.click(screen.getByTestId("emv-config-button"));
+    expect(screen.getByTestId("emv-config-modal")).toBeInTheDocument();
+    expect(screen.queryByTestId("arpc-fields")).toBeNull();
+
+    // Flip to GenerateArpc — the proprietary header + IMK + brand fields appear.
+    const arpcRadio = screen.getByRole("radio", { name: /Generate ARPC|Gerar ARPC/i });
+    await user.click(arpcRadio);
+    expect(screen.getByTestId("arpc-fields")).toBeInTheDocument();
+  });
+
+  it("SessionCard shows 'Sem prefix' badge when headerSize=0", async () => {
+    (listSessions as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce([
+      {
+        sessionId: "rebat-1", tcpPort: 9100, mode: "rebatedor", role: "Emissor",
+        layoutName: "default", defaultResponseCode: "00", validateArqc: false,
+        autoRespond: true, status: "active",
+        startedAt: new Date().toISOString(), messagesProcessed: 0, messagesRejected: 0,
+        headerSize: 0,
+      },
+    ]);
+
+    renderApp(<SimulatorPage />);
+    await screen.findByText(/port 9100/);
+    expect(await screen.findByText(/^Sem prefix$|^No prefix$/i)).toBeInTheDocument();
+    expect(screen.queryByText(/^Com prefix$|^With prefix$/i)).toBeNull();
   });
 
   it("Emissor hint shows when Emissor selected", async () => {
@@ -489,15 +651,85 @@ describe("InjectorPanel", () => {
     expect(args.varyAmount).toBe(false);
   });
 
-  it("prepends length prefix to message when toggle is enabled", async () => {
+  it("shows correct preview after stripping an existing length prefix", async () => {
+    // User pastes "0004" + "30323030" — "0004" is a valid length prefix
+    // (declares 4 wire bytes), payload is the binary-hex of "0200" (4 chars).
+    // Preview must show [0004] (recomputed from the 4-byte payload), NOT
+    // [0006] which the old code computed by counting all 12 hex chars / 2.
+    try {
+      window.localStorage.setItem(
+        "isoleaf-injector",
+        JSON.stringify({
+          targetHost: "localhost",
+          targetPort: 8583,
+          message: "",
+          includeTpdu: false,
+          durationSeconds: 0,
+          varyIdentifiers: true,
+          varyAmount: false,
+          amountMinReais: 1,
+          amountMaxReais: 500,
+          includeLengthPrefix: true,
+        })
+      );
+    } catch { /* ignore */ }
+
+    const user = userEvent.setup();
+    renderApp(<SimulatorPage />);
+
+    const textarea = screen.getByPlaceholderText("0200F23C...") as HTMLTextAreaElement;
+    await user.type(textarea, "000430323030");
+
+    const preview = await screen.findByTestId("injector-length-preview");
+    expect(preview.textContent).toContain("[0004]");
+    expect(preview.textContent).not.toContain("[0006]");
+    // The detected-prefix hint surfaces the value we stripped.
+    expect(preview.textContent).toMatch(/0004/);
+  });
+
+  it("calculates correct length preview for binary-hex input", async () => {
+    // Binary-hex input "0200F23C" is 8 hex chars = 4 wire bytes. The preview
+    // must show "[0004]" — not "[0008]" (the old bug counted hex chars).
+    try {
+      window.localStorage.setItem(
+        "isoleaf-injector",
+        JSON.stringify({
+          targetHost: "localhost",
+          targetPort: 8583,
+          message: "",
+          includeTpdu: false,
+          durationSeconds: 0,
+          varyIdentifiers: true,
+          varyAmount: false,
+          amountMinReais: 1,
+          amountMaxReais: 500,
+          includeLengthPrefix: true,
+        })
+      );
+    } catch { /* ignore */ }
+
+    const user = userEvent.setup();
+    renderApp(<SimulatorPage />);
+
+    const textarea = screen.getByPlaceholderText("0200F23C...") as HTMLTextAreaElement;
+    await user.type(textarea, "0200F23C");
+
+    const preview = await screen.findByTestId("injector-length-preview");
+    expect(preview.textContent).toContain("[0004]");
+    expect(preview.textContent).not.toContain("[0008]");
+  });
+
+  it("sends includeLengthPrefix flag to backend (not concat in body)", async () => {
+    // Regression: earlier this UI concatenated the prefix as 4 ASCII hex chars
+    // into the message string. The backend then wrapped it with its own
+    // (correct) 2-byte binary prefix → receiver got "000A0200…" inside the
+    // body and failed to parse the MTI. The fix moved prefix generation to
+    // the backend, which now reads a boolean from the request DTO.
     const user = userEvent.setup();
     const mock = injectDirect as unknown as ReturnType<typeof vi.fn>;
     mock.mockReset();
     mock.mockResolvedValueOnce({ success: true, processingMs: 5 });
 
-    // Pre-seed the toggle in localStorage so the component picks it up on
-    // mount — the Toggle component is awkward to click in jsdom (its visible
-    // target is a styled span), and unit-testing UI shouldn't require it.
     try {
       window.localStorage.setItem(
         "isoleaf-injector",
@@ -518,14 +750,51 @@ describe("InjectorPanel", () => {
 
     renderApp(<SimulatorPage />);
 
-    // 10-char wire → prefix "000A" (10 = 0x0A).
     const textarea = screen.getByPlaceholderText("0200F23C...") as HTMLTextAreaElement;
     await user.type(textarea, "0200F23C24");
-
-    const injectBtn = screen.getByRole("button", { name: /^(Injetar|Inject)\s*→/i });
-    await user.click(injectBtn);
+    await user.click(screen.getByRole("button", { name: /^(Injetar|Inject)\s*→/i }));
 
     expect(mock).toHaveBeenCalledTimes(1);
-    expect(mock.mock.calls[0][0].message).toBe("000A0200F23C24");
+    const arg = mock.mock.calls[0][0];
+    expect(arg.message).toBe("0200F23C24");        // body untouched
+    expect(arg.includeLengthPrefix).toBe(true);    // flag forwarded
+  });
+
+  it("omits includeLengthPrefix when toggle is disabled", async () => {
+    const user = userEvent.setup();
+    const mock = injectDirect as unknown as ReturnType<typeof vi.fn>;
+    mock.mockReset();
+    mock.mockResolvedValueOnce({ success: true, processingMs: 5 });
+
+    // Default state → includeLengthPrefix: false (set explicitly so we test
+    // the disabled path too).
+    try {
+      window.localStorage.setItem(
+        "isoleaf-injector",
+        JSON.stringify({
+          targetHost: "localhost",
+          targetPort: 8583,
+          message: "",
+          includeTpdu: false,
+          durationSeconds: 0,
+          varyIdentifiers: true,
+          varyAmount: false,
+          amountMinReais: 1,
+          amountMaxReais: 500,
+          includeLengthPrefix: false,
+        })
+      );
+    } catch { /* ignore */ }
+
+    renderApp(<SimulatorPage />);
+
+    const textarea = screen.getByPlaceholderText("0200F23C...") as HTMLTextAreaElement;
+    await user.type(textarea, "0200F23C24");
+    await user.click(screen.getByRole("button", { name: /^(Injetar|Inject)\s*→/i }));
+
+    expect(mock).toHaveBeenCalledTimes(1);
+    const arg = mock.mock.calls[0][0];
+    expect(arg.message).toBe("0200F23C24");
+    expect(arg.includeLengthPrefix).toBe(false);
   });
 });

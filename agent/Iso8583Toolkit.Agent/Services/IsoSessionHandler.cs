@@ -46,6 +46,12 @@ public sealed class IsoSessionHandler
         using var stream = client.GetStream();
         var remoteEp = client.Client.RemoteEndPoint?.ToString() ?? "unknown";
 
+        // HeaderSize=0 (un-framed mode) follows the "1 connect = 1 message"
+        // convention used by POS terminals: read everything until the peer
+        // closes, process it once, and exit. Looping would block forever on
+        // the next CopyToAsync since the peer already closed.
+        var oneShot = _config.HeaderSize == 0;
+
         try
         {
             while (!ct.IsCancellationRequested && client.Connected)
@@ -54,6 +60,8 @@ public sealed class IsoSessionHandler
                 if (framedBytes is null) break;
 
                 await ProcessOneMessageAsync(stream, framedBytes, ct);
+
+                if (oneShot) break;
             }
         }
         catch (OperationCanceledException) { }
@@ -195,10 +203,34 @@ public sealed class IsoSessionHandler
                 return rejected;
             }
 
-            var responseHex = _responder.BuildResponseHex(request, _config, _layout);
-            // BuildResponseHex returns null only when ResolveResponseMti would have too —
-            // ResolveResponseMti above already handled that, so this is purely defensive.
-            if (responseHex is null) return inEntry;
+            // Build + serialise the response — wrap in an inner try so a failure
+            // here (e.g. weird field values that BuildResponseHex can't echo back)
+            // doesn't silently kill the connection. We send a minimal error frame
+            // (MTI flipped + RC=96) so the remote sees a real response instead of
+            // EOF/timeout.
+            // Refresh the EMV config from the live session record so the
+            // frontend's PATCH endpoint affects the NEXT message without
+            // requiring session restart. Other fields on _config are static
+            // for the connection's lifetime.
+            var liveSession = _store.GetSession(_config.SessionId);
+            var effectiveConfig = liveSession is null
+                ? _config
+                : _config with { EmvResponse = liveSession.EmvResponse };
+
+            string responseHex;
+            try
+            {
+                var built = _responder.BuildResponseHex(request, effectiveConfig, _layout);
+                if (built is null) return inEntry;
+                responseHex = built;
+            }
+            catch (Exception buildEx)
+            {
+                _logger.LogError(buildEx,
+                    "Response build failed for MTI={Mti} — sending minimal error response (RC=96)",
+                    request.Mti);
+                responseHex = BuildMinimalErrorResponseHex(ResponseMti(request.Mti), "96");
+            }
 
             // BuildResponseHex always emits an ASCII wire (printable digits + hex bitmap
             // + raw field values). When the inbound was binary-hex we mirror by encoding
@@ -283,6 +315,32 @@ public sealed class IsoSessionHandler
         var chars = requestMti.ToCharArray();
         if (char.IsAsciiDigit(chars[2])) chars[2] = (char)(chars[2] + 1);
         return new string(chars);
+    }
+
+    /// <summary>
+    /// Last-resort response when the full <see cref="AutoResponder.BuildResponseHex"/>
+    /// pipeline blows up — typically because the inbound message has field
+    /// values the responder can't echo back into the layout (e.g. binary TLV
+    /// in Bit 55 that the responder tries to re-serialise as ASCII). The
+    /// minimal wire is MTI + bitmap-with-only-bit-39 + the supplied error
+    /// RC, hand-rolled so it can't itself fail.
+    /// Exposed (internal) so unit tests can pin the wire shape without
+    /// running the whole TCP pipeline.
+    /// </summary>
+    internal static string BuildMinimalErrorResponseHex(string responseMti, string errorRc)
+    {
+        if (string.IsNullOrEmpty(responseMti) || responseMti.Length != 4)
+            responseMti = "9999"; // last-ditch fallback
+        if (string.IsNullOrEmpty(errorRc) || errorRc.Length != 2)
+            errorRc = "96";
+
+        // Bit 39 → 1-based; bitmap byte index = (39-1)/8 = 4; bit-in-byte
+        // (MSB first) = 7 - ((39-1) % 8) = 1 → bit mask 0x02.
+        var bitmap = new byte[8];
+        bitmap[4] = 0x02;
+        var bitmapHex = Convert.ToHexString(bitmap); // "0000000002000000"
+
+        return responseMti + bitmapHex + errorRc;
     }
 
     private void IncrementSession(string kind)

@@ -107,9 +107,12 @@ public sealed class IsoMessageBuilder
             {
                 BitNumber  = bit,
                 RawValue   = value,
-                RawBytes   = def?.Encoding == IsoFieldEncoding.Binary
-                    ? Convert.FromHexString(value)
-                    : Encoding.ASCII.GetBytes(value),
+                // Binary fields are typically stored as hex strings, but real
+                // wires sometimes carry raw TLV bytes inlined as ASCII (chars
+                // like 'l' = 0x6C, or odd-length slices). Convert.FromHexString
+                // would crash on those — fall back to ASCII bytes so the Echo
+                // path can round-trip the value unchanged.
+                RawBytes   = BinaryValueToBytes(value, def?.Encoding),
                 Definition = def ?? FallbackDefinition(bit, value)
             };
         }
@@ -260,4 +263,25 @@ public sealed class IsoMessageBuilder
             MaxLength = value.Length,
             Encoding  = IsoFieldEncoding.ASCII
         };
+
+    /// <summary>
+    /// Hex-decodes a Binary-field value when the string is a clean hex
+    /// sequence; falls back to ASCII bytes when it has odd length or
+    /// non-hex chars (typical for raw TLV inlined in the wire). Mirrors
+    /// <c>IsoParser.ToBytesSafe</c> so a parsed message can round-trip
+    /// back through the builder without crashing on edge-case payloads.
+    /// </summary>
+    private static byte[] BinaryValueToBytes(string value, IsoFieldEncoding? encoding)
+    {
+        if (encoding != IsoFieldEncoding.Binary)
+            return Encoding.ASCII.GetBytes(value);
+
+        if ((value.Length & 1) != 0) return Encoding.ASCII.GetBytes(value);
+        foreach (var c in value)
+        {
+            var isHex = (c >= '0' && c <= '9') || (c >= 'A' && c <= 'F') || (c >= 'a' && c <= 'f');
+            if (!isHex) return Encoding.ASCII.GetBytes(value);
+        }
+        return Convert.FromHexString(value);
+    }
 }
