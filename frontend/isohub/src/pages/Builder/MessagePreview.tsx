@@ -1,5 +1,5 @@
-import * as Tabs from "@radix-ui/react-tabs";
-import { useNavigate } from "react-router-dom";
+﻿import * as Tabs from "@radix-ui/react-tabs";
+import { useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
 import { ChevronRight, RotateCcw, Save } from "lucide-react";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
@@ -39,7 +39,7 @@ export function MessagePreview({ built, onSaveTemplate }: Props) {
   const fields = useBuilderStore((s) => s.fields);
   const { workspaceKeysEnabled } = useAppConfig();
 
-  // ↩ Reversal: build a 0400 from the current message in-place.
+  // â†© Reversal: build a 0400 from the current message in-place.
   // Hidden for 04xx (already a reversal) and 08xx (network management).
   const mtiClass = context.mti.slice(0, 2);
   const canReverse = mtiClass !== "04" && mtiClass !== "08";
@@ -93,7 +93,7 @@ export function MessagePreview({ built, onSaveTemplate }: Props) {
                   {t("builder.arqcSimulated")}
                 </button>
               ) : (
-                // Online mode: no IMK available — render a plain badge with a
+                // Online mode: no IMK available â€” render a plain badge with a
                 // tooltip pointing to Docker, not a clickable link to Workspace.
                 <Badge tone="warning" title={t("builder.arqcSimulatedOnlineTooltip")}>
                   {t("builder.arqcSimulated")}
@@ -164,7 +164,7 @@ export function MessagePreview({ built, onSaveTemplate }: Props) {
                 )}
                 <div className="relative">
                   <pre className="bg-bg-input border border-[var(--border)] rounded-md py-3 pl-3 pr-10 font-mono text-xs text-text-primary whitespace-pre-wrap break-all max-h-[180px] overflow-auto">
-                    {wireValue || "—"}
+                    {wireValue || "â€”"}
                   </pre>
                   <div className="absolute top-2 right-2">
                     <CopyButton value={wireValue} />

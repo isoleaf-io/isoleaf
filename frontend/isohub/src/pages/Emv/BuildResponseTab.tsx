@@ -1,6 +1,6 @@
-import { useMutation } from "@tanstack/react-query";
+﻿import { useMutation } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { RotateCcw } from "lucide-react";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -71,7 +71,7 @@ export function BuildResponseTab() {
           </div>
           <div className="flex gap-2">
             <Button onClick={() => mutation.mutate(form)} disabled={!form.arpc.trim() || mutation.isPending}>
-              {mutation.isPending ? t("common.loading") : "Build Response →"}
+              {mutation.isPending ? t("common.loading") : "Build Response â†’"}
             </Button>
             <Button variant="secondary" onClick={() => clearTab("build")}>
               <RotateCcw size={13} /> {t("common.clear")}
@@ -88,7 +88,7 @@ export function BuildResponseTab() {
               <span className="text-sm font-semibold">Bit 55 Response Built</span>
               <Button variant="secondary" size="sm"
                 onClick={() => navigate("/parser", { state: { autoMessage: result.hexBit55 } })}>
-                Open in Parser →
+                Open in Parser â†’
               </Button>
             </div>
           </CardHeader>
