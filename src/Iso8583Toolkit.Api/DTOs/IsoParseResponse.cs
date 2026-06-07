@@ -14,7 +14,23 @@ public sealed record IsoParseResponse(
     /// <summary>Card brand inferred from bit 2 (PAN). Null when bit 2 is absent or unmappable.</summary>
     string? DetectedBrand = null,
     /// <summary>2-byte big-endian length prefix detected after the TPDU, if any.</summary>
-    LengthPrefixResponse? LengthPrefix = null);
+    LengthPrefixResponse? LengthPrefix = null,
+    /// <summary>
+    /// Structured error info — populated when <see cref="Success"/> is false. The string
+    /// <see cref="Error"/> property keeps the formatted summary for legacy callers.
+    /// </summary>
+    ParseErrorResponse? ParseError = null,
+    /// <summary>
+    /// Fields successfully parsed before the failure point. Empty when the parse
+    /// succeeded, or when the failure happened before any field was read.
+    /// </summary>
+    List<IsoFieldResponse>? PartialFields = null);
+
+public sealed record ParseErrorResponse(
+    string Field,
+    int Position,
+    string Message,
+    string? Hint);
 
 public sealed record TpduResponse(
     string Hex,

@@ -34,13 +34,17 @@ public sealed class IsoParseService
 
         if (IsBinaryHex(hexMessage))
         {
-            // Try true binary-hex wire first (bitmap 8 raw bytes, binary fields raw)
+            // Try true binary-hex wire first (bitmap 8 raw bytes, binary fields raw).
+            // Preserve the exception — when both fallbacks below also fail, we
+            // surface THIS one because it carries the richest PartialMessage
+            // (auto-detect picked binary-hex, so this is the most likely shape).
+            IsoParseException? binaryError = null;
             try
             {
                 var msg = _parser.ParseFromBinaryHex(hexMessage, layout);
                 return MapSuccess(msg);
             }
-            catch (IsoParseException) { /* fall through */ }
+            catch (IsoParseException ex) { binaryError = ex; }
 
             // Try ASCII wire that was hex-encoded for transport:
             // decode hex → ASCII string → ParseFromHex
@@ -50,7 +54,9 @@ public sealed class IsoParseService
                 var msg = _parser.ParseFromHex(asciiWire, layout);
                 return MapSuccess(msg);
             }
-            catch { /* fall through to raw attempt */ }
+            catch { /* binary error wins */ }
+
+            return MapError(binaryError);
         }
 
         try
@@ -305,7 +311,46 @@ public sealed class IsoParseService
             LengthPrefix: lengthPrefix);
     }
 
-    private static IsoParseResponse MapError(IsoParseException ex) =>
-        new(Success: false,
-            Error: $"[{ex.Field} @ pos {ex.Position}] {ex.Message}");
+    private static IsoParseResponse MapError(IsoParseException ex)
+    {
+        List<IsoFieldResponse>? partialFields = null;
+        if (ex.PartialMessage is { } partial && partial.Fields.Count > 0)
+        {
+            partialFields = partial.Fields.Values
+                .OrderBy(f => f.BitNumber)
+                .Select(f => new IsoFieldResponse(
+                    f.BitNumber,
+                    f.Definition.Name,
+                    f.RawValue,
+                    f.DisplayValue,
+                    f.Definition.Type.ToString(),
+                    f.RawValue.Length))
+                .ToList();
+        }
+
+        return new IsoParseResponse(
+            Success: false,
+            Error: $"[{ex.Field} @ pos {ex.Position}] {ex.Message}",
+            ParseError: new ParseErrorResponse(
+                Field: ex.Field,
+                Position: ex.Position,
+                Message: ex.Message,
+                Hint: BuildHint(ex)),
+            PartialFields: partialFields);
+    }
+
+    /// <summary>
+    /// Returns a debug hint when the failure is inside the field-parsing loop —
+    /// the most common cause is a previous LL/LLL/LLLL field with a malformed
+    /// length that pushed the parser offset off, surfacing as a downstream bit's
+    /// error. The hint text is API-consumer-facing; the frontend may replace it
+    /// with a localized version via the <c>parser.parseErrorHint</c> i18n key.
+    /// </summary>
+    private static string? BuildHint(IsoParseException ex)
+    {
+        if (!ex.Field.StartsWith("Bit ", StringComparison.Ordinal)) return null;
+        return $"The error surfaced while reading {ex.Field}. The actual cause is " +
+               "often an earlier LL/LLL/LLLL field with the wrong declared length, " +
+               "which shifted the parser offset onto the bytes shown above.";
+    }
 }

@@ -32,6 +32,23 @@ export interface IsoParseResponse {
     actualLength: number;
     match: boolean;
   } | null;
+  /**
+   * Structured error info — only set when `success` is false. The `error`
+   * string field above is kept for legacy callers (formatted summary).
+   */
+  parseError?: ParseErrorDetail | null;
+  /**
+   * Fields parsed before the failure point. Only populated on failure when
+   * the parser got past the bitmaps and into the field loop.
+   */
+  partialFields?: ParsedField[] | null;
+}
+
+export interface ParseErrorDetail {
+  field: string;
+  position: number;
+  message: string;
+  hint?: string | null;
 }
 
 export interface BitmapParseResponse {

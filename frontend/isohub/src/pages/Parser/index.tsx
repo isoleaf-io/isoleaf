@@ -55,9 +55,11 @@ export default function ParserPage() {
     mutation.reset();
   };
 
-  const errorMsg =
-    (mutation.error as Error | undefined)?.message ??
-    (result && !result.success ? result.error : null);
+  // Network / transport-level errors surface in `mutation.error`. Parser
+  // failures (which now carry structured info + partial fields) surface
+  // inside `result` itself — the ParseResult component renders the rich
+  // view, so we only fall back to the banner for the transport case.
+  const transportError = (mutation.error as Error | undefined)?.message ?? null;
 
   return (
     <AppShell title={t("parser.title")} subtitle={t("parser.subtitle")}>
@@ -81,34 +83,38 @@ export default function ParserPage() {
           </div>
         )}
 
-        {errorMsg && <ErrorBanner message={errorMsg} />}
+        {transportError && <ErrorBanner message={transportError} />}
 
-        {result?.success && (
+        {result && (
           <ParseResult
             result={result}
-            onOpenInBuilder={() =>
-              navigate("/builder", {
-                state: {
-                  fromParser: {
-                    mti: result.mti,
-                    fields: (result.fields ?? []).map((f) => ({
-                      bitNumber: f.bitNumber,
-                      value: f.value,
-                      name: f.name,
-                      type: f.type ?? "",
-                      length: f.length ?? f.value?.length ?? 0,
-                    })),
-                    // Send the input that was actually parsed (post-separator-strip)
-                    // so the Builder can display it as the preview without
-                    // forcing a Generate round-trip.
-                    originalWire: stripCommonSeparators(input).cleaned,
-                  },
-                },
-              })
+            cleanedInput={stripCommonSeparators(input).cleaned}
+            onOpenInBuilder={
+              result.success
+                ? () =>
+                    navigate("/builder", {
+                      state: {
+                        fromParser: {
+                          mti: result.mti,
+                          fields: (result.fields ?? []).map((f) => ({
+                            bitNumber: f.bitNumber,
+                            value: f.value,
+                            name: f.name,
+                            type: f.type ?? "",
+                            length: f.length ?? f.value?.length ?? 0,
+                          })),
+                          // Send the input that was actually parsed (post-separator-strip)
+                          // so the Builder can display it as the preview without
+                          // forcing a Generate round-trip.
+                          originalWire: stripCommonSeparators(input).cleaned,
+                        },
+                      },
+                    })
+                : undefined
             }
           />
         )}
-        {!result && !mutation.isPending && !errorMsg && (
+        {!result && !mutation.isPending && !transportError && (
           <Card>
             <CardBody className="text-center text-sm text-text-tertiary py-12">
               {t("parser.noResult")}
