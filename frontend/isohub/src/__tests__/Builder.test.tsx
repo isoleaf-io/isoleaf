@@ -175,6 +175,36 @@ describe("Builder page", () => {
     expect(screen.getByText("0200ABCDEF")).toBeInTheDocument();
   });
 
+  it("MessagePreview shows length value after build", async () => {
+    // Sample wire "0200ABCDEF" is 10 chars → 0x000A.
+    vi.mocked(smartBuild).mockResolvedValue(sampleResult);
+    const user = userEvent.setup();
+    renderApp(<BuilderPage />);
+    await user.click(screen.getByRole("button", { name: /^(Gerar|Build) →$/i }));
+    await screen.findByText(/Mensagem gerada|Generated message/i);
+    // Length badge reads "Length: 0x000A (10 chars)".
+    expect(screen.getByText(/Length:\s*0x000A\s*\(10 chars\)/i)).toBeInTheDocument();
+  });
+
+  it("MessagePreview prepends length prefix when toggle is enabled", async () => {
+    try { window.localStorage.removeItem("isoleaf-builder-include-length"); } catch { /* ignore */ }
+    vi.mocked(smartBuild).mockResolvedValue(sampleResult);
+    const user = userEvent.setup();
+    renderApp(<BuilderPage />);
+    await user.click(screen.getByRole("button", { name: /^(Gerar|Build) →$/i }));
+    await screen.findByText(/Mensagem gerada|Generated message/i);
+
+    // The toggle is "Include length prefix" — one per visible tab (ASCII, Binary).
+    // Just the first one is enough to flip the persisted flag.
+    const toggles = screen.getAllByRole("checkbox", { name: /length prefix/i });
+    expect(toggles.length).toBeGreaterThan(0);
+    await user.click(toggles[0]);
+
+    // Visual `[XXXX]` prefix appears in the rendered wire pre block.
+    expect(screen.getAllByTestId("length-prefix-visual").length).toBeGreaterThan(0);
+    expect(screen.getByText(/\[000A\]/)).toBeInTheDocument();
+  });
+
   it("Criar reversão button appears after a 0200 build", async () => {
     vi.mocked(smartBuild).mockResolvedValue(sampleResult);
     const user = userEvent.setup();

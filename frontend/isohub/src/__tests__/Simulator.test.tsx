@@ -488,4 +488,44 @@ describe("InjectorPanel", () => {
     expect(args.varyIdentifiers).toBe(false);
     expect(args.varyAmount).toBe(false);
   });
+
+  it("prepends length prefix to message when toggle is enabled", async () => {
+    const user = userEvent.setup();
+    const mock = injectDirect as unknown as ReturnType<typeof vi.fn>;
+    mock.mockReset();
+    mock.mockResolvedValueOnce({ success: true, processingMs: 5 });
+
+    // Pre-seed the toggle in localStorage so the component picks it up on
+    // mount — the Toggle component is awkward to click in jsdom (its visible
+    // target is a styled span), and unit-testing UI shouldn't require it.
+    try {
+      window.localStorage.setItem(
+        "isoleaf-injector",
+        JSON.stringify({
+          targetHost: "localhost",
+          targetPort: 8583,
+          message: "",
+          includeTpdu: false,
+          durationSeconds: 0,
+          varyIdentifiers: true,
+          varyAmount: false,
+          amountMinReais: 1,
+          amountMaxReais: 500,
+          includeLengthPrefix: true,
+        })
+      );
+    } catch { /* ignore */ }
+
+    renderApp(<SimulatorPage />);
+
+    // 10-char wire → prefix "000A" (10 = 0x0A).
+    const textarea = screen.getByPlaceholderText("0200F23C...") as HTMLTextAreaElement;
+    await user.type(textarea, "0200F23C24");
+
+    const injectBtn = screen.getByRole("button", { name: /^(Injetar|Inject)\s*→/i });
+    await user.click(injectBtn);
+
+    expect(mock).toHaveBeenCalledTimes(1);
+    expect(mock.mock.calls[0][0].message).toBe("000A0200F23C24");
+  });
 });
