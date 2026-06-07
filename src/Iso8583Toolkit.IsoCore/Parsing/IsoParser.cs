@@ -137,24 +137,7 @@ public sealed class IsoParser
         // ── Field data ───────────────────────────────────────────────────────
         var fields = new Dictionary<int, IsoField>();
 
-        // Primary bitmap: bits 2–64 (bit 1 = secondary bitmap indicator, skip as data field)
-        for (var i = 1; i < 64; i++)
-        {
-            if (!primaryBitmap[i]) continue;
-            pos = ParseField(raw, pos, bitNumber: i + 1, layout_, fields);
-        }
-
-        // Secondary bitmap: bits 65–128
-        if (BitmapEngine.IsSecondaryPresent(primaryBitmap))
-        {
-            for (var i = 0; i < 64; i++)
-            {
-                if (!secondaryBitmap[i]) continue;
-                pos = ParseField(raw, pos, bitNumber: i + 65, layout_, fields);
-            }
-        }
-
-        return new IsoMessage
+        IsoMessage BuildPartial() => new()
         {
             Mti             = mti,
             PrimaryBitmap   = primaryBitmap,
@@ -166,6 +149,33 @@ public sealed class IsoParser
             LengthPrefix    = lengthPrefix,
             ParsedAt        = DateTime.UtcNow
         };
+
+        try
+        {
+            // Primary bitmap: bits 2–64 (bit 1 = secondary bitmap indicator, skip as data field)
+            for (var i = 1; i < 64; i++)
+            {
+                if (!primaryBitmap[i]) continue;
+                pos = ParseField(raw, pos, bitNumber: i + 1, layout_, fields);
+            }
+
+            // Secondary bitmap: bits 65–128
+            if (BitmapEngine.IsSecondaryPresent(primaryBitmap))
+            {
+                for (var i = 0; i < 64; i++)
+                {
+                    if (!secondaryBitmap[i]) continue;
+                    pos = ParseField(raw, pos, bitNumber: i + 65, layout_, fields);
+                }
+            }
+        }
+        catch (IsoParseException ex) when (ex.PartialMessage is null)
+        {
+            ex.PartialMessage = BuildPartial();
+            throw;
+        }
+
+        return BuildPartial();
     }
 
     private static bool LooksLikeTpduFirstByte(char c)
@@ -333,24 +343,12 @@ public sealed class IsoParser
         }
 
         // ── Field data ──────────────────────────────────────────────────────
+        // `fields` is captured by reference into BuildPartial below — if any
+        // ParseFieldFromBytes call throws, we attach the so-far-parsed fields
+        // to the exception so the API can surface them as a partial result.
         var fields = new Dictionary<int, IsoField>();
 
-        for (var i = 1; i < 64; i++)
-        {
-            if (!primaryBitmap[i]) continue;
-            pos = ParseFieldFromBytes(data, pos, i + 1, layout_, fields);
-        }
-
-        if (BitmapEngine.IsSecondaryPresent(primaryBitmap))
-        {
-            for (var i = 0; i < 64; i++)
-            {
-                if (!secondaryBitmap[i]) continue;
-                pos = ParseFieldFromBytes(data, pos, i + 65, layout_, fields);
-            }
-        }
-
-        return new IsoMessage
+        IsoMessage BuildPartial() => new()
         {
             Mti             = mti,
             PrimaryBitmap   = primaryBitmap,
@@ -362,6 +360,31 @@ public sealed class IsoParser
             LengthPrefix    = lengthPrefix,
             ParsedAt        = DateTime.UtcNow
         };
+
+        try
+        {
+            for (var i = 1; i < 64; i++)
+            {
+                if (!primaryBitmap[i]) continue;
+                pos = ParseFieldFromBytes(data, pos, i + 1, layout_, fields);
+            }
+
+            if (BitmapEngine.IsSecondaryPresent(primaryBitmap))
+            {
+                for (var i = 0; i < 64; i++)
+                {
+                    if (!secondaryBitmap[i]) continue;
+                    pos = ParseFieldFromBytes(data, pos, i + 65, layout_, fields);
+                }
+            }
+        }
+        catch (IsoParseException ex) when (ex.PartialMessage is null)
+        {
+            ex.PartialMessage = BuildPartial();
+            throw;
+        }
+
+        return BuildPartial();
     }
 
     /// <summary>

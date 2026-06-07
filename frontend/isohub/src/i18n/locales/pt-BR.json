@@ -67,7 +67,14 @@
     "hideBitmap": "Ocultar bitmap",
     "openInBuilder": "Abrir no Builder",
     "reveal": "Revelar",
-    "hide": "Ocultar"
+    "hide": "Ocultar",
+    "parseError": "Erro ao parsear",
+    "parseErrorHint": "O erro ocorreu antes do campo indicado ser lido por completo. Verifique os campos anteriores — um deles pode ter comprimento incorreto, deslocando o offset do parser.",
+    "partialFields_one": "1 campo parseado antes do erro",
+    "partialFields_other": "{{count}} campos parseados antes do erro",
+    "partialBadge": "Parcial",
+    "asciiEquivalent": "🔍 Wire ASCII equivalente (debug)",
+    "asciiEquivalentHint": "Cada par hex foi interpretado como um byte ASCII. Pontos (.) representam bytes não-printáveis."
   },
   "builder": {
     "title": "Builder",

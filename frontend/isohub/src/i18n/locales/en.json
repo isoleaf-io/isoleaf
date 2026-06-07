@@ -67,7 +67,14 @@
     "hideBitmap": "Hide bitmap",
     "openInBuilder": "Open in Builder",
     "reveal": "Reveal",
-    "hide": "Hide"
+    "hide": "Hide",
+    "parseError": "Parse error",
+    "parseErrorHint": "The error surfaced while reading the field shown. The actual cause is usually an earlier LL/LLL/LLLL field with the wrong declared length, which shifted the parser offset onto the bytes above.",
+    "partialFields_one": "1 field parsed before the error",
+    "partialFields_other": "{{count}} fields parsed before the error",
+    "partialBadge": "Partial",
+    "asciiEquivalent": "🔍 ASCII-equivalent wire (debug)",
+    "asciiEquivalentHint": "Each hex pair has been interpreted as one ASCII byte. Dots (.) stand for non-printable bytes."
   },
   "builder": {
     "title": "Builder",

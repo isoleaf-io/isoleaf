@@ -35,4 +35,14 @@ public sealed class IsoParseException : Exception
         Position = position;
         RawInput = rawInput;
     }
+
+    /// <summary>
+    /// Snapshot of the message as it had been built up to the point of failure —
+    /// includes MTI, bitmaps, TPDU, length-prefix info and any fields that were
+    /// already parsed successfully. <c>null</c> when the failure happened before
+    /// the parser had anything to surface (e.g. invalid MTI). Set by the parser
+    /// while unwinding so the API can return a partial result instead of just
+    /// the error.
+    /// </summary>
+    public IsoMessage? PartialMessage { get; set; }
 }

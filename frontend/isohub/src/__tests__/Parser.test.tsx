@@ -66,6 +66,64 @@ describe("Parser page", () => {
     expect(await screen.findByText("411111******1111")).toBeInTheDocument();
   });
 
+  it("shows partial fields + error callout when parse fails midway", async () => {
+    // Mock a failure response from the API: parse_error with hint + 2 partial fields.
+    vi.mocked(parseHex).mockResolvedValue({
+      success: false,
+      error: "[Bit 36 @ pos 110] LLLVAR declared length 353 exceeds MaxLength 104",
+      parseError: {
+        field: "Bit 36",
+        position: 110,
+        message: "LLLVAR declared length 353 exceeds MaxLength 104",
+        hint: "The error surfaced while reading Bit 36...",
+      },
+      partialFields: [
+        { bitNumber: 2, name: "PAN", value: "4111111111111111", displayValue: "411111******1111", type: "LLVAR", length: 16 },
+        { bitNumber: 3, name: "Processing Code", value: "000000", displayValue: "000000", type: "Fixed", length: 6 },
+      ],
+    });
+
+    const user = userEvent.setup();
+    renderApp(<ParserPage />);
+    const textarea = screen.getByPlaceholderText(/Paste your ISO 8583/i);
+    await user.type(textarea, SAMPLE);
+    await user.click(screen.getByRole("button", { name: /^parse →$/i }));
+
+    // The structured error message is surfaced (the message text itself).
+    expect(await screen.findByText(/LLLVAR declared length 353/i)).toBeInTheDocument();
+    // Partial badge + count line are visible.
+    expect(await screen.findByText(/Partial/i)).toBeInTheDocument();
+    expect(await screen.findByText(/2 fields parsed before the error/i)).toBeInTheDocument();
+    // Partial fields render in the table — PAN comes through masked.
+    expect(await screen.findByText("411111******1111")).toBeInTheDocument();
+  });
+
+  it("shows ASCII-equivalent collapsible when binary-hex parse fails", async () => {
+    vi.mocked(parseHex).mockResolvedValue({
+      success: false,
+      error: "[Bit 36 @ pos 110] ...",
+      parseError: { field: "Bit 36", position: 110, message: "boom", hint: null },
+      partialFields: [],
+    });
+
+    const user = userEvent.setup();
+    renderApp(<ParserPage />);
+    const textarea = screen.getByPlaceholderText(/Paste your ISO 8583/i);
+    // A binary-hex looking input (all hex chars, even length) triggers the
+    // ASCII equivalent block.
+    await user.type(textarea, "30323030F23C2481");
+    await user.click(screen.getByRole("button", { name: /^parse →$/i }));
+
+    // The toggle button is rendered (collapsed by default).
+    const asciiToggle = await screen.findByRole("button", { name: /ASCII-equivalent wire/i });
+    expect(asciiToggle).toBeInTheDocument();
+
+    // After expanding, the decoded ASCII content appears. Hex pairs above
+    // decode to "0200", a non-printable byte (0xF2 → "."), then "<$".
+    await user.click(asciiToggle);
+    expect(await screen.findByText(/0200/)).toBeInTheDocument();
+  });
+
   it("clear button resets the input and result", async () => {
     vi.mocked(parseHex).mockResolvedValue({
       success: true,
