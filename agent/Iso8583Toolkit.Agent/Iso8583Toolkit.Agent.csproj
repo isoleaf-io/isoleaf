@@ -6,6 +6,9 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UserSecretsId>dotnet-Iso8583Toolkit.Agent-ca7010b7-e510-4570-b7e3-f7980819f2cb</UserSecretsId>
     <RootNamespace>Iso8583Toolkit.Agent</RootNamespace>
+    <!-- Drives AssemblyVersion + InformationalVersion → /api/health's `version`
+         field. Bump in lockstep with frontend/isohub/src/version.ts. -->
+    <Version>1.1.0</Version>
   </PropertyGroup>
 
   <ItemGroup>
