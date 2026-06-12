@@ -1141,9 +1141,15 @@ Decompondo:
       },
       {
         type: "image",
-        src: "/screenshots/builder.png",
-        alt: "Tela do Builder",
-        caption: "Builder — gera mensagens completas por contexto",
+        src: "/screenshots/builder2.png",
+        alt: "Builder com mensagem gerada",
+        caption: "Builder — mensagem gerada com campos preenchidos automaticamente",
+      },
+      {
+        type: "image",
+        src: "/screenshots/builder3.png",
+        alt: "Painel de adição de bits adicionais no Builder",
+        caption: "Builder — adicione bits extras à mensagem gerada",
       },
 
       { type: "heading", level: 3, text: "Simulador" },
@@ -1156,7 +1162,7 @@ Decompondo:
         type: "image",
         src: "/screenshots/simulator.png",
         alt: "Tela do Simulador",
-        caption: "Simulador — Rebatedor ativo e Injetor",
+        caption: "Simulador — 4 sessões ativas com mensagem rebatida com sucesso",
       },
 
       { type: "heading", level: 3, text: "Dados EMV" },
@@ -1197,6 +1203,12 @@ Decompondo:
         alt: "Tela do Workspace",
         caption: "Workspace — configurações e chaves criptográficas",
       },
+      {
+        type: "image",
+        src: "/screenshots/workspace2.png",
+        alt: "Templates salvos no Workspace",
+        caption: "Workspace — templates salvos para reutilização no Builder",
+      },
 
       { type: "divider" },
 
@@ -1221,6 +1233,18 @@ Decompondo:
         caption: "Parser — cole uma mensagem e veja todos os campos decodificados",
       },
       {
+        type: "image",
+        src: "/screenshots/parse2.png",
+        alt: "Parser com mensagem parseada",
+        caption: "Parser — mensagem decodificada com todos os campos",
+      },
+      {
+        type: "image",
+        src: "/screenshots/parse3.png",
+        alt: "Parser exibindo o bitmap",
+        caption: "Parser — visualização dos bits ativos no bitmap",
+      },
+      {
         type: "list",
         ordered: true,
         items: [
@@ -1241,8 +1265,8 @@ Decompondo:
       },
       {
         type: "image",
-        src: "/screenshots/builder.png",
-        alt: "Tela do Builder com campos gerados automaticamente",
+        src: "/screenshots/builder2.png",
+        alt: "Builder com mensagem gerada e campos preenchidos",
         caption: "Builder — selecione o contexto e gere a mensagem completa",
       },
       {
@@ -1298,8 +1322,8 @@ Decompondo:
       {
         type: "image",
         src: "/screenshots/simulator.png",
-        alt: "Tela do Simulador com sessão rebatedor ativa",
-        caption: "Simulador — Rebatedor ativo recebendo e respondendo mensagens",
+        alt: "Tela do Simulador com 4 sessões rebatedoras ativas",
+        caption: "Simulador — 4 sessões ativas com mensagem rebatida com sucesso",
       },
       {
         type: "list",
@@ -1337,7 +1361,28 @@ Decompondo:
         type: "image",
         src: "/screenshots/new_session.png",
         alt: "Formulário de nova sessão do Simulador",
-        caption: "Criação de sessão — configurações do Rebatedor",
+        caption: "Criação de sessão — configurações do Rebatedor incluindo modo de framing (Length prefix)",
+      },
+
+      { type: "heading", level: 4, text: "Configurar resposta EMV (Rebatedor Emissor)" },
+      {
+        type: "paragraph",
+        text:
+          "No modo Emissor, o Rebatedor pode ser configurado para definir como o Bit 55 é tratado na resposta. Clique no botão ⚙️ no card da sessão para acessar as opções.",
+      },
+      {
+        type: "image",
+        src: "/screenshots/simulator2.png",
+        alt: "Configuração da resposta EMV no Rebatedor Emissor",
+        caption: "Config EMV — escolha entre Echo (cópia do Bit 55) ou Gerar ARPC (simular emissor real)",
+      },
+      {
+        type: "list",
+        items: [
+          "**Echo** (padrão): copia o Bit 55 recebido diretamente na resposta. Funciona com qualquer formato, incluindo mensagens com header proprietário antes do TLV.",
+          "**Gerar ARPC**: deriva o ARPC usando a IMK e retorna o Bit 55 de resposta com as tags `91` e `8A`. Permite configurar o tamanho do header proprietário (se houver) e a IMK (usa o Workspace se não informada).",
+          "**Validar ARQC**: quando ativado junto com **Gerar ARPC**, valida o ARQC antes de gerar a resposta. ARQC inválido resulta em RC=05 na resposta.",
+        ],
       },
 
       { type: "heading", level: 4, text: "Injetor (Connector)" },
@@ -1392,20 +1437,81 @@ Decompondo:
         text:
           "O módulo **Dados EMV** organiza os fluxos de criptografia em seis tabs encadeáveis. Você pode usar cada uma isolada ou combiná-las no **Full Flow**.",
       },
+
+      { type: "heading", level: 4, text: "Parse Bit 55" },
       {
-        type: "list",
-        items: [
-          "**Parse Bit 55**: cole um Bit 55 em hex e veja todas as tags BER-TLV decodificadas. Suporta parse parcial — se encontrar uma tag inválida, mostra o que conseguiu parsear até aquele ponto.",
-          "**Validate ARQC**: valide se um ARQC recebido é legítimo. Informe o Bit 55, a IMK e o PAN. O ISOLeaf recalcula a cadeia de derivação e compara com o ARQC recebido.",
-          "**Generate ARQC**: gere um ARQC real a partir de dados de transação. Útil para criar dados de teste realistas ou verificar sua implementação de derivação.",
-          "**Generate ARPC**: gere o ARPC (resposta do emissor) a partir do ARQC recebido. Method 1 ou Method 2.",
-          "**Build Response**: monte o Bit 55 de resposta (tags `91` + `8A`) que o emissor deve retornar na mensagem de resposta.",
-          "**Full Flow**: executa os 4 passos em sequência automática — **Parse Bit 55** → **Validate ARQC** → **Generate ARPC** → **Build Response**. O fluxo completo do emissor em um único clique.",
-        ],
+        type: "paragraph",
+        text:
+          "Cole um Bit 55 em hex e veja todas as tags BER-TLV decodificadas. Suporta parse parcial — se encontrar uma tag inválida, mostra o que conseguiu parsear até aquele ponto.",
+      },
+      {
+        type: "image",
+        src: "/screenshots/emv1.png",
+        alt: "Parse Bit 55 — tela inicial sem dados",
+        caption: "Parse Bit 55 — cole o Bit 55 em hex para decodificar as tags",
+      },
+
+      { type: "heading", level: 4, text: "Validate ARQC" },
+      {
+        type: "paragraph",
+        text:
+          "Valide se um ARQC recebido é legítimo. Informe o Bit 55, a IMK e o PAN. O ISOLeaf recalcula a cadeia de derivação e compara com o ARQC recebido.",
+      },
+      {
+        type: "image",
+        src: "/screenshots/emv3.png",
+        alt: "Validate ARQC — tela de validação",
+        caption: "Validate ARQC — informe o Bit 55, IMK e PAN para validar",
+      },
+
+      { type: "heading", level: 4, text: "Generate ARQC" },
+      {
+        type: "paragraph",
+        text:
+          "Gere um ARQC real a partir de dados de transação. Útil para criar dados de teste realistas ou verificar sua implementação de derivação.",
+      },
+      {
+        type: "image",
+        src: "/screenshots/emv4.png",
+        alt: "Generate ARQC — tela de geração",
+        caption: "Generate ARQC — gere um ARQC real a partir dos dados da transação",
+      },
+
+      { type: "heading", level: 4, text: "Generate ARPC" },
+      {
+        type: "paragraph",
+        text:
+          "Gere o ARPC (resposta do emissor) a partir do ARQC recebido. Suporta **Method 1** (Visa/Elo) e **Method 2** (Mastercard).",
+      },
+      {
+        type: "image",
+        src: "/screenshots/emv5.png",
+        alt: "Generate ARPC — tela de geração da resposta",
+        caption: "Generate ARPC — gere a resposta do emissor (Method 1 ou 2)",
+      },
+
+      { type: "heading", level: 4, text: "Build Response" },
+      {
+        type: "paragraph",
+        text:
+          "Monte o Bit 55 de resposta (tags `91` + `8A`) que o emissor deve retornar na mensagem de resposta.",
       },
       {
         type: "image",
         src: "/screenshots/emv6.png",
+        alt: "Build Response — montar Bit 55 de resposta",
+        caption: "Build Response — monte o Bit 55 de resposta com ARPC e ARC",
+      },
+
+      { type: "heading", level: 4, text: "Full Flow" },
+      {
+        type: "paragraph",
+        text:
+          "Executa os 4 passos em sequência automática — **Parse Bit 55** → **Validate ARQC** → **Generate ARPC** → **Build Response**. O fluxo completo do emissor em um único clique.",
+      },
+      {
+        type: "image",
+        src: "/screenshots/emv7.png",
         alt: "Full Flow EMV com resultado completo",
         caption: "Full Flow — ARQC validado, ARPC gerado, Bit 55 montado",
       },

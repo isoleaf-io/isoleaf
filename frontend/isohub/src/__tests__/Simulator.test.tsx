@@ -244,9 +244,11 @@ describe("Simulator page — redesigned layout", () => {
     expect(screen.queryByTestId("injector-custom-fields")).toBeNull();
   });
 
-  it("InjectorPanel shows incompatible warning for custom destination with mismatched framing", async () => {
-    // Default state: includeLengthPrefix=false, destination=custom. With an
-    // active listener that has headerSize=2 (prefix on), framing mismatches.
+  it("InjectorPanel does NOT show a compatibility warning in custom destination mode", async () => {
+    // Custom mode points at an external host/port — local Rebatedores'
+    // framing is irrelevant to whether that external system accepts the
+    // wire. The combobox option icons still flag local mismatches, but
+    // there's no top-level warning banner.
     (listSessions as unknown as ReturnType<typeof vi.fn>).mockResolvedValue([
       {
         sessionId: "rebat-1", tcpPort: 9100, mode: "rebatedor", role: "Adquirente",
@@ -258,7 +260,8 @@ describe("Simulator page — redesigned layout", () => {
     ]);
 
     renderApp(<SimulatorPage />);
-    expect(await screen.findByTestId("injector-incompatible-warning")).toBeInTheDocument();
+    await screen.findByText(/port 9100/); // sessions resolved
+    expect(screen.queryByTestId("injector-incompatible-warning")).toBeNull();
   });
 
   it("SessionRow surfaces compatible framing border when Injector matches", async () => {

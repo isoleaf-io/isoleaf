@@ -171,11 +171,6 @@ export function InjectorPanel({
   const effectiveIncludePrefix = selectedSession
     ? (selectedSession.headerSize ?? 2) !== 0
     : persisted.includeLengthPrefix;
-  // Compatibility check is only meaningful in custom mode (session mode auto-aligns).
-  const incompatibleSelected = selectedSession
-    ? false
-    : activeRebatedores.length > 0 &&
-      activeRebatedores.some((s) => ((s.headerSize ?? 2) !== 0) !== persisted.includeLengthPrefix);
 
   const [responses, setResponses] = useState<InjectorResponse[]>([]);
   const [running, setRunning] = useState(false);
@@ -391,7 +386,12 @@ export function InjectorPanel({
             >
               {activeRebatedores.map((s) => {
                 const sessionPrefixOn = (s.headerSize ?? 2) !== 0;
-                const compatible = sessionPrefixOn === persisted.includeLengthPrefix;
+                // Compare against the EFFECTIVE prefix, not the manual toggle.
+                // When a session is selected, effectiveIncludePrefix mirrors
+                // that session — so the active option always shows ✅, and the
+                // ⚠️ surfaces only on OTHER sessions whose framing actually
+                // differs (a real switch-cost cue, not a phantom alert).
+                const compatible = sessionPrefixOn === effectiveIncludePrefix;
                 const icon = compatible ? "✅" : "⚠️";
                 const framing = sessionPrefixOn
                   ? t("simulator.framingWithPrefix")
@@ -467,21 +467,11 @@ export function InjectorPanel({
           </div>
         )}
 
-        {/* Warning when "Destino customizado" is selected with framing that
-            doesn't match any active Rebatedor. Session mode never triggers
-            this — selecting a session auto-aligns the framing. */}
-        {!selectedSession && incompatibleSelected && (
-          <div
-            className="text-xs px-3 py-2 rounded border border-warning/30 bg-warning-bg text-warning-text"
-            data-testid="injector-incompatible-warning"
-          >
-            {t("simulator.injector.incompatibleWarning", {
-              injector: persisted.includeLengthPrefix
-                ? t("simulator.framingWithPrefix")
-                : t("simulator.framingWithoutPrefix"),
-            })}
-          </div>
-        )}
+        {/* Custom-destination mode points at an external host/port, so we
+            have no grounds to second-guess the framing — the local
+            Rebatedores running here are irrelevant. The compatibility
+            ⚠️ icons inside the combobox already surface mismatches against
+            LOCAL sessions if the user wants to glance at them. */}
 
         {persisted.includeLengthPrefix && persisted.message.trim().length > 0 && (() => {
           // The user may have pasted a wire that already starts with a

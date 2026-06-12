@@ -1141,9 +1141,15 @@ Breakdown:
       },
       {
         type: "image",
-        src: "/screenshots/builder.png",
-        alt: "Builder screen",
-        caption: "Builder — builds complete messages by context",
+        src: "/screenshots/builder2.png",
+        alt: "Builder with generated message",
+        caption: "Builder — generated message with auto-populated fields",
+      },
+      {
+        type: "image",
+        src: "/screenshots/builder3.png",
+        alt: "Add-extra-bits panel in the Builder",
+        caption: "Builder — add extra bits to a generated message",
       },
 
       { type: "heading", level: 3, text: "Simulator" },
@@ -1156,7 +1162,7 @@ Breakdown:
         type: "image",
         src: "/screenshots/simulator.png",
         alt: "Simulator screen",
-        caption: "Simulator — active Responder and Injector",
+        caption: "Simulator — 4 active sessions with a successfully bounced message",
       },
 
       { type: "heading", level: 3, text: "EMV Data" },
@@ -1197,6 +1203,12 @@ Breakdown:
         alt: "Workspace screen",
         caption: "Workspace — settings and cryptographic keys",
       },
+      {
+        type: "image",
+        src: "/screenshots/workspace2.png",
+        alt: "Saved templates in Workspace",
+        caption: "Workspace — saved templates for reuse in the Builder",
+      },
 
       { type: "divider" },
 
@@ -1221,6 +1233,18 @@ Breakdown:
         caption: "Parser — paste a message and see every field decoded",
       },
       {
+        type: "image",
+        src: "/screenshots/parse2.png",
+        alt: "Parser with a parsed message",
+        caption: "Parser — decoded message with every field",
+      },
+      {
+        type: "image",
+        src: "/screenshots/parse3.png",
+        alt: "Parser displaying the bitmap",
+        caption: "Parser — visualization of the active bits in the bitmap",
+      },
+      {
         type: "list",
         ordered: true,
         items: [
@@ -1241,8 +1265,8 @@ Breakdown:
       },
       {
         type: "image",
-        src: "/screenshots/builder.png",
-        alt: "Builder screen with auto-generated fields",
+        src: "/screenshots/builder2.png",
+        alt: "Builder with generated message and populated fields",
         caption: "Builder — pick the context and generate the full message",
       },
       {
@@ -1298,8 +1322,8 @@ Breakdown:
       {
         type: "image",
         src: "/screenshots/simulator.png",
-        alt: "Simulator screen with active responder session",
-        caption: "Simulator — active responder receiving and replying to messages",
+        alt: "Simulator screen with 4 active responder sessions",
+        caption: "Simulator — 4 active sessions with a successfully bounced message",
       },
       {
         type: "list",
@@ -1337,7 +1361,28 @@ Breakdown:
         type: "image",
         src: "/screenshots/new_session.png",
         alt: "Simulator new-session form",
-        caption: "Session creation — Responder configuration",
+        caption: "Session creation — Responder configuration including the framing mode (Length prefix)",
+      },
+
+      { type: "heading", level: 4, text: "Configure EMV response (Issuer Listener)" },
+      {
+        type: "paragraph",
+        text:
+          "In Issuer mode, the Responder can be configured to define how Bit 55 is handled in the response. Click the ⚙️ button on the session card to access the options.",
+      },
+      {
+        type: "image",
+        src: "/screenshots/simulator2.png",
+        alt: "EMV response configuration on the Issuer Responder",
+        caption: "EMV Config — pick between Echo (copy Bit 55) or Generate ARPC (simulate a real issuer)",
+      },
+      {
+        type: "list",
+        items: [
+          "**Echo** (default): copies the received Bit 55 directly into the response. Works with any format, including messages with a proprietary header before the TLV.",
+          "**Generate ARPC**: derives the ARPC using the IMK and returns the response Bit 55 with tags `91` and `8A`. Lets you configure the proprietary header size (if any) and the IMK (uses the Workspace if blank).",
+          "**Validate ARQC**: when enabled together with **Generate ARPC**, validates the ARQC before generating the response. An invalid ARQC results in RC=05 in the response.",
+        ],
       },
 
       { type: "heading", level: 4, text: "Injector (Connector)" },
@@ -1392,20 +1437,81 @@ Breakdown:
         text:
           "The **EMV Data** module organizes the cryptography flows into six chainable tabs. You can use each one in isolation or combine them in **Full Flow**.",
       },
+
+      { type: "heading", level: 4, text: "Parse Bit 55" },
       {
-        type: "list",
-        items: [
-          "**Parse Bit 55**: paste a Bit 55 in hex and see every BER-TLV tag decoded. Supports partial parse — if it hits an invalid tag, it shows what it managed to parse up to that point.",
-          "**Validate ARQC**: check whether a received ARQC is legitimate. Provide the Bit 55, the IMK and the PAN. ISOLeaf recomputes the derivation chain and compares against the received ARQC.",
-          "**Generate ARQC**: produce a real ARQC from transaction data. Useful for creating realistic test data or verifying your derivation implementation.",
-          "**Generate ARPC**: produce the ARPC (issuer response) from a received ARQC. Method 1 or Method 2.",
-          "**Build Response**: assemble the response Bit 55 (tags `91` + `8A`) the issuer should return in the response message.",
-          "**Full Flow**: runs the four steps in automatic sequence — **Parse Bit 55** → **Validate ARQC** → **Generate ARPC** → **Build Response**. The full issuer flow in one click.",
-        ],
+        type: "paragraph",
+        text:
+          "Paste a Bit 55 in hex and see every BER-TLV tag decoded. Supports partial parse — if it hits an invalid tag, it shows what it managed to parse up to that point.",
+      },
+      {
+        type: "image",
+        src: "/screenshots/emv1.png",
+        alt: "Parse Bit 55 — empty state",
+        caption: "Parse Bit 55 — paste the Bit 55 in hex to decode the tags",
+      },
+
+      { type: "heading", level: 4, text: "Validate ARQC" },
+      {
+        type: "paragraph",
+        text:
+          "Check whether a received ARQC is legitimate. Provide the Bit 55, the IMK and the PAN. ISOLeaf recomputes the derivation chain and compares against the received ARQC.",
+      },
+      {
+        type: "image",
+        src: "/screenshots/emv3.png",
+        alt: "Validate ARQC — validation screen",
+        caption: "Validate ARQC — provide Bit 55, IMK and PAN to validate",
+      },
+
+      { type: "heading", level: 4, text: "Generate ARQC" },
+      {
+        type: "paragraph",
+        text:
+          "Produce a real ARQC from transaction data. Useful for creating realistic test data or verifying your derivation implementation.",
+      },
+      {
+        type: "image",
+        src: "/screenshots/emv4.png",
+        alt: "Generate ARQC — generation screen",
+        caption: "Generate ARQC — build a real ARQC from transaction data",
+      },
+
+      { type: "heading", level: 4, text: "Generate ARPC" },
+      {
+        type: "paragraph",
+        text:
+          "Produce the ARPC (issuer response) from a received ARQC. Supports **Method 1** (Visa/Elo) and **Method 2** (Mastercard).",
+      },
+      {
+        type: "image",
+        src: "/screenshots/emv5.png",
+        alt: "Generate ARPC — response generation screen",
+        caption: "Generate ARPC — build the issuer response (Method 1 or 2)",
+      },
+
+      { type: "heading", level: 4, text: "Build Response" },
+      {
+        type: "paragraph",
+        text:
+          "Assemble the response Bit 55 (tags `91` + `8A`) the issuer should return in the response message.",
       },
       {
         type: "image",
         src: "/screenshots/emv6.png",
+        alt: "Build Response — assemble Bit 55 of the response",
+        caption: "Build Response — assemble the response Bit 55 with ARPC and ARC",
+      },
+
+      { type: "heading", level: 4, text: "Full Flow" },
+      {
+        type: "paragraph",
+        text:
+          "Runs the four steps in automatic sequence — **Parse Bit 55** → **Validate ARQC** → **Generate ARPC** → **Build Response**. The full issuer flow in one click.",
+      },
+      {
+        type: "image",
+        src: "/screenshots/emv7.png",
         alt: "Full Flow EMV with complete result",
         caption: "Full Flow — ARQC validated, ARPC generated, Bit 55 assembled",
       },
