@@ -14,6 +14,7 @@ import { MessagePreview } from "./MessagePreview";
 import { AddFieldModal } from "./AddFieldModal";
 import { SaveTemplateModal } from "./SaveTemplateModal";
 import { LoadTemplateModal } from "./LoadTemplateModal";
+import { useTemplatesStore } from "@/store/templates";
 
 function contextToRequest(ctx: ReturnType<typeof useBuilderStore.getState>["context"], customs?: Record<string, string>): SmartBuildRequest {
   return {
@@ -190,6 +191,19 @@ export default function BuilderPage() {
     }
     buildMutation.mutate(contextToRequest(context, Object.keys(customs).length ? customs : undefined));
   };
+
+  // Auto-build when a template is loaded — the templates store sets a
+  // one-shot flag after loadFromParser, which we consume here to trigger
+  // a Generate without the user having to click the button.
+  const pendingAutoBuild = useTemplatesStore((s) => s.pendingAutoBuild);
+  const consumePendingAutoBuild = useTemplatesStore((s) => s.consumePendingAutoBuild);
+  useEffect(() => {
+    if (!pendingAutoBuild) return;
+    consumePendingAutoBuild();
+    onBuild();
+    // onBuild is stable enough (just reads store state + calls mutate).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingAutoBuild]);
 
   const onRegenerateField = (bit: number) => {
     // Strip the field's lock so the smart builder regenerates a fresh value,

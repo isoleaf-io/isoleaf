@@ -120,4 +120,39 @@ public class EmvResponseConfigTests
         cfg.EmvResponse.Should().NotBeNull();
         cfg.EmvResponse.Mode.Should().Be(EmvResponseMode.Echo);
     }
+
+    [Fact]
+    public void EmvConfig_ValidateArqcFalse_GeneratesArpcRegardless()
+    {
+        // ValidateArqc=false → the responder skips the cryptogram check
+        // entirely, so even a request with a bogus ARQC produces RC=00.
+        // We can't easily assert RC=00 without a full crypto setup (the
+        // ARPC path falls back to echo without IMK), but we CAN assert
+        // that the response doesn't degrade to RC=05 — which would be
+        // the case if ValidateArqc=true was honored.
+        const string bit55 = "9F2608DEADBEEFDEADBEEF" + "9F360200FF";
+        var request = BuildRequest(bit55);
+        var config = new SessionConfig
+        {
+            Role = SimulatorRole.Emissor,
+            DefaultResponseCode = "00",
+            EmvResponse = new EmvResponseConfig
+            {
+                Mode = EmvResponseMode.GenerateArpc,
+                ValidateArqc = false,
+            },
+        };
+
+        var response = new AutoResponder().BuildResponse(request, config, DefaultLayout);
+
+        response!.GetFieldValue(39).Should().NotBe("05",
+            "ValidateArqc=false must skip the cryptogram check");
+    }
+
+    [Fact]
+    public void EmvResponseConfig_Default_HasValidateArqcTrue()
+    {
+        EmvResponseConfig.Default.ValidateArqc.Should().BeTrue(
+            "Validate-before-generate is the safer default");
+    }
 }

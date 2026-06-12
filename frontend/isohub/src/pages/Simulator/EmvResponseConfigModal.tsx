@@ -22,7 +22,20 @@ const DEFAULT_CONFIG: EmvResponseConfig = {
   proprietaryHeaderBytes: 0,
   imkOverride: null,
   brand: "Visa",
+  validateArqc: true,
 };
+
+/**
+ * Backend serializes enums as camelCase strings ("echo" / "generateArpc"),
+ * but the radio comparisons + the discriminator for the ARPC fields block
+ * are PascalCase. Without this normalization, an existing session's config
+ * comes back as mode="echo" → neither radio matches → nothing renders.
+ */
+function normalizeConfig(cfg: EmvResponseConfig): EmvResponseConfig {
+  const lower = (cfg.mode ?? "echo").toString().toLowerCase();
+  const mode: EmvResponseMode = lower === "generatearpc" ? "GenerateArpc" : "Echo";
+  return { ...cfg, mode };
+}
 
 /**
  * Per-session EMV response configuration modal. Only meaningful when the
@@ -34,12 +47,12 @@ export function EmvResponseConfigModal({
   open, sessionId, initialConfig, onSaved, onClose,
 }: Props) {
   const { t } = useTranslation();
-  const [cfg, setCfg] = useState<EmvResponseConfig>(initialConfig ?? DEFAULT_CONFIG);
+  const [cfg, setCfg] = useState<EmvResponseConfig>(normalizeConfig(initialConfig ?? DEFAULT_CONFIG));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (open) setCfg(initialConfig ?? DEFAULT_CONFIG);
+    if (open) setCfg(normalizeConfig(initialConfig ?? DEFAULT_CONFIG));
   }, [open, initialConfig]);
 
   if (!open) return null;
@@ -165,6 +178,22 @@ export function EmvResponseConfigModal({
                   <option value="Elo">Elo</option>
                 </Select>
               </div>
+
+              <label className="flex items-start gap-2 cursor-pointer text-sm">
+                <input
+                  type="checkbox"
+                  checked={cfg.validateArqc ?? true}
+                  onChange={(e) => setCfg((c) => ({ ...c, validateArqc: e.target.checked }))}
+                  className="mt-1"
+                  data-testid="validate-arqc-toggle"
+                />
+                <div className="flex-1">
+                  <div className="font-medium">{t("simulator.emvConfig.validateArqc")}</div>
+                  <div className="text-xs text-text-tertiary mt-0.5">
+                    {t("simulator.emvConfig.validateArqcHint")}
+                  </div>
+                </div>
+              </label>
             </div>
           )}
 
