@@ -63,12 +63,21 @@ const FOOTER_NAV: NavItem = {
   icon: Settings,
 };
 
-function NavRow({ item, locked }: { item: NavItem; locked?: boolean }) {
+function NavRow({
+  item,
+  locked,
+  onNavigate,
+}: {
+  item: NavItem;
+  locked?: boolean;
+  onNavigate?: () => void;
+}) {
   const { t } = useTranslation();
   const Icon = item.icon;
   return (
     <NavLink
       to={item.to}
+      onClick={onNavigate}
       className={({ isActive }) =>
         clsx(
           "flex items-center gap-2.5 px-2 py-1.5 rounded-md text-sm transition-colors",
@@ -85,7 +94,14 @@ function NavRow({ item, locked }: { item: NavItem; locked?: boolean }) {
   );
 }
 
-export function Sidebar() {
+interface SidebarProps {
+  /** Mobile drawer open state. Ignored at md+ where the sidebar is always inline. */
+  isOpen?: boolean;
+  /** Fired when a nav item is clicked (used by AppShell to close the mobile drawer). */
+  onNavigate?: () => void;
+}
+
+export function Sidebar({ isOpen = false, onNavigate }: SidebarProps = {}) {
   const { t } = useTranslation();
   const { data, isError } = useHealth();
   const online = !isError && data?.status === "ok";
@@ -99,13 +115,27 @@ export function Sidebar() {
   // that hid the feature too well — users didn't know it existed.)
 
   return (
-    <aside className="w-[220px] shrink-0 bg-bg-sidebar border-r border-[var(--border)] flex flex-col">
+    <aside
+      data-testid="sidebar"
+      data-open={isOpen ? "true" : "false"}
+      className={clsx(
+        "w-[220px] shrink-0 bg-bg-sidebar border-r border-[var(--border)] flex flex-col",
+        // Mobile: fixed drawer that slides in from the left. md+: inline column.
+        "fixed inset-y-0 left-0 z-50 transition-transform md:static md:translate-x-0",
+        isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+      )}
+    >
       <Link
         to="/parser"
+        onClick={onNavigate}
         className="flex items-center justify-center px-4 py-3 cursor-pointer hover:opacity-85 transition-opacity"
         aria-label="ISOLeaf home"
       >
-        <img src="/logo.svg" alt="ISOLeaf" className="h-32 w-auto" draggable={false} />
+        {/* Two variants swapped by theme: the light file has a transparent canvas
+            with black wordmark, and the dark file has a transparent canvas with
+            white wordmark — both share the red leaf. */}
+        <img src="/logo.svg" alt="ISOLeaf" className="h-32 w-auto block dark:hidden" draggable={false} />
+        <img src="/logo-dark.svg" alt="ISOLeaf" className="h-32 w-auto hidden dark:block" draggable={false} />
       </Link>
 
       <nav className="flex-1 overflow-y-auto py-3">
@@ -125,6 +155,7 @@ export function Sidebar() {
                 key={item.to}
                 item={item}
                 locked={item.to === "/simulator" && !simulatorEnabled}
+                onNavigate={onNavigate}
               />
             ))}
           </div>
@@ -133,7 +164,7 @@ export function Sidebar() {
 
       {/* Footer-pinned: Workspace lives below the agent status, no section header. */}
       <div className="px-3 pb-2 pt-3 border-t border-[var(--border)]">
-        <NavRow item={FOOTER_NAV} />
+        <NavRow item={FOOTER_NAV} onNavigate={onNavigate} />
       </div>
 
       {/* Agent status — only meaningful in standalone mode. In online mode
