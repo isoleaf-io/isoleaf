@@ -289,6 +289,8 @@ export interface EmvResponseConfig {
   /** Null → use Workspace IMK; if that's also null, falls back to Echo. */
   imkOverride?: string | null;
   brand: string;
+  /** When true (default) and mode=GenerateArpc, an invalid ARQC produces RC=05. */
+  validateArqc?: boolean;
 }
 
 export interface MessageLogEntry {

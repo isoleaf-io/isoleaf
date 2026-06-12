@@ -16,8 +16,16 @@ export interface SavedTemplate {
 
 interface TemplatesState {
   templates: SavedTemplate[];
+  /**
+   * One-shot flag set by <see cref="loadTemplate"/> and consumed by the
+   * Builder page. The Builder watches it in a useEffect and triggers a
+   * Generate so the loaded template surfaces a built message without
+   * requiring the user to click the button.
+   */
+  pendingAutoBuild: boolean;
   saveTemplate: (name: string, description?: string, tags?: string) => SavedTemplate;
   loadTemplate: (id: string) => boolean;
+  consumePendingAutoBuild: () => void;
   deleteTemplate: (id: string) => void;
   renameTemplate: (id: string, name: string) => void;
   importTemplate: (template: SavedTemplate) => void;
@@ -33,6 +41,7 @@ export const useTemplatesStore = create<TemplatesState>()(
   persist(
     (set, get) => ({
       templates: [],
+      pendingAutoBuild: false,
 
       saveTemplate: (name, description, tags) => {
         const builder = useBuilderStore.getState();
@@ -57,8 +66,14 @@ export const useTemplatesStore = create<TemplatesState>()(
         // so the existing "fields became authoritative" semantics apply.
         useBuilderStore.setState((s) => ({ context: { ...s.context, ...tpl.context } }));
         useBuilderStore.getState().loadFromParser(tpl.fields, tpl.mti);
+        // Signal the Builder page to auto-trigger a Generate so the loaded
+        // template surfaces a message immediately (matches the "Open in
+        // Parser" UX which auto-parses on landing).
+        set({ pendingAutoBuild: true });
         return true;
       },
+
+      consumePendingAutoBuild: () => set({ pendingAutoBuild: false }),
 
       deleteTemplate: (id) =>
         set((s) => ({ templates: s.templates.filter((t) => t.id !== id) })),

@@ -9,6 +9,8 @@ import { MonoText } from "@/components/ui/MonoText";
 import { Badge } from "@/components/ui/Badge";
 import { HelpButton } from "@/components/ui/HelpButton";
 import { injectDirect, type InjectDirectResponse } from "@/api/simulator";
+import { useInjectorStore, DEFAULTS as STORE_DEFAULTS, type InjectorState } from "@/store/injector";
+import type { MessageLogEntry, SimulatorSession } from "@/types";
 
 interface InjectorResponse {
   id: string;
@@ -28,40 +30,9 @@ interface InjectorResponse {
   requestFields?: { bitNumber: number; name: string; value: string }[];
 }
 
-interface PersistedState {
-  targetHost: string;
-  targetPort: number;
-  message: string;
-  includeTpdu: boolean;
-  /** Duration in whole seconds. 0 = run until the user clicks Stop. */
-  durationSeconds: number;
-  /** Refresh STAN/RRN/timestamps each iteration. Default on — safer for continuous loads. */
-  varyIdentifiers: boolean;
-  /** Randomise Bit 4 within [amountMinReais, amountMaxReais]. Default off. */
-  varyAmount: boolean;
-  /** Amounts are expressed to the user in BRL; backend converts to cents. */
-  amountMinReais: number;
-  amountMaxReais: number;
-  /**
-   * Prepend a 2-byte big-endian length prefix (encoded as 4 ASCII hex chars)
-   * to the message before injection. Off by default; toggled by the user.
-   */
-  includeLengthPrefix: boolean;
-}
-
-const STORAGE_KEY = "isoleaf-injector";
-const DEFAULTS: PersistedState = {
-  targetHost: "localhost",
-  targetPort: 8583,
-  message: "",
-  includeTpdu: false,
-  durationSeconds: 0,
-  varyIdentifiers: true,
-  varyAmount: false,
-  amountMinReais: 1,
-  amountMaxReais: 500,
-  includeLengthPrefix: false,
-};
+// PersistedState + STORAGE_KEY + DEFAULTS were lifted into `@/store/injector`
+// — the SessionRow component subscribes to the same store for reactive
+// compatibility-border updates without prop-drilling.
 
 /**
  * Encodes the message char count as a 4-hex-char big-endian uint16. Clamped
@@ -125,16 +96,6 @@ function stripLengthPrefix(wire: string): { payload: string; detectedPrefix: str
 }
 
 
-function loadPersisted(): PersistedState {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return DEFAULTS;
-    return { ...DEFAULTS, ...JSON.parse(raw) };
-  } catch {
-    return DEFAULTS;
-  }
-}
-
 function formatDuration(totalSeconds: number): string {
   const m = Math.floor(totalSeconds / 60).toString().padStart(2, "0");
   const s = (totalSeconds % 60).toString().padStart(2, "0");
@@ -143,18 +104,78 @@ function formatDuration(totalSeconds: number): string {
 
 const MAX_RESPONSES = 100;
 
-export function InjectorPanel() {
+/**
+ * Builds a synthetic <c>MessageLogEntry</c> for a FAILED injection so the
+ * live log surfaces the attempt + error. Successful injections already
+ * flow through SignalR from the receiver side; failures don't (the
+ * receiver never got the message, or never sent a response), so we
+ * synthesize one client-side.
+ */
+function buildFailureLogEntry(
+  mti: string,
+  errorMessage: string,
+  targetHost: string,
+  targetPort: number,
+): MessageLogEntry {
+  const truncated = errorMessage.length > 80
+    ? errorMessage.slice(0, 80) + "…"
+    : errorMessage;
+  return {
+    entryId: crypto.randomUUID(),
+    sessionId: `injector:${targetHost}:${targetPort}`,
+    timestamp: new Date().toISOString(),
+    direction: "sent",
+    asciiMessage: "",
+    binaryHexMessage: "",
+    decodedMti: mti,
+    decodedFields: [],
+    hasErrors: true,
+    rejected: true,
+    errorCode: "INJECTION_FAILED",
+    validationSummary: truncated,
+    processingMs: 0,
+  };
+}
+
+export function InjectorPanel({
+  sessions = [],
+  onAppendLog,
+}: {
+  sessions?: SimulatorSession[];
+  /** Lets the panel surface FAILED injections in the parent's live log
+   *  (success entries already flow via SignalR from the receiver side). */
+  onAppendLog?: (entry: MessageLogEntry) => void;
+} = {}) {
   const { t } = useTranslation();
 
-  const [persisted, setPersisted] = useState<PersistedState>(loadPersisted);
-  const setPersistedField = <K extends keyof PersistedState>(k: K, v: PersistedState[K]) => {
-    setPersisted((s) => {
-      const next = { ...s, [k]: v };
-      // Best-effort persist; localStorage can throw in private mode etc.
-      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch { /* ignore */ }
-      return next;
-    });
-  };
+  // Single source of truth lives in the injector store — the SessionRow
+  // subscribes to it too so its compatibility border updates reactively.
+  const storeSet = useInjectorStore((s) => s.set);
+  const storeReset = useInjectorStore((s) => s.reset);
+  const persisted = useInjectorStore() as InjectorState;
+  const setPersistedField = <K extends keyof InjectorState>(k: K, v: InjectorState[K]) =>
+    storeSet(k, v);
+
+  // Compute the "effective" destination + framing. When a session is selected
+  // in the combobox, host/port/framing come from that session — the persisted
+  // free-form values stay untouched so the user can flip back to "custom".
+  const activeRebatedores = sessions.filter(
+    (s) => (s.status === "active" || s.status === "starting")
+      && s.mode?.toLowerCase() === "rebatedor",
+  );
+  const selectedSession = persisted.destination.startsWith("session:")
+    ? activeRebatedores.find((s) => `session:${s.tcpPort}` === persisted.destination)
+    : undefined;
+  const effectiveHost = selectedSession ? "localhost" : persisted.targetHost;
+  const effectivePort = selectedSession ? selectedSession.tcpPort : persisted.targetPort;
+  const effectiveIncludePrefix = selectedSession
+    ? (selectedSession.headerSize ?? 2) !== 0
+    : persisted.includeLengthPrefix;
+  // Compatibility check is only meaningful in custom mode (session mode auto-aligns).
+  const incompatibleSelected = selectedSession
+    ? false
+    : activeRebatedores.length > 0 &&
+      activeRebatedores.some((s) => ((s.headerSize ?? 2) !== 0) !== persisted.includeLengthPrefix);
 
   const [responses, setResponses] = useState<InjectorResponse[]>([]);
   const [running, setRunning] = useState(false);
@@ -201,8 +222,7 @@ export function InjectorPanel() {
     setElapsedSeconds(0);
     setResponses([]);
     setExpanded({});
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULTS)); } catch { /* ignore */ }
-    setPersisted(DEFAULTS);
+    storeReset();
   };
 
   const stopContinuous = () => {
@@ -248,10 +268,12 @@ export function InjectorPanel() {
     const trimmed = persisted.message.trim();
     try {
       const res: InjectDirectResponse = await injectDirect({
-        targetHost: persisted.targetHost,
-        targetPort: persisted.targetPort,
+        // Use effective values — when a session is selected, host/port/framing
+        // come from the session, not the persisted free-form fields.
+        targetHost: effectiveHost,
+        targetPort: effectivePort,
         message: trimmed,
-        includeLengthPrefix: persisted.includeLengthPrefix,
+        includeLengthPrefix: effectiveIncludePrefix,
         includeTpdu: persisted.includeTpdu,
         // Variations are continuous-mode only — the unit-mode button must always
         // forward the message verbatim so power users can test exact payloads.
@@ -276,6 +298,19 @@ export function InjectorPanel() {
         requestFields: res.requestFields,
       };
       setResponses((prev) => [entry, ...prev].slice(0, MAX_RESPONSES));
+
+      // Append FAILED injections to the live log too. Successful ones flow
+      // back via SignalR from the receiver side, but a failure (timeout,
+      // connection closed, framing mismatch) has no receiver entry — so
+      // the user would see nothing in the log without this.
+      if (onAppendLog && (!res.success || res.error))
+      {
+        onAppendLog(buildFailureLogEntry(
+          res.requestMti ?? trimmed.slice(0, 4),
+          res.error ?? "Injection failed",
+          effectiveHost, effectivePort,
+        ));
+      }
     } catch (err) {
       const entry: InjectorResponse = {
         id: crypto.randomUUID(),
@@ -285,6 +320,11 @@ export function InjectorPanel() {
         error: (err as Error)?.message ?? "Unknown error",
       };
       setResponses((prev) => [entry, ...prev].slice(0, MAX_RESPONSES));
+      onAppendLog?.(buildFailureLogEntry(
+        trimmed.slice(0, 4),
+        (err as Error)?.message ?? "Unknown error",
+        persisted.targetHost, persisted.targetPort,
+      ));
     } finally {
       setBusy(false);
     }
@@ -336,23 +376,39 @@ export function InjectorPanel() {
         </div>
       </CardHeader>
       <CardBody className="space-y-3">
-        {/* Conexão */}
-        <div className="grid grid-cols-1 md:grid-cols-[1fr_140px_auto] gap-3 items-end">
+        {/* Destination combobox replaces the legacy host/port pair. Each
+            active Rebatedor surfaces with its framing icon so a glance tells
+            the user whether sending will work; "Destino customizado" keeps
+            the free-form host/port + manual prefix toggle. */}
+        <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-3 items-end">
           <div>
-            <Label>{t("simulator.injector.targetHost")}</Label>
-            <Input
-              value={persisted.targetHost}
-              onChange={(e) => setPersistedField("targetHost", e.target.value)}
-              placeholder="localhost"
-            />
-          </div>
-          <div>
-            <Label>{t("simulator.injector.targetPort")}</Label>
-            <Input
-              type="number"
-              value={persisted.targetPort}
-              onChange={(e) => setPersistedField("targetPort", Number(e.target.value))}
-            />
+            <Label>{t("simulator.injector.destination")}</Label>
+            <select
+              value={persisted.destination}
+              onChange={(e) => setPersistedField("destination", e.target.value)}
+              className="w-full px-3 py-2 rounded-md bg-bg-input border border-[var(--border)] text-sm"
+              data-testid="injector-destination"
+            >
+              {activeRebatedores.map((s) => {
+                const sessionPrefixOn = (s.headerSize ?? 2) !== 0;
+                const compatible = sessionPrefixOn === persisted.includeLengthPrefix;
+                const icon = compatible ? "✅" : "⚠️";
+                const framing = sessionPrefixOn
+                  ? t("simulator.framingWithPrefix")
+                  : t("simulator.framingWithoutPrefix");
+                return (
+                  <option key={s.sessionId} value={`session:${s.tcpPort}`}>
+                    {t("simulator.injector.destinationSession", {
+                      icon, port: s.tcpPort, role: s.role, framing,
+                    })}
+                  </option>
+                );
+              })}
+              {activeRebatedores.length > 0 && (
+                <option disabled>──────────</option>
+              )}
+              <option value="custom">{t("simulator.injector.destinationCustom")}</option>
+            </select>
           </div>
           <div className="pb-1 flex flex-col gap-1.5">
             <Toggle
@@ -360,15 +416,72 @@ export function InjectorPanel() {
               onChange={(v) => setPersistedField("includeTpdu", v)}
               label={t("simulator.injector.includeTpdu")}
             />
-            <div title={t("simulator.injector.includeLengthPrefixDescription")}>
-              <Toggle
-                checked={persisted.includeLengthPrefix}
-                onChange={(v) => setPersistedField("includeLengthPrefix", v)}
-                label={t("simulator.includeLengthPrefix")}
+            {/* Length prefix toggle. In "custom" mode the user controls it
+                directly. With a session selected the framing is dictated by
+                the session's HeaderSize — we still render the toggle so the
+                user can SEE the effective state, but it's disabled + tinted,
+                with a hint explaining how to change it. */}
+            {selectedSession ? (
+              <div
+                className="opacity-60 pointer-events-none"
+                title={t("simulator.injector.prefixFromSessionHint")}
+                data-testid="injector-prefix-readonly"
+              >
+                <Toggle
+                  checked={effectiveIncludePrefix}
+                  onChange={() => { /* read-only when a session is selected */ }}
+                  label={`${t("simulator.includeLengthPrefix")} · ${t("simulator.injector.prefixFromSessionBadge")}`}
+                />
+              </div>
+            ) : (
+              <div title={t("simulator.injector.includeLengthPrefixDescription")}>
+                <Toggle
+                  checked={persisted.includeLengthPrefix}
+                  onChange={(v) => setPersistedField("includeLengthPrefix", v)}
+                  label={t("simulator.includeLengthPrefix")}
+                />
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Custom host/port — only when "Destino customizado" is selected. */}
+        {!selectedSession && (
+          <div className="grid grid-cols-[1fr_140px] gap-3" data-testid="injector-custom-fields">
+            <div>
+              <Label>{t("simulator.injector.targetHost")}</Label>
+              <Input
+                value={persisted.targetHost}
+                onChange={(e) => setPersistedField("targetHost", e.target.value)}
+                placeholder="localhost"
+              />
+            </div>
+            <div>
+              <Label>{t("simulator.injector.targetPort")}</Label>
+              <Input
+                type="number"
+                value={persisted.targetPort}
+                onChange={(e) => setPersistedField("targetPort", Number(e.target.value))}
               />
             </div>
           </div>
-        </div>
+        )}
+
+        {/* Warning when "Destino customizado" is selected with framing that
+            doesn't match any active Rebatedor. Session mode never triggers
+            this — selecting a session auto-aligns the framing. */}
+        {!selectedSession && incompatibleSelected && (
+          <div
+            className="text-xs px-3 py-2 rounded border border-warning/30 bg-warning-bg text-warning-text"
+            data-testid="injector-incompatible-warning"
+          >
+            {t("simulator.injector.incompatibleWarning", {
+              injector: persisted.includeLengthPrefix
+                ? t("simulator.framingWithPrefix")
+                : t("simulator.framingWithoutPrefix"),
+            })}
+          </div>
+        )}
 
         {persisted.includeLengthPrefix && persisted.message.trim().length > 0 && (() => {
           // The user may have pasted a wire that already starts with a

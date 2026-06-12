@@ -27,6 +27,7 @@ import { useAppConfig } from "@/contexts/AppConfigContext";
 import { InjectorPanel } from "./InjectorPanel";
 import { SimulatorLockedPanel } from "./SimulatorLockedPanel";
 import { EmvResponseConfigModal } from "./EmvResponseConfigModal";
+import { useInjectorStore } from "@/store/injector";
 import type { MessageLogEntry, SimulatorSession } from "@/types";
 
 const STATUS_TONE: Record<string, "accent" | "success" | "warning" | "danger" | "neutral"> = {
@@ -224,7 +225,10 @@ export default function SimulatorPage() {
         </Card>
 
         {/* ── Section 2: Injector (always-on panel) ──────────────────── */}
-        <InjectorPanel />
+        <InjectorPanel
+          sessions={sessionsQuery.data ?? []}
+          onAppendLog={(entry) => setLiveLog((l) => [entry, ...l].slice(0, 500))}
+        />
 
         {/* ── Section 3: Live log (collapsed by default) ─────────────── */}
         <div ref={logCardRef}>
@@ -370,10 +374,40 @@ function SessionRow({
   // store-side update only surfaces on the next sessions refetch).
   const [localEmvConfig, setLocalEmvConfig] = useState(session.emvResponse);
   const effectiveEmv = localEmvConfig ?? session.emvResponse;
-  const emvMode = effectiveEmv?.mode ?? "Echo";
+  // Backend serializes enums as camelCase ("echo" / "generateArpc"). Normalize
+  // here so the "ARPC" badge actually surfaces when the live session is in
+  // GenerateArpc mode — otherwise the strict equality below silently fails.
+  const emvMode = (effectiveEmv?.mode ?? "Echo").toString().toLowerCase() === "generatearpc"
+    ? "GenerateArpc"
+    : "Echo";
+
+  // Reactive compatibility border: read the injector's current framing
+  // setting from its store. A 3px green border = matches; orange = doesn't.
+  const injectorIncludePrefix = useInjectorStore((s) => s.includeLengthPrefix);
+  const sessionPrefixOn = (session.headerSize ?? 2) !== 0;
+  const framingCompatible = sessionPrefixOn === injectorIncludePrefix;
+  const borderClass = isActive
+    ? framingCompatible
+      ? "border-success/70 ring-1 ring-success/30"
+      : "border-warning/70 ring-1 ring-warning/30"
+    : "border-[var(--border)]";
+  const tooltip = framingCompatible
+    ? t("simulator.session.framingCompatibleTooltip")
+    : t("simulator.session.framingIncompatibleTooltip", {
+        sessionExpects: sessionPrefixOn
+          ? t("simulator.framingWithPrefix")
+          : t("simulator.framingWithoutPrefix"),
+        injectorIncludes: injectorIncludePrefix
+          ? t("simulator.framingWithPrefix")
+          : t("simulator.framingWithoutPrefix"),
+      });
 
   return (
-    <div className="p-3 rounded-md bg-bg-input border border-[var(--border)]">
+    <div
+      className={clsx("p-3 rounded-md bg-bg-input border-2 transition-colors", borderClass)}
+      title={tooltip}
+      data-framing-compatible={framingCompatible ? "true" : "false"}
+    >
       <div className="flex items-center justify-between mb-2">
         <Badge tone={STATUS_TONE[session.status] ?? "neutral"}>{session.status}</Badge>
         <div className="flex items-center gap-1">
@@ -586,7 +620,6 @@ function SessionForm({
     role: "Adquirente",
     layoutName: "default",
     defaultResponseCode: "00",
-    validateArqc: false,
     autoRespond: true,
     tpduMode: "Optional",
     unknownMtiResponse: "Derive",
@@ -738,11 +771,8 @@ function SessionForm({
           onChange={(v) => setCfg({ ...cfg, autoRespond: v })}
           label={t("simulator.autoRespond")}
         />
-        <Toggle
-          checked={cfg.validateArqc}
-          onChange={(v) => setCfg({ ...cfg, validateArqc: v })}
-          label={t("simulator.validateArqc")}
-        />
+        {/* ARQC validation moved to the per-session EMV config modal (Issuer
+            sessions only). It only makes sense when GenerateArpc is in use. */}
         <div>
           <Toggle
             checked={cfg.expectLengthPrefix}

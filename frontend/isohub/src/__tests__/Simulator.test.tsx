@@ -32,6 +32,7 @@ vi.mock("@/hooks/useSimulatorHub", () => ({
 
 import SimulatorPage from "@/pages/Simulator";
 import { listSessions, injectDirect, getLog, startSession } from "@/api/simulator";
+import { useInjectorStore, DEFAULTS as INJECTOR_DEFAULTS } from "@/store/injector";
 
 async function openNewSessionForm() {
   const user = userEvent.setup();
@@ -52,6 +53,9 @@ describe("Simulator page — redesigned layout", () => {
       window.localStorage.removeItem("isoleaf-injector");
       window.localStorage.removeItem("simulator-logExpanded");
     } catch { /* ignore */ }
+    // The zustand store survives across tests in the same module — reset
+    // its in-memory state too, otherwise mocks leak between cases.
+    useInjectorStore.setState({ ...INJECTOR_DEFAULTS });
   });
 
   it("renders the three sections (Rebatedores, Injector, Live log)", () => {
@@ -154,6 +158,168 @@ describe("Simulator page — redesigned layout", () => {
     await screen.findByText(/port 9100/);
     expect(await screen.findByText(/^Com prefix$|^With prefix$/i)).toBeInTheDocument();
     expect(screen.queryByText(/^Sem prefix$|^No prefix$/i)).toBeNull();
+  });
+
+  it("Nova sessão form does NOT show 'Validate ARQC' toggle", async () => {
+    // ValidateArqc moved to the per-session EMV config modal (Issuer only).
+    await openNewSessionForm();
+    expect(screen.queryByText(/Validar ARQC|Validate ARQC/i)).toBeNull();
+  });
+
+  it("EMV config modal shows ValidateArqc toggle only when GenerateArpc selected", async () => {
+    (listSessions as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce([
+      {
+        sessionId: "rebat-1", tcpPort: 9100, mode: "rebatedor", role: "Emissor",
+        layoutName: "default", defaultResponseCode: "00", validateArqc: false,
+        autoRespond: true, status: "active",
+        startedAt: new Date().toISOString(), messagesProcessed: 0, messagesRejected: 0,
+        headerSize: 2,
+        emvResponse: { mode: "Echo", proprietaryHeaderBytes: 0, brand: "Visa" },
+      },
+    ]);
+
+    const user = userEvent.setup();
+    renderApp(<SimulatorPage />);
+    await screen.findByText(/port 9100/);
+    await user.click(screen.getByTestId("emv-config-button"));
+
+    // Echo selected by default → ValidateArqc toggle should be hidden.
+    expect(screen.queryByTestId("validate-arqc-toggle")).toBeNull();
+
+    // Flip to GenerateArpc → toggle appears.
+    const arpcRadio = screen.getByRole("radio", { name: /Generate ARPC|Gerar ARPC/i });
+    await user.click(arpcRadio);
+    expect(screen.getByTestId("validate-arqc-toggle")).toBeInTheDocument();
+  });
+
+  it("InjectorPanel lists active Rebatedor sessions in the destination combobox", async () => {
+    (listSessions as unknown as ReturnType<typeof vi.fn>).mockResolvedValue([
+      {
+        sessionId: "rebat-1", tcpPort: 9100, mode: "rebatedor", role: "Adquirente",
+        layoutName: "default", defaultResponseCode: "00", validateArqc: false,
+        autoRespond: true, status: "active",
+        startedAt: new Date().toISOString(), messagesProcessed: 0, messagesRejected: 0,
+        headerSize: 2,
+      },
+      {
+        sessionId: "rebat-2", tcpPort: 9200, mode: "rebatedor", role: "Emissor",
+        layoutName: "default", defaultResponseCode: "00", validateArqc: false,
+        autoRespond: true, status: "active",
+        startedAt: new Date().toISOString(), messagesProcessed: 0, messagesRejected: 0,
+        headerSize: 0,
+      },
+    ]);
+
+    renderApp(<SimulatorPage />);
+    // Wait until the session cards render — that's the React Query
+    // resolution mark. The combobox re-renders alongside.
+    await screen.findByText(/port 9100/);
+    await screen.findByText(/port 9200/);
+    const combobox = screen.getByTestId("injector-destination") as HTMLSelectElement;
+    const sessionOptions = Array.from(combobox.options)
+      .filter((o) => o.value.startsWith("session:"));
+    expect(sessionOptions.map((o) => o.value)).toEqual(["session:9100", "session:9200"]);
+    expect(Array.from(combobox.options).some((o) => o.value === "custom")).toBe(true);
+  });
+
+  it("InjectorPanel hides custom host/port fields when a session is selected", async () => {
+    (listSessions as unknown as ReturnType<typeof vi.fn>).mockResolvedValue([
+      {
+        sessionId: "rebat-1", tcpPort: 9100, mode: "rebatedor", role: "Adquirente",
+        layoutName: "default", defaultResponseCode: "00", validateArqc: false,
+        autoRespond: true, status: "active",
+        startedAt: new Date().toISOString(), messagesProcessed: 0, messagesRejected: 0,
+        headerSize: 2,
+      },
+    ]);
+
+    const user = userEvent.setup();
+    renderApp(<SimulatorPage />);
+    await screen.findByText(/port 9100/); // sessions resolved
+    const combobox = screen.getByTestId("injector-destination");
+    // Default is "custom" → host/port visible.
+    expect(screen.getByTestId("injector-custom-fields")).toBeInTheDocument();
+
+    await user.selectOptions(combobox, "session:9100");
+    expect(screen.queryByTestId("injector-custom-fields")).toBeNull();
+  });
+
+  it("InjectorPanel shows incompatible warning for custom destination with mismatched framing", async () => {
+    // Default state: includeLengthPrefix=false, destination=custom. With an
+    // active listener that has headerSize=2 (prefix on), framing mismatches.
+    (listSessions as unknown as ReturnType<typeof vi.fn>).mockResolvedValue([
+      {
+        sessionId: "rebat-1", tcpPort: 9100, mode: "rebatedor", role: "Adquirente",
+        layoutName: "default", defaultResponseCode: "00", validateArqc: false,
+        autoRespond: true, status: "active",
+        startedAt: new Date().toISOString(), messagesProcessed: 0, messagesRejected: 0,
+        headerSize: 2,
+      },
+    ]);
+
+    renderApp(<SimulatorPage />);
+    expect(await screen.findByTestId("injector-incompatible-warning")).toBeInTheDocument();
+  });
+
+  it("SessionRow surfaces compatible framing border when Injector matches", async () => {
+    useInjectorStore.setState({ ...INJECTOR_DEFAULTS, includeLengthPrefix: true });
+    (listSessions as unknown as ReturnType<typeof vi.fn>).mockResolvedValue([
+      {
+        sessionId: "rebat-1", tcpPort: 9100, mode: "rebatedor", role: "Emissor",
+        layoutName: "default", defaultResponseCode: "00", validateArqc: false,
+        autoRespond: true, status: "active",
+        startedAt: new Date().toISOString(), messagesProcessed: 0, messagesRejected: 0,
+        headerSize: 2, // ON, matches injector ON
+      },
+    ]);
+    renderApp(<SimulatorPage />);
+    await screen.findByText(/port 9100/);
+    const card = document.querySelector('[data-framing-compatible]') as HTMLElement;
+    expect(card.getAttribute("data-framing-compatible")).toBe("true");
+  });
+
+  it("SessionRow surfaces incompatible framing border when Injector differs", async () => {
+    useInjectorStore.setState({ ...INJECTOR_DEFAULTS, includeLengthPrefix: false });
+    (listSessions as unknown as ReturnType<typeof vi.fn>).mockResolvedValue([
+      {
+        sessionId: "rebat-1", tcpPort: 9100, mode: "rebatedor", role: "Emissor",
+        layoutName: "default", defaultResponseCode: "00", validateArqc: false,
+        autoRespond: true, status: "active",
+        startedAt: new Date().toISOString(), messagesProcessed: 0, messagesRejected: 0,
+        headerSize: 2, // ON, but injector OFF → mismatch
+      },
+    ]);
+    renderApp(<SimulatorPage />);
+    await screen.findByText(/port 9100/);
+    const card = document.querySelector('[data-framing-compatible]') as HTMLElement;
+    expect(card.getAttribute("data-framing-compatible")).toBe("false");
+  });
+
+  it("Live log shows entry when injection fails", async () => {
+    // Force a failure: mock injectDirect to return success=false + error.
+    const mock = injectDirect as unknown as ReturnType<typeof vi.fn>;
+    mock.mockReset();
+    mock.mockResolvedValueOnce({
+      success: false,
+      processingMs: 5,
+      requestMti: "0200",
+      error: "Connection refused to 127.0.0.1:9999 (ConnectionRefused).",
+    });
+
+    const user = userEvent.setup();
+    renderApp(<SimulatorPage />);
+
+    const textarea = screen.getByPlaceholderText("0200F23C...") as HTMLTextAreaElement;
+    await user.type(textarea, "0200F23C24");
+    await user.click(screen.getByRole("button", { name: /^(Injetar|Inject)\s*→/i }));
+
+    // Expand the live log to see entries.
+    const bar = screen.getByRole("button", { name: /Log ao vivo|Live log/i });
+    await user.click(bar);
+
+    // The failed injection adds a log entry with errorCode "INJECTION_FAILED" —
+    // surfaced in the log entry's validation summary line.
+    expect(await screen.findByText(/INJECTION_FAILED/i)).toBeInTheDocument();
   });
 
   it("SessionCard shows EMV config button only for Issuer role", async () => {
@@ -463,6 +629,8 @@ describe("InjectorPanel", () => {
     (getLog as unknown as ReturnType<typeof vi.fn>).mockReset();
     (getLog as unknown as ReturnType<typeof vi.fn>).mockResolvedValue([]);
     try { window.localStorage.removeItem("isoleaf-injector"); } catch { /* ignore */ }
+    // Zustand store survives across tests — reset its in-memory state too.
+    useInjectorStore.setState({ ...INJECTOR_DEFAULTS });
   });
 
 
@@ -656,23 +824,7 @@ describe("InjectorPanel", () => {
     // (declares 4 wire bytes), payload is the binary-hex of "0200" (4 chars).
     // Preview must show [0004] (recomputed from the 4-byte payload), NOT
     // [0006] which the old code computed by counting all 12 hex chars / 2.
-    try {
-      window.localStorage.setItem(
-        "isoleaf-injector",
-        JSON.stringify({
-          targetHost: "localhost",
-          targetPort: 8583,
-          message: "",
-          includeTpdu: false,
-          durationSeconds: 0,
-          varyIdentifiers: true,
-          varyAmount: false,
-          amountMinReais: 1,
-          amountMaxReais: 500,
-          includeLengthPrefix: true,
-        })
-      );
-    } catch { /* ignore */ }
+    useInjectorStore.setState({ ...INJECTOR_DEFAULTS, includeLengthPrefix: true });
 
     const user = userEvent.setup();
     renderApp(<SimulatorPage />);
@@ -690,23 +842,7 @@ describe("InjectorPanel", () => {
   it("calculates correct length preview for binary-hex input", async () => {
     // Binary-hex input "0200F23C" is 8 hex chars = 4 wire bytes. The preview
     // must show "[0004]" — not "[0008]" (the old bug counted hex chars).
-    try {
-      window.localStorage.setItem(
-        "isoleaf-injector",
-        JSON.stringify({
-          targetHost: "localhost",
-          targetPort: 8583,
-          message: "",
-          includeTpdu: false,
-          durationSeconds: 0,
-          varyIdentifiers: true,
-          varyAmount: false,
-          amountMinReais: 1,
-          amountMaxReais: 500,
-          includeLengthPrefix: true,
-        })
-      );
-    } catch { /* ignore */ }
+    useInjectorStore.setState({ ...INJECTOR_DEFAULTS, includeLengthPrefix: true });
 
     const user = userEvent.setup();
     renderApp(<SimulatorPage />);
@@ -729,24 +865,7 @@ describe("InjectorPanel", () => {
     const mock = injectDirect as unknown as ReturnType<typeof vi.fn>;
     mock.mockReset();
     mock.mockResolvedValueOnce({ success: true, processingMs: 5 });
-
-    try {
-      window.localStorage.setItem(
-        "isoleaf-injector",
-        JSON.stringify({
-          targetHost: "localhost",
-          targetPort: 8583,
-          message: "",
-          includeTpdu: false,
-          durationSeconds: 0,
-          varyIdentifiers: true,
-          varyAmount: false,
-          amountMinReais: 1,
-          amountMaxReais: 500,
-          includeLengthPrefix: true,
-        })
-      );
-    } catch { /* ignore */ }
+    useInjectorStore.setState({ ...INJECTOR_DEFAULTS, includeLengthPrefix: true });
 
     renderApp(<SimulatorPage />);
 
@@ -768,23 +887,7 @@ describe("InjectorPanel", () => {
 
     // Default state → includeLengthPrefix: false (set explicitly so we test
     // the disabled path too).
-    try {
-      window.localStorage.setItem(
-        "isoleaf-injector",
-        JSON.stringify({
-          targetHost: "localhost",
-          targetPort: 8583,
-          message: "",
-          includeTpdu: false,
-          durationSeconds: 0,
-          varyIdentifiers: true,
-          varyAmount: false,
-          amountMinReais: 1,
-          amountMaxReais: 500,
-          includeLengthPrefix: false,
-        })
-      );
-    } catch { /* ignore */ }
+    useInjectorStore.setState({ ...INJECTOR_DEFAULTS, includeLengthPrefix: false });
 
     renderApp(<SimulatorPage />);
 

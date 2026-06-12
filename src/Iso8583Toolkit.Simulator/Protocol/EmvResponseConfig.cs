@@ -51,5 +51,13 @@ public sealed record EmvResponseConfig
     /// </summary>
     public string Brand { get; init; } = "Visa";
 
+    /// <summary>
+    /// Whether to validate the inbound ARQC before generating ARPC. Only
+    /// applies when <see cref="Mode"/> is <see cref="EmvResponseMode.GenerateArpc"/>.
+    /// True (default) → invalid ARQC produces RC=05 (not authorized).
+    /// False → ARPC is generated regardless, useful for integration tests.
+    /// </summary>
+    public bool ValidateArqc { get; init; } = true;
+
     public static EmvResponseConfig Default => new();
 }

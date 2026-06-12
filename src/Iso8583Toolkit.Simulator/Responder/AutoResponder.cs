@@ -47,8 +47,18 @@ public sealed class AutoResponder
                 builder.WithField(bit, value);
         }
 
-        // 4. Evaluate conditional rules to determine RC
-        var responseCode = EvaluateRules(request, config, rules, arqcValid);
+        // 4. Evaluate conditional rules to determine RC. When the Issuer
+        // session has GenerateArpc + ValidateArqc enabled, run the real
+        // ARQC check here so EvaluateRules can return RC=05 for invalid
+        // cryptograms — caller's `arqcValid` argument acts as the upper
+        // bound (a caller that already knows the ARQC is invalid wins).
+        var effectiveArqcValid = arqcValid;
+        var emvCfg = config.EmvResponse ?? EmvResponseConfig.Default;
+        if (effectiveArqcValid && emvCfg.Mode == EmvResponseMode.GenerateArpc && emvCfg.ValidateArqc)
+        {
+            effectiveArqcValid = TryValidateArqc(request, emvCfg, config);
+        }
+        var responseCode = EvaluateRules(request, config, rules, effectiveArqcValid);
 
         // 5. Set bit 39 (Response Code)
         builder.WithField(39, responseCode);
@@ -72,7 +82,7 @@ public sealed class AutoResponder
         var requestBit55 = request.GetFieldValue(55);
         if (requestBit55 is not null)
         {
-            var emvCfg = config.EmvResponse ?? EmvResponseConfig.Default;
+            // emvCfg was already resolved above when validating ARQC.
             var responseBit55 = emvCfg.Mode == EmvResponseMode.GenerateArpc
                 ? TryGenerateArpcBit55(request, requestBit55, emvCfg, config, responseCode)
                 ?? requestBit55  // fallback to echo
@@ -81,6 +91,79 @@ public sealed class AutoResponder
         }
 
         return builder.Build();
+    }
+
+    /// <summary>
+    /// Validates the inbound ARQC against what we'd derive from the request
+    /// fields + configured IMK. Returns true (valid) when:
+    ///   • the validation succeeds, OR
+    ///   • any precondition is missing (no IMK, missing TLV tags, etc.) —
+    ///     the lenient behavior keeps the simulator usable for partial
+    ///     setups; users who want strict validation just need to configure
+    ///     a real IMK.
+    /// </summary>
+    private static bool TryValidateArqc(IsoMessage request, EmvResponseConfig emvCfg, SessionConfig sessionCfg)
+    {
+        try
+        {
+            var bit55 = request.GetFieldValue(55);
+            if (bit55 is null) return true;
+
+            var trimmed = bit55.AsSpan(emvCfg.ProprietaryHeaderBytes * 2);
+            if (trimmed.Length < 4) return true;
+
+            var tags = Cryptography.Tlv.TlvParser.Parse(trimmed.ToString());
+            var arqcReceived = tags.FirstOrDefault(t => t.Tag == "9F26")?.Value;
+            var atc          = tags.FirstOrDefault(t => t.Tag == "9F36")?.Value;
+            var amountAuth   = tags.FirstOrDefault(t => t.Tag == "9F02")?.Value;
+            var amountOther  = tags.FirstOrDefault(t => t.Tag == "9F03")?.Value;
+            var terminalCc   = tags.FirstOrDefault(t => t.Tag == "9F1A")?.Value;
+            var tvr          = tags.FirstOrDefault(t => t.Tag == "95")?.Value;
+            var currencyCode = tags.FirstOrDefault(t => t.Tag == "5F2A")?.Value;
+            var txDate       = tags.FirstOrDefault(t => t.Tag == "9A")?.Value;
+            var txType       = tags.FirstOrDefault(t => t.Tag == "9C")?.Value;
+            var un           = tags.FirstOrDefault(t => t.Tag == "9F37")?.Value;
+            var aip          = tags.FirstOrDefault(t => t.Tag == "82")?.Value;
+            var iad          = tags.FirstOrDefault(t => t.Tag == "9F10")?.Value ?? "";
+
+            if (arqcReceived is null || atc is null || amountAuth is null || amountOther is null
+                || terminalCc is null || tvr is null || currencyCode is null || txDate is null
+                || txType is null || un is null || aip is null)
+                return true; // can't validate; treat as valid
+
+            var pan = request.GetFieldValue(2);
+            var psn = request.GetFieldValue(23) ?? "00";
+            if (pan is null) return true;
+
+            var imk = string.IsNullOrEmpty(emvCfg.ImkOverride)
+                ? sessionCfg.IssuerMasterKey
+                : emvCfg.ImkOverride;
+            if (string.IsNullOrEmpty(imk)) return true;
+
+            var arqcInput = new Cryptography.Emv.ArqcInput(
+                IccMasterKey: imk,
+                Pan: pan,
+                PanSequenceNumber: psn,
+                Atc: atc,
+                AmountAuthorized: amountAuth,
+                AmountOther: amountOther,
+                TerminalCountryCode: terminalCc,
+                Tvr: tvr,
+                CurrencyCode: currencyCode,
+                TransactionDate: txDate,
+                TransactionType: txType,
+                UnpredictableNumber: un,
+                Aip: aip,
+                Iad: iad,
+                Profile: Cryptography.Emv.EmvProfile.Visa);
+
+            var expected = Cryptography.Emv.ArqcCalculator.CalculateArqc(arqcInput);
+            return string.Equals(expected, arqcReceived, StringComparison.OrdinalIgnoreCase);
+        }
+        catch
+        {
+            return true; // any failure → lenient
+        }
     }
 
     /// <summary>
@@ -220,8 +303,14 @@ public sealed class AutoResponder
 
     private static string EvaluateRules(IsoMessage request, SessionConfig config, ResponseRules rules, bool arqcValid)
     {
-        // If ARQC validation failed, decline
-        if (config.ValidateArqc && !arqcValid)
+        // If ARQC validation failed, decline. Either source counts:
+        //   • SessionConfig.ValidateArqc — legacy/global toggle.
+        //   • EmvResponse.ValidateArqc — new per-session knob inside the
+        //     EMV config modal (only meaningful with GenerateArpc).
+        var emvCfg = config.EmvResponse ?? EmvResponseConfig.Default;
+        var shouldValidate = config.ValidateArqc
+            || (emvCfg.Mode == EmvResponseMode.GenerateArpc && emvCfg.ValidateArqc);
+        if (shouldValidate && !arqcValid)
             return "05";
 
         // Evaluate conditional rules (first match wins)
