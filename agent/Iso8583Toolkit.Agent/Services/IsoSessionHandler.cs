@@ -41,6 +41,15 @@ public sealed class IsoSessionHandler
         _framer = new MessageFramer(config.HeaderSize);
     }
 
+    /// <summary>
+    /// Strips CR/LF from a string before sending it to the logger. The MTI
+    /// and other ISO-wire-derived strings logged below are technically
+    /// parsed bytes from an untrusted peer, so we defend against log forging
+    /// (CWE-117) even though they SHOULD be 4 ASCII digits in practice.
+    /// </summary>
+    private static string Safe(string? s) =>
+        s?.Replace("\r", "\\r").Replace("\n", "\\n") ?? "";
+
     public async Task HandleRebatedorAsync(TcpClient client, CancellationToken ct)
     {
         using var stream = client.GetStream();
@@ -130,11 +139,10 @@ public sealed class IsoSessionHandler
         var binaryHex = Convert.ToHexString(messageBytes);
         var asciiView = Encoding.Latin1.GetString(messageBytes);
         var (request, wasBinaryHex, parseError) = TryParse(messageBytes, asciiView, binaryHex);
-        // lgtm[cs/log-injection] Data logged is ISO 8583 hex wire — no user-controlled string interpolation
         _logger.LogInformation(
             "Parse attempt: bytes={Len} mode={Mode} result={Result} mti={Mti}",
             messageBytes.Length, wasBinaryHex ? "binary-hex" : "ascii",
-            request is null ? "fail" : "ok", request?.Mti ?? "-");
+            request is null ? "fail" : "ok", Safe(request?.Mti ?? "-"));
 
         var inEntry = new MessageLogEntry
         {
@@ -166,18 +174,16 @@ public sealed class IsoSessionHandler
             var resolution = AutoResponder.ResolveResponseMti(request.Mti, rules, _config);
             var mtiWasUnmapped = !rules.MtiResponseMap.ContainsKey(request.Mti);
 
-            // lgtm[cs/log-injection] Data logged is ISO 8583 hex wire — no user-controlled string interpolation
             _logger.LogInformation(
                 "AutoResponder: requestMti={Mti} mapped={Mapped} policy={Policy} responseMti={Response} action={Action}",
-                request.Mti, !mtiWasUnmapped, _config.UnknownMtiResponse,
-                resolution.ResponseMti ?? "<null>", resolution.ActionDescription ?? "-");
+                Safe(request.Mti), !mtiWasUnmapped, _config.UnknownMtiResponse,
+                Safe(resolution.ResponseMti ?? "<null>"), Safe(resolution.ActionDescription ?? "-"));
 
             if (resolution.ResponseMti is null)
             {
-                // lgtm[cs/log-injection] Data logged is ISO 8583 hex wire — no user-controlled string interpolation
                 _logger.LogWarning(
                     "AutoResponder did not produce a response for MTI={Mti}: {Reason}",
-                    request.Mti, resolution.ActionDescription);
+                    Safe(request.Mti), Safe(resolution.ActionDescription));
 
                 // Policy says don't answer (Reject, undirivable Derive, missing Custom).
                 var rejected = new MessageLogEntry
@@ -229,10 +235,9 @@ public sealed class IsoSessionHandler
             }
             catch (Exception buildEx)
             {
-                // lgtm[cs/log-injection] Data logged is ISO 8583 hex wire — no user-controlled string interpolation
                 _logger.LogError(buildEx,
                     "Response build failed for MTI={Mti} — sending minimal error response (RC=96)",
-                    request.Mti);
+                    Safe(request.Mti));
                 responseHex = BuildMinimalErrorResponseHex(ResponseMti(request.Mti), "96");
             }
 
