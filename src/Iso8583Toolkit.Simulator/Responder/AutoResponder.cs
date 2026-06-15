@@ -7,10 +7,6 @@ namespace Iso8583Toolkit.Simulator.Responder;
 
 public sealed class AutoResponder
 {
-    // Default echo fields (role-agnostic baseline). Role-specific overrides come
-    // from SimulatorRoleProfile.EchoFields when SessionConfig.Role is set.
-    private static readonly int[] DefaultEchoFields = [2, 3, 4, 7, 11, 12, 13, 14, 18, 22, 23, 25, 32, 35, 37, 41, 42, 43, 49];
-
     /// <summary>
     /// Outcome of the unknown-MTI resolution. <see cref="ResponseMti"/> is <c>null</c>
     /// when the configured policy says "don't respond" (Reject / unresolved Derive /

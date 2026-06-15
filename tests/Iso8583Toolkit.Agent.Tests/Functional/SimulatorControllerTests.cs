@@ -513,13 +513,6 @@ public sealed class SimulatorControllerTests
         {
             var c = NewClient();
 
-            // Build a minimal ASCII wire with bit 11 (STAN) + bit 37 (RRN) so the
-            // variation service has something to refresh.
-            const string baseMsg = "02002000000002000010000001AAAAAAAAAAAA";
-            // bitmap "2000000002000010" → bits 3 (no, but...) — easier: use the
-            // builder via IsoMessageBuilder for a real wire. Keep it simple here
-            // and trust IsoMessageBuilder via a hand-crafted minimal wire.
-
             object payload(string m) => new
             {
                 targetHost = "127.0.0.1",

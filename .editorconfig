@@ -1,0 +1,7 @@
+root = true
+
+[*.cs]
+# Dead-code rules — promote from default (silent) to warning so they show in `dotnet build`.
+dotnet_diagnostic.IDE0051.severity = warning   # Private member never used
+dotnet_diagnostic.IDE0052.severity = warning   # Private member never read
+dotnet_diagnostic.IDE0060.severity = warning   # Unused parameter
