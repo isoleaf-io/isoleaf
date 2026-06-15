@@ -24,6 +24,3 @@ export const smartBuild = (req: SmartBuildRequest) =>
 
 export const buildMessage = (mti: string, fields: { bitNumber: number; value: string }[], layoutName = "default") =>
   api.post("/build/message", { mti, fields, layoutName }).then((r) => r.data);
-
-export const getProfiles = () => api.get("/build/smart/profiles").then((r) => r.data);
-export const getRules = () => api.get("/build/smart/rules").then((r) => r.data);

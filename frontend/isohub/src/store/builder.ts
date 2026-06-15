@@ -3,7 +3,7 @@ import { persist } from "zustand/middleware";
 import { dependsOn, getAffectedFields } from "@/pages/Builder/fieldDependencies";
 
 export type FieldOrigin = "generated" | "auto" | "workspace" | "manual" | "derived";
-export type FieldStatus = "ok" | "stale" | "editing";
+type FieldStatus = "ok" | "stale" | "editing";
 
 export interface BuilderField {
   bitNumber: number;

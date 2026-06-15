@@ -1,4 +1,4 @@
-export interface ParsedField {
+interface ParsedField {
   bitNumber: number;
   name: string;
   /** Raw value of the field — full PAN, full Track 2, etc. */
@@ -44,7 +44,7 @@ export interface IsoParseResponse {
   partialFields?: ParsedField[] | null;
 }
 
-export interface ParseErrorDetail {
+interface ParseErrorDetail {
   field: string;
   position: number;
   message: string;
@@ -59,12 +59,6 @@ export interface BitmapParseResponse {
   secondaryHex?: string | null;
 }
 
-export interface LayoutSummary {
-  name: string;
-  version?: string;
-  fieldCount: number;
-}
-
 export interface LayoutFieldDefinition {
   bitNumber: number;
   name: string;
@@ -73,7 +67,7 @@ export interface LayoutFieldDefinition {
   encoding: string;
 }
 
-export interface SmartFieldInfo {
+interface SmartFieldInfo {
   bitNumber: number;
   name: string;
   value: string;
@@ -112,11 +106,6 @@ export interface VirtualCard {
   track2: string;
   brand: string;
   generatedAt: string;
-}
-
-export interface BrandSummary {
-  name: string;
-  binRanges: { start: string; end: string; panLength: number }[];
 }
 
 export interface TlvTag {
@@ -330,18 +319,6 @@ export interface WorkspaceConfig {
   defaultCurrency: string;
   defaultCountry: string;
   defaultChannel: string;
-}
-
-export interface SavedTemplate {
-  templateId: string;
-  name: string;
-  description: string;
-  asciiMessage: string;
-  binaryHexMessage: string;
-  mti: string;
-  activeBits: number[];
-  savedAt: string;
-  tags?: string | null;
 }
 
 export interface HealthStatus {

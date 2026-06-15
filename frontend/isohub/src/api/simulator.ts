@@ -8,9 +8,6 @@ export const startSession = (config: Record<string, unknown>) =>
 
 export const stopSession = (id: string) => api.delete(`/simulator/sessions/${id}`).then((r) => r.data);
 
-export const injectMessage = (id: string, hexMessage: string) =>
-  api.post(`/simulator/sessions/${id}/inject`, { hexMessage }).then((r) => r.data);
-
 export const updateEmvConfig = (id: string, config: EmvResponseConfig) =>
   api.put(`/simulator/sessions/${id}/emv-config`, config).then((r) => r.data);
 
@@ -34,7 +31,7 @@ export interface InjectDirectRequest {
   includeLengthPrefix?: boolean;
 }
 
-export interface InjectDirectResponseFieldDto {
+interface InjectDirectResponseFieldDto {
   bitNumber: number;
   name: string;
   value: string;
