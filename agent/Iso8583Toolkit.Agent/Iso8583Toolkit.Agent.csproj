@@ -8,7 +8,7 @@
     <RootNamespace>Iso8583Toolkit.Agent</RootNamespace>
     <!-- Drives AssemblyVersion + InformationalVersion → /api/health's `version`
          field. Bump in lockstep with frontend/isohub/src/version.ts. -->
-    <Version>1.1.1</Version>
+    <Version>1.2.0</Version>
   </PropertyGroup>
 
   <ItemGroup>

@@ -35,6 +35,19 @@ export function ParseBit55Tab() {
   });
   const error = (mutation.error as Error | undefined)?.message;
 
+  // Editing the hex or header clears any stuck mutation state. Without this,
+  // a hung request (e.g. agent unreachable) or a prior error left the Parsear
+  // button disabled and forced the user to click Limpar to recover — losing
+  // the bit55 content they were trying to fix.
+  const handleHexChange = (v: string) => {
+    setHex(v);
+    if (mutation.isPending || mutation.isError) mutation.reset();
+  };
+  const handleHeaderChange = (v: number) => {
+    setHeader(v);
+    if (mutation.isPending || mutation.isError) mutation.reset();
+  };
+
   const [warningsOpen, setWarningsOpen] = useState(false);
 
   // Auto-parse on mount when there's persisted input but no result yet
@@ -60,7 +73,7 @@ export function ParseBit55Tab() {
         <CardBody className="space-y-3">
           <textarea
             value={hex}
-            onChange={(e) => setHex(e.target.value)}
+            onChange={(e) => handleHexChange(e.target.value)}
             placeholder="9F2608A1B2C3D4E5F60708..."
             className="w-full min-h-[100px] p-3 rounded-md bg-bg-input border border-[var(--border)] font-mono text-[12px] resize-y focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent"
             spellCheck={false}
@@ -74,7 +87,7 @@ export function ParseBit55Tab() {
                 min={0}
                 max={16}
                 value={header}
-                onChange={(e) => setHeader(Number(e.target.value))}
+                onChange={(e) => handleHeaderChange(Number(e.target.value))}
                 placeholder="0"
                 className="w-32 font-mono"
                 aria-label={t("emv.headerLabel")}
