@@ -203,7 +203,6 @@ public sealed class FieldValueGenerator
         var zpk = Convert.FromHexString("0123456789ABCDEFFEDCBA98765432100123456789ABCDEF");
         using var des = System.Security.Cryptography.TripleDES.Create();
         des.Key = zpk;
-        // lgtm[cs/ecb-encryption] ECB mode is mandated by EMV spec (ISO 9564 / EMV Book 2) for CVV, ARPC and session key derivation
         des.Mode = CipherMode.ECB;
         des.Padding = PaddingMode.None;
         var encrypted = des.CreateEncryptor().TransformFinalBlock(clearBlock, 0, 8);

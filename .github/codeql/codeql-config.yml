@@ -1,0 +1,20 @@
+name: "ISOLeaf CodeQL Config"
+
+# Default query suite — the standard security set plus quality checks.
+queries:
+  - uses: security-and-quality
+
+# Project-wide false-positive suppressions.
+#
+# cs/ecb-encryption: ISOLeaf implements EMV cryptography end-to-end. The
+# DES/3DES-ECB primitives used in CvvGenerator, ArqcCalculator,
+# SessionKeyDerivation and the PIN-block path inside FieldValueGenerator
+# are MANDATED by the spec (ISO 9564 for PIN blocks; EMV Book 2 for
+# ARQC/ARPC/session-key derivation). They are not a choice — replacing
+# them with CBC/GCM would break interoperability with every issuer host
+# on Earth, and produces invalid cryptograms. The rule is suppressed at
+# the config level instead of with inline comments so it scales to any
+# future call site without needing per-line annotations.
+query-filters:
+  - exclude:
+      id: cs/ecb-encryption

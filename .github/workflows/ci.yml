@@ -76,11 +76,6 @@ jobs:
         run: npm run build
 
   # ── Stage 3 ────────────────────────────────────────────────────────────────
-  # CodeQL is intentionally NOT a job here — GitHub-native code scanning is
-  # already configured for this repo via Settings → Code security and analysis,
-  # which runs the csharp/javascript analyses on its own schedule. Adding a
-  # second workflow-based CodeQL job would produce duplicate SARIF uploads
-  # and fail the pipeline on the conflict.
   gitleaks:
     name: Secret scan (Trufflehog)
     needs: [backend, frontend]
@@ -102,7 +97,14 @@ jobs:
           # issuing service will fail the build.
           extra_args: --only-verified
 
-  # ── Stages 4 + 5 (merged: build-push-action is atomic) ─────────────────────
+  # ── Stage 4 ────────────────────────────────────────────────────────────────
+  # CodeQL is NOT a workflow job — GitHub-native "Default" code scanning runs
+  # it on its own schedule. The project-wide query filters in
+  # .github/codeql/codeql-config.yml are picked up by that default setup.
+  # Re-adding a workflow CodeQL job here would produce duplicate SARIF
+  # uploads and fail with HTTP 422.
+
+  # ── Stages 5 + 6 (merged: build-push-action is atomic) ─────────────────────
   docker:
     name: Docker build & push (GHCR)
     needs: [gitleaks]
