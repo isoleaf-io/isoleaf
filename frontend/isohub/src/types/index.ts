@@ -327,8 +327,6 @@ export interface HealthStatus {
   uptime: string;
   activeSessions: number;
   totalMessagesProcessed: number;
-  mongoDbConnected: boolean;
-  brokerConnected: boolean;
 }
 
 /**
