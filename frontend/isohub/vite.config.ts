@@ -15,22 +15,33 @@ export default defineConfig({
     chunkSizeWarningLimit: 400,
     rollupOptions: {
       output: {
-        manualChunks: {
-          // React core — rarely changes, long cache life.
-          "vendor-react": ["react", "react-dom", "react-router"],
-          // State + data fetching primitives.
-          "vendor-query": ["@tanstack/react-query", "zustand", "axios"],
-          // Radix UI primitives (every @radix-ui/* listed in package.json).
-          "vendor-radix": [
-            "@radix-ui/react-dialog",
-            "@radix-ui/react-tabs",
-          ],
-          // SignalR client — large, isolated for cache stability.
-          "vendor-signalr": ["@microsoft/signalr"],
-          // i18n stack.
-          "vendor-i18n": ["i18next", "react-i18next", "i18next-browser-languagedetector"],
-          // Icon set.
-          "vendor-icons": ["lucide-react"],
+        // Vite 8 removed the object form of manualChunks. The function form is
+        // still accepted (deprecated). We match by id substring — substring
+        // matches under node_modules are stable across pnpm/npm hoisting.
+        manualChunks(id) {
+          if (!id.includes("node_modules")) return undefined;
+          if (
+            id.includes("node_modules/react/") ||
+            id.includes("node_modules/react-dom/") ||
+            id.includes("node_modules/react-router/")
+          ) return "vendor-react";
+          if (
+            id.includes("node_modules/@tanstack/react-query/") ||
+            id.includes("node_modules/zustand/") ||
+            id.includes("node_modules/axios/")
+          ) return "vendor-query";
+          if (
+            id.includes("node_modules/@radix-ui/react-dialog/") ||
+            id.includes("node_modules/@radix-ui/react-tabs/")
+          ) return "vendor-radix";
+          if (id.includes("node_modules/@microsoft/signalr/")) return "vendor-signalr";
+          if (
+            id.includes("node_modules/i18next/") ||
+            id.includes("node_modules/react-i18next/") ||
+            id.includes("node_modules/i18next-browser-languagedetector/")
+          ) return "vendor-i18n";
+          if (id.includes("node_modules/lucide-react/")) return "vendor-icons";
+          return undefined;
         },
       },
     },
