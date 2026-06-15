@@ -9,7 +9,7 @@ import { MonoText } from "@/components/ui/MonoText";
 import { Badge } from "@/components/ui/Badge";
 import { HelpButton } from "@/components/ui/HelpButton";
 import { injectDirect, type InjectDirectResponse } from "@/api/simulator";
-import { useInjectorStore, DEFAULTS as STORE_DEFAULTS, type InjectorState } from "@/store/injector";
+import { useInjectorStore, isValidTpduOverride, type InjectorState } from "@/store/injector";
 import type { MessageLogEntry, SimulatorSession } from "@/types";
 
 interface InjectorResponse {
@@ -246,6 +246,11 @@ export function InjectorPanel({
       persisted.amountMaxReais <= 0 ||
       persisted.amountMinReais >= persisted.amountMaxReais);
 
+  // TPDU validation surfaces only when the user typed something AND it isn't
+  // 10 hex chars. Empty + includeTpdu=true means AUTO (Workspace NIIs) — also valid.
+  const tpduInvalid =
+    persisted.includeTpdu && !isValidTpduOverride(persisted.tpduOverride);
+
   /**
    * Sends one message. When `applyVariations` is true (continuous mode),
    * passes the configured flags to the backend so STAN/timestamps/amount get
@@ -270,6 +275,13 @@ export function InjectorPanel({
         message: trimmed,
         includeLengthPrefix: effectiveIncludePrefix,
         includeTpdu: persisted.includeTpdu,
+        // Literal TPDU only matters when the toggle is on; empty string maps to
+        // null so the backend falls back to Workspace-NII auto-generation.
+        tpduOverride: persisted.includeTpdu
+          ? (persisted.tpduOverride && persisted.tpduOverride.length > 0
+              ? persisted.tpduOverride
+              : null)
+          : null,
         // Variations are continuous-mode only — the unit-mode button must always
         // forward the message verbatim so power users can test exact payloads.
         varyIdentifiers: applyVariations && persisted.varyIdentifiers,
@@ -445,6 +457,29 @@ export function InjectorPanel({
           </div>
         </div>
 
+        {/* Editable TPDU literal. Mirrors the Builder's ContextBar pattern: an
+            input appears only when the TPDU toggle is on. Empty input means
+            AUTO (backend uses Workspace NIIs); a 10-hex literal forces those
+            5 bytes verbatim. Validation surfaces red border + inline hint. */}
+        {persisted.includeTpdu && (
+          <div data-testid="injector-tpdu-field" className="flex flex-col" style={{ maxWidth: 260 }}>
+            <Label>{t("simulator.injector.tpduValue")}</Label>
+            <Input
+              value={persisted.tpduOverride ?? ""}
+              onChange={(e) => setPersistedField("tpduOverride", e.target.value || null)}
+              placeholder="6000000000"
+              maxLength={10}
+              className={clsx("font-mono", tpduInvalid && "border-danger focus:ring-danger/30")}
+              spellCheck={false}
+            />
+            <div className="text-[11px] text-text-tertiary mt-0.5">
+              {tpduInvalid
+                ? t("simulator.injector.tpduInvalid")
+                : t("simulator.injector.tpduHint")}
+            </div>
+          </div>
+        )}
+
         {/* Custom host/port — only when "Destino customizado" is selected. */}
         {!selectedSession && (
           <div className="grid grid-cols-[1fr_140px] gap-3" data-testid="injector-custom-fields">
@@ -510,7 +545,7 @@ export function InjectorPanel({
 
         {/* Ação unitária — envia exatamente o que está no textarea, sem variações. */}
         <div className="flex flex-wrap items-center gap-2">
-          <Button onClick={() => injectOne(false)} disabled={messageEmpty || busy || running}>
+          <Button onClick={() => injectOne(false)} disabled={messageEmpty || busy || running || tpduInvalid}>
             <Send size={13} /> {t("simulator.injector.inject")} →
           </Button>
           <Button variant="secondary" onClick={clearAll}>
@@ -625,7 +660,7 @@ export function InjectorPanel({
                   <Square size={13} /> {t("simulator.injector.stop")}
                 </Button>
               ) : (
-                <Button variant="secondary" onClick={startContinuous} disabled={messageEmpty}>
+                <Button variant="secondary" onClick={startContinuous} disabled={messageEmpty || tpduInvalid}>
                   <Play size={13} /> {t("simulator.injector.startContinuous")}
                 </Button>
               )}

@@ -11,6 +11,12 @@ export interface InjectorState {
   targetPort: number;
   message: string;
   includeTpdu: boolean;
+  /**
+   * Literal 10-hex TPDU (5 bytes: [60][NII-orig 2B][NII-dest 2B]).
+   * Empty/null → backend falls back to Workspace NIIs (auto-generated).
+   * Honored only when `includeTpdu` is true.
+   */
+  tpduOverride: string | null;
   durationSeconds: number;
   varyIdentifiers: boolean;
   varyAmount: boolean;
@@ -31,6 +37,7 @@ export const DEFAULTS: InjectorState = {
   targetPort: 8583,
   message: "",
   includeTpdu: false,
+  tpduOverride: null,
   durationSeconds: 0,
   varyIdentifiers: true,
   varyAmount: false,
@@ -39,6 +46,16 @@ export const DEFAULTS: InjectorState = {
   includeLengthPrefix: false,
   destination: "custom",
 };
+
+/**
+ * True when the user-supplied TPDU literal is acceptable. Empty/null means
+ * "fall back to Workspace NIIs" — also valid. Non-empty must be exactly
+ * 10 hex chars (5 bytes: identifier + origin NII + destination NII).
+ */
+export function isValidTpduOverride(value: string | null | undefined): boolean {
+  if (value === null || value === undefined || value === "") return true;
+  return /^[0-9A-Fa-f]{10}$/.test(value);
+}
 
 interface InjectorStore extends InjectorState {
   set: <K extends keyof InjectorState>(key: K, value: InjectorState[K]) => void;

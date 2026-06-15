@@ -32,7 +32,7 @@ vi.mock("@/hooks/useSimulatorHub", () => ({
 
 import SimulatorPage from "@/pages/Simulator";
 import { listSessions, injectDirect, getLog, startSession } from "@/api/simulator";
-import { useInjectorStore, DEFAULTS as INJECTOR_DEFAULTS } from "@/store/injector";
+import { useInjectorStore, DEFAULTS as INJECTOR_DEFAULTS, isValidTpduOverride } from "@/store/injector";
 
 async function openNewSessionForm() {
   const user = userEvent.setup();
@@ -902,5 +902,98 @@ describe("InjectorPanel", () => {
     const arg = mock.mock.calls[0][0];
     expect(arg.message).toBe("0200F23C24");
     expect(arg.includeLengthPrefix).toBe(false);
+  });
+
+  // ── TPDU editable literal ─────────────────────────────────────────────────
+  // The toggle has always existed; this group covers the new editable value
+  // field (tpduOverride) that lets users force the 5 TPDU bytes verbatim.
+
+  it("isValidTpduOverride accepts null/empty and 10-hex strings, rejects everything else", () => {
+    expect(isValidTpduOverride(null)).toBe(true);
+    expect(isValidTpduOverride("")).toBe(true);
+    expect(isValidTpduOverride("6000000000")).toBe(true);
+    expect(isValidTpduOverride("6abcDEF012")).toBe(true);  // mixed case ok
+    expect(isValidTpduOverride("60000000")).toBe(false);    // 8 chars — too short
+    expect(isValidTpduOverride("60000000000")).toBe(false); // 11 chars — too long
+    expect(isValidTpduOverride("6000ZZ0000")).toBe(false);  // non-hex char
+  });
+
+  it("TPDU value field is hidden by default and appears only when includeTpdu is on", () => {
+    // The Toggle is a custom span-based widget without a real <input>, so
+    // we can't reach it via getByLabelText / userEvent — drive state through
+    // the store, same pattern used by the framing-border tests above.
+    const { unmount } = renderApp(<SimulatorPage />);
+    expect(screen.queryByTestId("injector-tpdu-field")).not.toBeInTheDocument();
+    unmount();
+
+    useInjectorStore.setState({ ...INJECTOR_DEFAULTS, includeTpdu: true });
+    renderApp(<SimulatorPage />);
+    expect(screen.getByTestId("injector-tpdu-field")).toBeInTheDocument();
+  });
+
+  it("forwards literal tpduOverride to injectDirect when set", async () => {
+    const user = userEvent.setup();
+    const mock = injectDirect as unknown as ReturnType<typeof vi.fn>;
+    mock.mockReset();
+    mock.mockResolvedValueOnce({ success: true, processingMs: 5 });
+
+    useInjectorStore.setState({
+      ...INJECTOR_DEFAULTS,
+      includeTpdu: true,
+      tpduOverride: "6000000000",
+    });
+
+    renderApp(<SimulatorPage />);
+
+    const textarea = screen.getByPlaceholderText("0200F23C...") as HTMLTextAreaElement;
+    await user.type(textarea, "0200F23C24");
+    await user.click(screen.getByRole("button", { name: /^(Injetar|Inject)\s*→/i }));
+
+    expect(mock).toHaveBeenCalledTimes(1);
+    const arg = mock.mock.calls[0][0];
+    expect(arg.includeTpdu).toBe(true);
+    expect(arg.tpduOverride).toBe("6000000000");
+  });
+
+  it("maps empty tpduOverride to null (AUTO from Workspace NIIs)", async () => {
+    const user = userEvent.setup();
+    const mock = injectDirect as unknown as ReturnType<typeof vi.fn>;
+    mock.mockReset();
+    mock.mockResolvedValueOnce({ success: true, processingMs: 5 });
+
+    // includeTpdu ON but no literal — backend should get null and fall back
+    // to the Workspace-NII auto-generation path.
+    useInjectorStore.setState({
+      ...INJECTOR_DEFAULTS,
+      includeTpdu: true,
+      tpduOverride: null,
+    });
+
+    renderApp(<SimulatorPage />);
+
+    const textarea = screen.getByPlaceholderText("0200F23C...") as HTMLTextAreaElement;
+    await user.type(textarea, "0200F23C24");
+    await user.click(screen.getByRole("button", { name: /^(Injetar|Inject)\s*→/i }));
+
+    expect(mock).toHaveBeenCalledTimes(1);
+    const arg = mock.mock.calls[0][0];
+    expect(arg.includeTpdu).toBe(true);
+    expect(arg.tpduOverride).toBeNull();
+  });
+
+  it("disables Inject button when TPDU literal is invalid", async () => {
+    // Pre-seed an invalid literal (8 chars instead of 10) and a non-empty
+    // message so the message-empty path can't account for the disabled state.
+    useInjectorStore.setState({
+      ...INJECTOR_DEFAULTS,
+      includeTpdu: true,
+      tpduOverride: "60000000",
+      message: "0200F23C24",
+    });
+
+    renderApp(<SimulatorPage />);
+
+    const injectBtn = screen.getByRole("button", { name: /^(Injetar|Inject)\s*→/i });
+    expect(injectBtn).toBeDisabled();
   });
 });

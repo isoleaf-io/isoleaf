@@ -2,7 +2,7 @@
   "common": {
     "appName": "ISOLeaf",
     "tagline": "ISO 8583 Toolkit",
-    "version": "v1.1.0",
+    "version": "v1.1.1",
     "copy": "Copiar",
     "copied": "Copiado!",
     "clear": "Limpar",
@@ -352,6 +352,9 @@
       "targetPort": "Porta",
       "message": "Mensagem ISO 8583 (hex ou ASCII wire)",
       "includeTpdu": "Incluir TPDU",
+      "tpduValue": "Valor do TPDU (10 hex)",
+      "tpduHint": "Deixe vazio para usar os NIIs do Workspace. Formato: 5 bytes = identificador (60) + NII origem (2B) + NII destino (2B). Ex.: 6000000000.",
+      "tpduInvalid": "O TPDU deve ter exatamente 10 caracteres hex (5 bytes). Deixe vazio para automático.",
       "includeLengthPrefixDescription": "Ligado: prepende 2 bytes de Length antes da mensagem. Desligue se o sistema destino não espera Length prefix (ex.: terminais POS com protocolo proprietário).",
       "detectedPrefixHint": "Length prefix {{prefix}} detectado e removido — será recalculado",
       "framingCompatible": "✓ Framing compatível com Rebatedor(es) ativos",
