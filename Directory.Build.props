@@ -1,0 +1,15 @@
+<Project>
+
+  <PropertyGroup>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AnalysisLevel>latest</AnalysisLevel>
+    <!-- AnalysisMode intentionally omitted: SDK default is conservative.
+         The IDE0051/IDE0052/IDE0060 dead-code rules we actually care about
+         are promoted to warning in .editorconfig — that's enough to keep
+         catching unused code without flooding the build with broader CA
+         noise (CA1707 underscore naming, CA1848 LoggerMessage, etc). -->
+    <!-- Required for IDE* code-style rules to surface during `dotnet build`. -->
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+  </PropertyGroup>
+
+</Project>
