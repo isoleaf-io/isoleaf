@@ -1,0 +1,148 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+
+# Cancel superseded runs on the same ref — saves CI minutes on PR pushes.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+# Minimum-privilege default; jobs that need more declare it locally.
+permissions:
+  contents: read
+
+jobs:
+  # ── Stage 1 ────────────────────────────────────────────────────────────────
+  backend:
+    name: Backend (build + test)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET 9
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+          cache: true
+          # No packages.lock.json in the repo — fall back to hashing every
+          # csproj so any version bump busts the cache.
+          cache-dependency-path: '**/*.csproj'
+
+      - name: Restore
+        run: dotnet restore Iso8583Toolkit.sln
+
+      - name: Build
+        run: dotnet build Iso8583Toolkit.sln --configuration Release --no-restore --no-incremental
+
+      - name: Test
+        run: dotnet test Iso8583Toolkit.sln --configuration Release --no-build --logger "trx;LogFileName=test-results.trx" --results-directory TestResults
+
+      - name: Upload .trx results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-trx
+          path: '**/TestResults/*.trx'
+          if-no-files-found: warn
+
+  # ── Stage 2 ────────────────────────────────────────────────────────────────
+  frontend:
+    name: Frontend (build + test)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend/isohub
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/isohub/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Test
+        run: npm run test
+
+      - name: Build
+        run: npm run build
+
+  # ── Stage 3 ────────────────────────────────────────────────────────────────
+  # CodeQL is intentionally NOT a job here — GitHub-native code scanning is
+  # already configured for this repo via Settings → Code security and analysis,
+  # which runs the csharp/javascript analyses on its own schedule. Adding a
+  # second workflow-based CodeQL job would produce duplicate SARIF uploads
+  # and fail the pipeline on the conflict.
+  gitleaks:
+    name: Secret scan (Trufflehog)
+    needs: [backend, frontend]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history is required so the scanner can walk every commit
+          # reachable from this ref, not just the tip.
+          fetch-depth: 0
+
+      - name: Scan
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: ${{ github.event.repository.default_branch }}
+          # --only-verified suppresses unverified candidates (low signal/noise);
+          # only credentials Trufflehog could actively validate against their
+          # issuing service will fail the build.
+          extra_args: --only-verified
+
+  # ── Stages 4 + 5 (merged: build-push-action is atomic) ─────────────────────
+  docker:
+    name: Docker build & push (GHCR)
+    needs: [gitleaks]
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Compute tags
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/isoleaf-io/isoleaf
+          # `latest` on main, `1.2.0` on tag `v1.2.0`, `1.2` and `1` on the same.
+          tags: |
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+
+      - name: Build & push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
