@@ -120,6 +120,7 @@ public static class CvvGenerator
     {
         using var des = DES.Create();
         des.Key = key;
+        // lgtm[cs/ecb-encryption] ECB mode is mandated by EMV spec (ISO 9564 / EMV Book 2) for CVV, ARPC and session key derivation
         des.Mode = CipherMode.ECB;
         des.Padding = PaddingMode.None;
         return des.EncryptEcb(data, PaddingMode.None);
@@ -129,6 +130,7 @@ public static class CvvGenerator
     {
         using var des = DES.Create();
         des.Key = key;
+        // lgtm[cs/ecb-encryption] ECB mode is mandated by EMV spec (ISO 9564 / EMV Book 2) for CVV, ARPC and session key derivation
         des.Mode = CipherMode.ECB;
         des.Padding = PaddingMode.None;
         return des.DecryptEcb(data, PaddingMode.None);

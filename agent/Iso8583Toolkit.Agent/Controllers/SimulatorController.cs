@@ -122,10 +122,13 @@ public sealed class SimulatorController : ControllerBase
         if (request.TargetPort <= 0 || request.TargetPort >= 65536)
             return BadRequest(new InjectDirectResponse(Success: false, Error: "TargetPort must be in 1..65535."));
 
+        // TargetHost comes straight from the HTTP request body — strip CR/LF
+        // before logging to defend against log forging (CWE-117).
+        var safeTargetHost = request.TargetHost?.Replace("\r", "\\r").Replace("\n", "\\n") ?? "";
         _logger.LogInformation(
             "InjectDirect called: VaryIdentifiers={VaryId}, VaryAmount={VaryAmt}, MessageLength={Len}, Target={Host}:{Port}",
             request.VaryIdentifiers, request.VaryAmount, request.Message?.Length ?? 0,
-            request.TargetHost, request.TargetPort);
+            safeTargetHost, request.TargetPort);
 
         var sw = System.Diagnostics.Stopwatch.StartNew();
         var rawMsg = request.Message!.Trim();

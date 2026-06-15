@@ -145,6 +145,7 @@ public static class SessionKeyDerivation
     {
         using var des = DES.Create();
         // Bypass weak key check by setting key via reflection or using raw transform
+        // lgtm[cs/ecb-encryption] ECB mode is mandated by EMV spec (ISO 9564 / EMV Book 2) for CVV, ARPC and session key derivation
         des.Mode = CipherMode.ECB;
         des.Padding = PaddingMode.None;
 
