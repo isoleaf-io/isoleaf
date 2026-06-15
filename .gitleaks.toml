@@ -1,0 +1,12 @@
+title = "ISOLeaf Gitleaks Config"
+
+[allowlist]
+  description = "Example keys used for demo and testing purposes only — not real credentials"
+  paths = [
+    '''frontend/isohub/src/store/emv\.ts''',
+    '''src/Iso8583Toolkit\.Api/Services/CardDataProvider\.cs''',
+    '''src/Iso8583Toolkit\.Api/requests\.http''',
+    '''src/Iso8583Toolkit\.Cards/CardGenerator\.cs''',
+    '''tests/Iso8583Toolkit\.Agent\.Tests/E2E/EmvFullFlowE2ETests\.cs''',
+    '''tests/Iso8583Toolkit\.Agent\.Tests/Functional/EmvControllerTests\.cs'''
+  ]
