@@ -18,8 +18,6 @@
     <ProjectReference Include="..\Iso8583Toolkit.Cards\Iso8583Toolkit.Cards.csproj" />
     <ProjectReference Include="..\Iso8583Toolkit.Cryptography\Iso8583Toolkit.Cryptography.csproj" />
     <ProjectReference Include="..\Iso8583Toolkit.Simulator\Iso8583Toolkit.Simulator.csproj" />
-    <ProjectReference Include="..\Iso8583Toolkit.Identity\Iso8583Toolkit.Identity.csproj" />
-    <ProjectReference Include="..\Iso8583Toolkit.Infrastructure\Iso8583Toolkit.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>
