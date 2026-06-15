@@ -5,7 +5,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Iso8583Toolkit.Infrastructure\Iso8583Toolkit.Infrastructure.csproj" />
     <ProjectReference Include="..\Iso8583Toolkit.IsoCore\Iso8583Toolkit.IsoCore.csproj" />
     <ProjectReference Include="..\Iso8583Toolkit.Cryptography\Iso8583Toolkit.Cryptography.csproj" />
   </ItemGroup>
