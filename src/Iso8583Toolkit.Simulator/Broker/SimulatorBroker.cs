@@ -22,6 +22,14 @@ public sealed class SimulatorBroker
     }
 
     /// <summary>
+    /// Strips CR/LF from a string before sending it to the logger. Defends
+    /// against log forging (CWE-117) when the value is sourced from a
+    /// WebSocket URL parameter or agent-supplied payload.
+    /// </summary>
+    private static string Safe(string? s) =>
+        s?.Replace("\r", "\\r").Replace("\n", "\\n") ?? "";
+
+    /// <summary>
     /// Handles the full lifecycle of an agent WebSocket connection.
     /// </summary>
     public async Task HandleAgentConnection(WebSocket socket, string tenantId, CancellationToken ct)
@@ -35,7 +43,7 @@ public sealed class SimulatorBroker
         };
 
         _agents[tenantId] = connection;
-        _logger.LogInformation("Agent registered: tenant={TenantId}, agentId={AgentId}", tenantId, agentId);
+        _logger.LogInformation("Agent registered: tenant={TenantId}, agentId={AgentId}", Safe(tenantId), agentId);
 
         // Send registration confirmation
         var registered = SimulatorMessage.Create(SimulatorMessageType.AgentRegistered, tenantId,
@@ -52,7 +60,7 @@ public sealed class SimulatorBroker
 
                 if (result.MessageType == WebSocketMessageType.Close)
                 {
-                    _logger.LogInformation("Agent disconnected cleanly: tenant={TenantId}", tenantId);
+                    _logger.LogInformation("Agent disconnected cleanly: tenant={TenantId}", Safe(tenantId));
                     break;
                 }
 
@@ -66,7 +74,7 @@ public sealed class SimulatorBroker
         }
         catch (WebSocketException ex)
         {
-            _logger.LogWarning(ex, "WebSocket error for tenant={TenantId}", tenantId);
+            _logger.LogWarning(ex, "WebSocket error for tenant={TenantId}", Safe(tenantId));
         }
         catch (OperationCanceledException)
         {
@@ -75,7 +83,7 @@ public sealed class SimulatorBroker
         finally
         {
             _agents.TryRemove(tenantId, out _);
-            _logger.LogInformation("Agent removed: tenant={TenantId}", tenantId);
+            _logger.LogInformation("Agent removed: tenant={TenantId}", Safe(tenantId));
 
             if (socket.State == WebSocketState.Open)
             {
@@ -127,7 +135,7 @@ public sealed class SimulatorBroker
                 connection.Metadata = message.DeserializePayload<AgentMetadata>();
                 connection.LastHeartbeat = DateTime.UtcNow;
                 _logger.LogInformation("Agent metadata updated: tenant={TenantId}, host={Host}",
-                    connection.TenantId, connection.Metadata?.Hostname);
+                    Safe(connection.TenantId), Safe(connection.Metadata?.Hostname));
                 break;
 
             case SimulatorMessageType.AgentHeartbeat:
@@ -137,7 +145,7 @@ public sealed class SimulatorBroker
                 break;
 
             case SimulatorMessageType.AgentDisconnect:
-                _logger.LogInformation("Agent requested disconnect: tenant={TenantId}", connection.TenantId);
+                _logger.LogInformation("Agent requested disconnect: tenant={TenantId}", Safe(connection.TenantId));
                 break;
 
             // Events to forward to panel

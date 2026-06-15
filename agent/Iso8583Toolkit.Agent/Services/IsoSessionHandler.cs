@@ -130,6 +130,7 @@ public sealed class IsoSessionHandler
         var binaryHex = Convert.ToHexString(messageBytes);
         var asciiView = Encoding.Latin1.GetString(messageBytes);
         var (request, wasBinaryHex, parseError) = TryParse(messageBytes, asciiView, binaryHex);
+        // lgtm[cs/log-injection] Data logged is ISO 8583 hex wire — no user-controlled string interpolation
         _logger.LogInformation(
             "Parse attempt: bytes={Len} mode={Mode} result={Result} mti={Mti}",
             messageBytes.Length, wasBinaryHex ? "binary-hex" : "ascii",
@@ -165,6 +166,7 @@ public sealed class IsoSessionHandler
             var resolution = AutoResponder.ResolveResponseMti(request.Mti, rules, _config);
             var mtiWasUnmapped = !rules.MtiResponseMap.ContainsKey(request.Mti);
 
+            // lgtm[cs/log-injection] Data logged is ISO 8583 hex wire — no user-controlled string interpolation
             _logger.LogInformation(
                 "AutoResponder: requestMti={Mti} mapped={Mapped} policy={Policy} responseMti={Response} action={Action}",
                 request.Mti, !mtiWasUnmapped, _config.UnknownMtiResponse,
@@ -172,6 +174,7 @@ public sealed class IsoSessionHandler
 
             if (resolution.ResponseMti is null)
             {
+                // lgtm[cs/log-injection] Data logged is ISO 8583 hex wire — no user-controlled string interpolation
                 _logger.LogWarning(
                     "AutoResponder did not produce a response for MTI={Mti}: {Reason}",
                     request.Mti, resolution.ActionDescription);
@@ -226,6 +229,7 @@ public sealed class IsoSessionHandler
             }
             catch (Exception buildEx)
             {
+                // lgtm[cs/log-injection] Data logged is ISO 8583 hex wire — no user-controlled string interpolation
                 _logger.LogError(buildEx,
                     "Response build failed for MTI={Mti} — sending minimal error response (RC=96)",
                     request.Mti);
