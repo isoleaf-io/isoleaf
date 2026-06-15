@@ -98,57 +98,16 @@ jobs:
           extra_args: --only-verified
 
   # ── Stage 4 ────────────────────────────────────────────────────────────────
-  # NOTE: this job replaces GitHub-native "default setup" code scanning. The
-  # repo's Settings → Code security and analysis → CodeQL must be switched to
-  # "Advanced" (or "None") so this workflow becomes the sole SARIF uploader —
-  # leaving "Default" enabled creates duplicate uploads and the analysis API
-  # rejects them with a 422 conflict.
-  codeql:
-    name: CodeQL (${{ matrix.language }})
-    needs: [backend, frontend]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      security-events: write
-      actions: read
-    strategy:
-      fail-fast: false
-      matrix:
-        # `javascript` analyser covers TypeScript natively.
-        language: [csharp, javascript]
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup .NET 9
-        if: matrix.language == 'csharp'
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '9.0.x'
-
-      - name: Init CodeQL
-        uses: github/codeql-action/init@v3
-        with:
-          languages: ${{ matrix.language }}
-          # csharp needs a real build so the analyser sees the compiled IL;
-          # javascript/TypeScript is analysed straight from source.
-          build-mode: ${{ matrix.language == 'csharp' && 'autobuild' || 'none' }}
-          # Project-wide query filters live here (e.g. cs/ecb-encryption is
-          # excluded — ECB is mandated by EMV/ISO 9564 for this repo).
-          config-file: .github/codeql/codeql-config.yml
-
-      - name: Autobuild
-        if: matrix.language == 'csharp'
-        uses: github/codeql-action/autobuild@v3
-
-      - name: Analyse
-        uses: github/codeql-action/analyze@v3
-        with:
-          category: /language:${{ matrix.language }}
+  # CodeQL is NOT a workflow job — GitHub-native "Default" code scanning runs
+  # it on its own schedule. The project-wide query filters in
+  # .github/codeql/codeql-config.yml are picked up by that default setup.
+  # Re-adding a workflow CodeQL job here would produce duplicate SARIF
+  # uploads and fail with HTTP 422.
 
   # ── Stages 5 + 6 (merged: build-push-action is atomic) ─────────────────────
   docker:
     name: Docker build & push (GHCR)
-    needs: [gitleaks, codeql]
+    needs: [gitleaks]
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
     runs-on: ubuntu-latest
     permissions:
