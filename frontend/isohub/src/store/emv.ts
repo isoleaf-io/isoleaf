@@ -24,7 +24,7 @@ export type EmvTab =
 
 /** Payload accepted by <see cref="EmvState.loadFromParser"/> — string is kept for
  *  backwards compatibility (legacy callers pass just the bit 55 hex). */
-export interface EmvFromParser {
+interface EmvFromParser {
   hexBit55: string;
   pan?: string;
   brand?: string;

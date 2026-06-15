@@ -3,7 +3,6 @@ import type {
   BitmapParseResponse,
   IsoParseResponse,
   LayoutFieldDefinition,
-  LayoutSummary,
 } from "@/types";
 
 export const parseHex = (hexMessage: string, layoutName = "default") =>
@@ -11,9 +10,6 @@ export const parseHex = (hexMessage: string, layoutName = "default") =>
 
 export const parseBitmap = (hexBitmap: string) =>
   api.post<BitmapParseResponse>("/parse/bitmap", { hexBitmap }).then((r) => r.data);
-
-export const getLayouts = () =>
-  api.get<LayoutSummary[]>("/parse/layouts").then((r) => r.data);
 
 export const getLayoutFields = (name = "default") =>
   api.get<LayoutFieldDefinition[]>(`/parse/layouts/${name}/fields`).then((r) => r.data);

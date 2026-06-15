@@ -23,11 +23,7 @@ export default defineConfig({
           // Radix UI primitives (every @radix-ui/* listed in package.json).
           "vendor-radix": [
             "@radix-ui/react-dialog",
-            "@radix-ui/react-select",
-            "@radix-ui/react-switch",
             "@radix-ui/react-tabs",
-            "@radix-ui/react-toast",
-            "@radix-ui/react-tooltip",
           ],
           // SignalR client — large, isolated for cache stability.
           "vendor-signalr": ["@microsoft/signalr"],

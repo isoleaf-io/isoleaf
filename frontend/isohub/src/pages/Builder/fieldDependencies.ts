@@ -6,7 +6,7 @@
  * Roots (no deps): 2, 4, 7, 11, 12, 13.
  * Bits not in the map are treated as leaves with no dependents.
  */
-export const DEPENDENCIES: Record<number, number[]> = {
+const DEPENDENCIES: Record<number, number[]> = {
   2: [],            // PAN — root
   14: [2],          // Expiry — derived from PAN context
   35: [2, 14],      // Track 2 — composed from PAN + Expiry
@@ -42,8 +42,4 @@ export function getAffectedFields(changedBit: number, presentBits: Iterable<numb
 
 export function dependsOn(bit: number): number[] {
   return DEPENDENCIES[bit] ?? [];
-}
-
-export function dependentsOf(bit: number): number[] {
-  return REVERSE_DEPS[bit] ?? [];
 }
