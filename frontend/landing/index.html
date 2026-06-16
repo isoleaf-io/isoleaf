@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Primary SEO -->
+  <title>ISOLeaf — ISO 8583 Toolkit for Payment Developers</title>
+  <meta name="description" content="Free online ISO 8583 parser, message builder and TCP simulator with full EMV support. Open source, no registration required." />
+  <meta name="keywords" content="ISO 8583, ISO8583, parser, EMV, payment, simulator, open source" />
+  <meta name="author" content="ISOLeaf" />
+  <link rel="canonical" href="https://isoleaf.dev" />
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg" />
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="ISOLeaf — ISO 8583 Toolkit for Payment Developers" />
+  <meta property="og:description" content="Free online ISO 8583 parser, message builder and TCP simulator with full EMV support. Open source, no registration required." />
+  <meta property="og:url" content="https://isoleaf.dev" />
+  <meta property="og:type" content="website" />
+  <meta property="og:image" content="https://isoleaf.dev/assets/parse2.png" />
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="ISOLeaf — ISO 8583 Toolkit for Payment Developers" />
+  <meta name="twitter:description" content="Free online ISO 8583 parser, message builder and TCP simulator with full EMV support." />
+  <meta name="twitter:image" content="https://isoleaf.dev/assets/parse2.png" />
+
+  <style>
+    :root {
+      --accent: #C0392B;
+      --accent-dark: #A93226;
+      --ink: #1A1A1A;
+      --muted: #5C5C5C;
+      --nav-bg: #111111;
+      --footer-bg: #0A0A0A;
+      --card-bg: rgba(255, 255, 255, 0.72);
+      --border: rgba(0, 0, 0, 0.08);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      color: var(--ink);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+
+    a { text-decoration: none; color: inherit; }
+
+    .container {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 0 clamp(1rem, 5vw, 3rem);
+    }
+
+    /* ---------- NAV ---------- */
+    nav {
+      background: var(--nav-bg);
+      color: #fff;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .nav-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 64px;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .brand img { height: 34px; width: auto; display: block; }
+    .brand .wordmark {
+      display: flex;
+      flex-direction: column;
+      line-height: 1;
+    }
+    .brand .wordmark .name {
+      font-size: 19px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+    }
+    .brand .wordmark .name span { color: #b9b9b9; font-weight: 600; }
+    .brand .wordmark .sub {
+      font-size: 8.5px;
+      letter-spacing: 2px;
+      color: #8a8a8a;
+      margin-top: 3px;
+      text-transform: uppercase;
+    }
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 28px;
+    }
+    .nav-links a.link {
+      font-size: 14px;
+      color: #d4d4d4;
+      transition: color .15s;
+    }
+    .nav-links a.link:hover { color: #fff; }
+
+    .lang-toggle {
+      display: flex;
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    .lang-toggle button {
+      background: transparent;
+      color: #b5b5b5;
+      border: none;
+      padding: 5px 10px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .15s, color .15s;
+    }
+    .lang-toggle button.active { background: var(--accent); color: #fff; }
+
+    .btn {
+      display: inline-block;
+      font-size: 14px;
+      font-weight: 600;
+      padding: 9px 18px;
+      border-radius: 8px;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: transform .12s, background .15s, box-shadow .15s;
+    }
+    .btn:active { transform: translateY(1px); }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:hover { background: var(--accent-dark); }
+    .btn-ghost-dark { background: rgba(255,255,255,0.06); color: #fff; border-color: rgba(255,255,255,0.18); }
+    .btn-ghost-dark:hover { background: rgba(255,255,255,0.12); }
+    .btn-outline { background: #fff; color: var(--ink); border-color: var(--border); }
+    .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ---------- MAIN (light bg + svg) ---------- */
+    main {
+      background-color: #F9F9FA;
+      background-image: url("assets/lading_page_bk.svg");
+      background-repeat: no-repeat;
+      background-position: center top;
+      background-size: 100% auto;
+    }
+
+    /* ---------- HERO ---------- */
+    .hero {
+      text-align: center;
+      padding: 96px 0 72px;
+    }
+    .badge {
+      display: inline-block;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--accent);
+      background: rgba(192, 57, 43, 0.10);
+      border: 1px solid rgba(192, 57, 43, 0.22);
+      padding: 6px 14px;
+      border-radius: 999px;
+      margin-bottom: 28px;
+    }
+    .hero h1 {
+      font-size: clamp(28px, 6vw, 52px);
+      line-height: 1.08;
+      letter-spacing: -1.5px;
+      font-weight: 800;
+      max-width: 800px;
+      margin: 0 auto 22px;
+    }
+    .hero h1 .accent { color: var(--accent); }
+    .hero p.subtitle {
+      font-size: 19px;
+      color: var(--muted);
+      max-width: 640px;
+      margin: 0 auto 36px;
+    }
+    .hero-ctas {
+      display: flex;
+      gap: 14px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .hero-ctas .btn { padding: 13px 26px; font-size: 15px; }
+
+    /* ---------- SECTION HEADERS ---------- */
+    .section { padding: 72px 0; }
+    .section-head { text-align: center; margin-bottom: 52px; }
+    .section-head h2 {
+      font-size: clamp(26px, 4.5vw, 38px);
+      font-weight: 800;
+      letter-spacing: -0.8px;
+      margin-bottom: 12px;
+    }
+    .section-head p { font-size: 17px; color: var(--muted); max-width: 560px; margin: 0 auto; }
+
+    /* ---------- FEATURES ---------- */
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 28px;
+    }
+    .feature-card {
+      background: #1a1a1a;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 16px;
+      padding: 1.5rem;
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 14px 36px rgba(0,0,0,0.18);
+      transition: transform .18s, box-shadow .18s, border-color .18s;
+    }
+    .feature-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 22px 48px rgba(0,0,0,0.28);
+      border-color: rgba(192,57,43,0.5);
+    }
+    /* top row: icon + title */
+    .feature-head {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+    .feature-icon {
+      flex-shrink: 0;
+      width: 46px; height: 46px;
+      border-radius: 12px;
+      background: rgba(192, 57, 43, 0.16);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .feature-icon svg { width: 24px; height: 24px; stroke: #E5635A; }
+    .feature-card h3 { font-size: 21px; font-weight: 700; color: #fff; }
+    /* middle row: text (45%) + screenshot (55%) */
+    .feature-body {
+      display: grid;
+      grid-template-columns: minmax(0, 45fr) minmax(0, 55fr);
+      gap: 20px;
+      align-items: center;
+      flex: 1;
+    }
+    .feature-card p.desc { font-size: 14.5px; color: #b6b9c0; margin: 0; }
+    .feature-shot {
+      position: relative;
+      height: 180px;
+      width: 100%;
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,0.10);
+      box-shadow: 0 8px 22px rgba(0,0,0,0.35);
+    }
+    .feature-shot img {
+      width: 100%;
+      height: 100%;
+      display: block;
+      object-fit: cover;
+      object-position: top left;
+      cursor: pointer;
+    }
+    /* subtle magnifier hint on hover */
+    .feature-shot::after {
+      content: "🔍";
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      background: rgba(0,0,0,0.32);
+      opacity: 0;
+      transition: opacity .2s;
+      pointer-events: none;
+    }
+    .feature-shot:hover::after { opacity: 1; }
+    /* centered call-to-action */
+    .feature-cta { align-self: center; margin: 1.25rem auto 0; }
+    /* red button variant for dark cards */
+    .btn-on-dark { background: var(--accent); color: #fff; }
+    .btn-on-dark:hover { background: var(--accent-dark); }
+
+    /* ---------- LIGHTBOX ---------- */
+    .lightbox {
+      position: fixed;
+      inset: 0;
+      z-index: 1000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      background: rgba(0,0,0,0.85);
+    }
+    .lightbox.open { display: flex; }
+    .lightbox img {
+      max-width: 90vw;
+      max-height: 85vh;
+      object-fit: contain;
+      border-radius: 12px;
+      box-shadow: 0 24px 70px rgba(0,0,0,0.6);
+    }
+    .lightbox-close {
+      position: absolute;
+      top: 18px; right: 24px;
+      width: 44px; height: 44px;
+      border: none;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.14);
+      color: #fff;
+      font-size: 26px;
+      line-height: 1;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background .15s;
+    }
+    .lightbox-close:hover { background: rgba(255,255,255,0.28); }
+
+    /* ---------- STATS ---------- */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+      max-width: 880px;
+      margin: 0 auto;
+    }
+    .stat {
+      background: var(--card-bg);
+      -webkit-backdrop-filter: blur(12px);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 36px 24px;
+      text-align: center;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+    }
+    .stat .num { font-size: 44px; font-weight: 800; color: var(--accent); letter-spacing: -1px; line-height: 1.05; }
+    .stat .num.check { font-size: 52px; line-height: 0.92; }
+    .stat .lbl { font-size: 15px; color: var(--muted); margin-top: 6px; }
+
+    /* ---------- OPEN SOURCE ---------- */
+    .oss-card {
+      background: var(--card-bg);
+      -webkit-backdrop-filter: blur(12px);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 48px;
+      max-width: 820px;
+      margin: 0 auto;
+      text-align: center;
+      box-shadow: 0 14px 36px rgba(0,0,0,0.06);
+    }
+    .oss-card h2 { font-size: 32px; font-weight: 800; letter-spacing: -0.6px; margin-bottom: 12px; }
+    .oss-card p { font-size: 17px; color: var(--muted); margin-bottom: 28px; }
+    .oss-actions { display: flex; gap: 14px; justify-content: center; align-items: stretch; flex-wrap: wrap; }
+    .docker-cmd {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      max-width: 100%;
+      background: #111;
+      color: #f1f1f1;
+      font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+      font-size: 14px;
+      padding: 0 8px 0 18px;
+      border-radius: 8px;
+      min-height: 44px;
+    }
+    .docker-cmd code {
+      white-space: nowrap;
+      flex: 1;
+      min-width: 0;
+      overflow-x: auto;
+      padding: 4px 0;
+    }
+    .copy-btn { flex-shrink: 0; }
+    .copy-btn {
+      background: rgba(255,255,255,0.12);
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 7px 12px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .15s;
+    }
+    .copy-btn:hover { background: rgba(255,255,255,0.22); }
+    .btn-github {
+      display: inline-flex; align-items: center; gap: 9px;
+      background: #111; color: #fff; padding: 0 22px; min-height: 44px; border-radius: 8px;
+      font-weight: 600; font-size: 15px;
+    }
+    .btn-github:hover { background: #000; }
+    .btn-github svg { width: 18px; height: 18px; fill: #fff; }
+
+    /* ---------- FOOTER ---------- */
+    footer {
+      background: var(--footer-bg);
+      color: #cfcfcf;
+      padding: 48px 0 32px;
+    }
+    .footer-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 20px;
+    }
+    .footer-brand { display: flex; align-items: center; gap: 10px; }
+    .footer-brand img { height: 28px; }
+    .footer-brand .name { font-weight: 700; font-size: 17px; color: #fff; }
+    .footer-brand .name span { color: #9a9a9a; }
+    .footer-links { display: flex; gap: 26px; }
+    .footer-links a { font-size: 14px; color: #bdbdbd; transition: color .15s; }
+    .footer-links a:hover { color: #fff; }
+    .footer-copy {
+      text-align: center;
+      font-size: 13px;
+      color: #777;
+      margin-top: 28px;
+      border-top: 1px solid rgba(255,255,255,0.07);
+      padding-top: 22px;
+    }
+
+    /* ---------- RESPONSIVE ---------- */
+    @media (max-width: 640px) {
+      /* nav: keep only logo + language toggle + Open app */
+      .nav-links a.link { display: none; }
+      .nav-links { gap: 14px; }
+
+      /* one column stacks */
+      .features-grid { grid-template-columns: 1fr; }
+      .feature-body { grid-template-columns: 1fr; }
+      .stats-grid { grid-template-columns: 1fr; }
+
+      /* tighter vertical rhythm */
+      .hero { padding: 64px 0 48px; }
+      .section { padding: 56px 0; }
+
+      /* open source: stack actions, command scrolls horizontally */
+      .oss-card { padding: 28px 20px; }
+      .oss-actions { flex-direction: column; }
+      .btn-github { justify-content: center; }
+      .btn-github, .docker-cmd { width: 100%; }
+      .docker-cmd code { font-size: 12px; }
+
+      /* footer: stack and center */
+      .footer-inner { flex-direction: column; text-align: center; gap: 16px; }
+      .footer-links { flex-wrap: wrap; justify-content: center; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ============ NAV ============ -->
+  <nav>
+    <div class="container nav-inner">
+      <a href="#" class="brand" aria-label="ISOLeaf home">
+        <img src="assets/logo-dark.svg" alt="ISOLeaf" />
+        <span class="wordmark">
+          <span class="name">ISO<span>Leaf</span></span>
+          <span class="sub">ISO Message Toolkit</span>
+        </span>
+      </a>
+      <div class="nav-links">
+        <a class="link" href="#features" data-en="Features" data-pt="Recursos">Features</a>
+        <a class="link" href="/app#/docs" data-en="Docs" data-pt="Documentação">Docs</a>
+        <a class="link" href="https://github.com/isoleaf-io/isoleaf" target="_blank" rel="noopener">GitHub</a>
+        <div class="lang-toggle" role="group" aria-label="Language">
+          <button type="button" data-lang="en" class="active">EN</button>
+          <button type="button" data-lang="pt">PT</button>
+        </div>
+        <a class="btn btn-ghost-dark" href="/app" data-en="Open app" data-pt="Abrir app">Open app</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ============ MAIN ============ -->
+  <main>
+    <!-- HERO -->
+    <section class="hero">
+      <div class="container">
+        <h1 data-en="ISO 8583 toolkit for &lt;span class='accent'&gt;payment developers&lt;/span&gt;"
+            data-pt="Toolkit ISO 8583 para &lt;span class='accent'&gt;desenvolvedores de pagamento&lt;/span&gt;">
+          ISO 8583 toolkit for <span class="accent">payment developers</span>
+        </h1>
+        <p class="subtitle"
+           data-en="Parse, build, validate and simulate ISO 8583 messages with full EMV support — right in your browser. No registration, no setup."
+           data-pt="Parseie, monte, valide e simule mensagens ISO 8583 com suporte completo a EMV — direto no navegador. Sem cadastro, sem configuração.">
+          Parse, build, validate and simulate ISO 8583 messages with full EMV support — right in your browser. No registration, no setup.
+        </p>
+        <div class="hero-ctas">
+          <a class="btn btn-primary" href="/app" data-en="Get started free" data-pt="Começar grátis">Get started free</a>
+          <a class="btn btn-outline" href="https://github.com/isoleaf-io/isoleaf" target="_blank" rel="noopener"
+             data-en="Self-host with Docker" data-pt="Hospede com Docker">Self-host with Docker</a>
+        </div>
+        
+      </div>
+    </section>
+
+    <!-- FEATURES -->
+    <section class="section" id="features">
+      <div class="container">
+        <div class="section-head">
+          <h2 data-en="Everything you need for ISO 8583" data-pt="Tudo o que você precisa para ISO 8583">Everything you need for ISO 8583</h2>
+          <p data-en="A complete workbench built for engineers who work with payment messages every day."
+             data-pt="Uma bancada completa para engenheiros que trabalham com mensagens de pagamento todos os dias.">
+            A complete workbench built for engineers who work with payment messages every day.
+          </p>
+        </div>
+
+        <div class="features-grid">
+          <!-- Parser -->
+          <div class="feature-card">
+            <div class="feature-head">
+              <div class="feature-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+              </div>
+              <h3 data-en="ISO 8583 Parser" data-pt="Parser ISO 8583">ISO 8583 Parser</h3>
+            </div>
+            <div class="feature-body">
+              <p class="desc" data-en="Paste any hex, ASCII-wire or binary-hex message and decode every field instantly, with auto-detection."
+                 data-pt="Cole qualquer mensagem hex, ASCII-wire ou binary-hex e decodifique todos os campos na hora, com auto-detecção.">
+                Paste any hex, ASCII-wire or binary-hex message and decode every field instantly, with auto-detection.</p>
+              <div class="feature-shot"><img src="assets/parse2.png" alt="ISO 8583 Parser screenshot" loading="lazy" /></div>
+            </div>
+            <a class="btn btn-on-dark feature-cta" href="/app#/parser" data-en="Get started" data-pt="Começar">Get started</a>
+          </div>
+
+          <!-- Builder -->
+          <div class="feature-card">
+            <div class="feature-head">
+              <div class="feature-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9z"/></svg>
+              </div>
+              <h3 data-en="Message Builder" data-pt="Builder de Mensagens">Message Builder</h3>
+            </div>
+            <div class="feature-body">
+              <p class="desc" data-en="Assemble complete, context-aware ISO 8583 messages by brand, channel and transaction type."
+                 data-pt="Monte mensagens ISO 8583 completas por bandeira, canal e tipo de transação.">
+                Assemble complete, context-aware ISO 8583 messages by brand, channel and transaction type.</p>
+              <div class="feature-shot"><img src="assets/builder2.png" alt="Message Builder screenshot" loading="lazy" /></div>
+            </div>
+            <a class="btn btn-on-dark feature-cta" href="/app#/builder" data-en="Get started" data-pt="Começar">Get started</a>
+          </div>
+
+          <!-- Simulator -->
+          <div class="feature-card">
+            <div class="feature-head">
+              <div class="feature-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+              </div>
+              <h3 data-en="TCP Simulator" data-pt="Simulador TCP">TCP Simulator</h3>
+            </div>
+            <div class="feature-body">
+              <p class="desc" data-en="Spin up TCP sessions, inject messages and watch the traffic flow in real time with live logs."
+                 data-pt="Suba sessões TCP, injete mensagens e acompanhe o tráfego em tempo real com logs ao vivo.">
+                Spin up TCP sessions, inject messages and watch the traffic flow in real time with live logs.</p>
+              <div class="feature-shot"><img src="assets/simulator.png" alt="TCP Simulator screenshot" loading="lazy" /></div>
+            </div>
+            <a class="btn btn-on-dark feature-cta" href="/app#/simulator" data-en="Get started" data-pt="Começar">Get started</a>
+          </div>
+
+          <!-- EMV -->
+          <div class="feature-card">
+            <div class="feature-head">
+              <div class="feature-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><rect x="6" y="13" width="5" height="3" rx="0.5"/></svg>
+              </div>
+              <h3 data-en="EMV Decoders" data-pt="Decoders EMV">EMV Decoders</h3>
+            </div>
+            <div class="feature-body">
+              <p class="desc" data-en="Parse Bit 55, validate and generate ARQC/ARPC cryptograms, and run the full EMV flow end to end."
+                 data-pt="Parseie o Bit 55, valide e gere criptogramas ARQC/ARPC, e rode o fluxo EMV completo de ponta a ponta.">
+                Parse Bit 55, validate and generate ARQC/ARPC cryptograms, and run the full EMV flow end to end.</p>
+              <div class="feature-shot"><img src="assets/emv2.png" alt="EMV Decoders screenshot" loading="lazy" /></div>
+            </div>
+            <a class="btn btn-on-dark feature-cta" href="/app#/emv" data-en="Get started" data-pt="Começar">Get started</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- STATS -->
+    <section class="section">
+      <div class="container">
+        <div class="stats-grid">
+          <div class="stat">
+            <div class="num">8</div>
+            <div class="lbl" data-en="EMV decoders" data-pt="decoders EMV">EMV decoders</div>
+          </div>
+          <div class="stat">
+            <div class="num check">✓</div>
+            <div class="lbl" data-en="No registration" data-pt="Sem cadastro">No registration</div>
+          </div>
+          <div class="stat">
+            <div class="num">0</div>
+            <div class="lbl" data-en="vulnerabilities" data-pt="vulnerabilidades">vulnerabilities</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- OPEN SOURCE -->
+    <section class="section" id="oss">
+      <div class="container">
+        <div class="oss-card">
+          <h2 data-en="Free and open source" data-pt="Gratuito e de código aberto">Free and open source</h2>
+          <p data-en="Licensed under ELv2. Run it online, or self-host the whole stack with a single Docker command."
+             data-pt="Licenciado sob ELv2. Use online ou hospede toda a stack com um único comando Docker.">
+            Licensed under ELv2. Run it online, or self-host the whole stack with a single Docker command.</p>
+          <div class="oss-actions">
+            <a class="btn-github" href="https://github.com/isoleaf-io/isoleaf" target="_blank" rel="noopener">
+              <svg viewBox="0 0 24 24"><path d="M12 .5C5.7.5.5 5.7.5 12c0 5.1 3.3 9.4 7.9 10.9.6.1.8-.3.8-.6v-2c-3.2.7-3.9-1.5-3.9-1.5-.5-1.3-1.3-1.7-1.3-1.7-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1 1.8 2.7 1.3 3.4 1 .1-.8.4-1.3.7-1.6-2.6-.3-5.3-1.3-5.3-5.7 0-1.3.5-2.3 1.2-3.1-.1-.3-.5-1.5.1-3.1 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0C17 4.6 18 4.9 18 4.9c.6 1.6.2 2.8.1 3.1.8.8 1.2 1.8 1.2 3.1 0 4.4-2.7 5.4-5.3 5.7.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6 4.6-1.5 7.9-5.8 7.9-10.9C23.5 5.7 18.3.5 12 .5z"/></svg>
+              <span data-en="Star on GitHub" data-pt="Star no GitHub">Star on GitHub</span>
+            </a>
+            <div class="docker-cmd">
+              <code id="docker-cmd-text">docker compose -f docker-compose.standalone.yml up</code>
+              <button class="copy-btn" id="copyBtn" data-en="Copy" data-pt="Copiar">Copy</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ============ FOOTER ============ -->
+  <footer>
+    <div class="container">
+      <div class="footer-inner">
+        <a href="#" class="footer-brand">
+          <img src="assets/logo-dark.svg" alt="ISOLeaf" />
+          <span class="name">ISO<span>Leaf</span></span>
+        </a>
+        <div class="footer-links">
+          <a href="/app#/docs" data-en="Docs" data-pt="Documentação">Docs</a>
+          <a href="https://github.com/isoleaf-io/isoleaf" target="_blank" rel="noopener">GitHub</a>
+          <a href="https://github.com/isoleaf-io/isoleaf/blob/main/LICENSE" target="_blank" rel="noopener" data-en="License" data-pt="Licença">License</a>
+        </div>
+      </div>
+      <div class="footer-copy">
+        © <span id="year"></span> ISOLeaf · <span data-en="Elastic License v2 (ELv2)" data-pt="Elastic License v2 (ELv2)">Elastic License v2 (ELv2)</span>
+      </div>
+    </div>
+  </footer>
+
+  <!-- ============ LIGHTBOX ============ -->
+  <div id="lightbox" class="lightbox" aria-hidden="true">
+    <button class="lightbox-close" id="lightboxClose" aria-label="Close">&times;</button>
+    <img id="lightboxImg" src="" alt="" />
+  </div>
+
+  <script>
+    (function () {
+      var year = document.getElementById('year');
+      if (year) year.textContent = new Date().getFullYear();
+
+      // ---- Language toggle ----
+      var STORAGE_KEY = 'isoleaf-lang';
+      var buttons = document.querySelectorAll('.lang-toggle button');
+
+      function applyLang(lang) {
+        document.documentElement.lang = (lang === 'pt') ? 'pt-BR' : 'en';
+        document.querySelectorAll('[data-' + lang + ']').forEach(function (el) {
+          el.innerHTML = el.getAttribute('data-' + lang);
+        });
+        buttons.forEach(function (b) {
+          b.classList.toggle('active', b.getAttribute('data-lang') === lang);
+        });
+        try { localStorage.setItem(STORAGE_KEY, lang); } catch (e) {}
+      }
+
+      buttons.forEach(function (b) {
+        b.addEventListener('click', function () { applyLang(b.getAttribute('data-lang')); });
+      });
+
+      var saved = 'en';
+      try { saved = localStorage.getItem(STORAGE_KEY) || 'en'; } catch (e) {}
+      applyLang(saved);
+
+      // ---- Copy docker command ----
+      var copyBtn = document.getElementById('copyBtn');
+      var cmd = document.getElementById('docker-cmd-text');
+      if (copyBtn && cmd) {
+        copyBtn.addEventListener('click', function () {
+          var text = cmd.textContent;
+          var done = function () {
+            var lang = document.documentElement.lang === 'pt-BR' ? 'pt' : 'en';
+            copyBtn.textContent = lang === 'pt' ? 'Copiado!' : 'Copied!';
+            setTimeout(function () {
+              copyBtn.textContent = copyBtn.getAttribute('data-' + lang);
+            }, 1600);
+          };
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(done).catch(done);
+          } else {
+            var ta = document.createElement('textarea');
+            ta.value = text; document.body.appendChild(ta); ta.select();
+            try { document.execCommand('copy'); } catch (e) {}
+            document.body.removeChild(ta); done();
+          }
+        });
+      }
+
+      // ---- Lightbox ----
+      var lb = document.getElementById('lightbox');
+      var lbImg = document.getElementById('lightboxImg');
+      var lbClose = document.getElementById('lightboxClose');
+
+      function openLightbox(src, alt) {
+        lbImg.src = src;
+        lbImg.alt = alt || '';
+        lb.classList.add('open');
+        lb.setAttribute('aria-hidden', 'false');
+        document.body.style.overflow = 'hidden';
+      }
+      function closeLightbox() {
+        lb.classList.remove('open');
+        lb.setAttribute('aria-hidden', 'true');
+        document.body.style.overflow = '';
+        lbImg.src = '';
+      }
+
+      document.querySelectorAll('.feature-shot img').forEach(function (img) {
+        img.addEventListener('click', function () { openLightbox(img.src, img.alt); });
+      });
+      lbClose.addEventListener('click', closeLightbox);
+      lb.addEventListener('click', function (e) { if (e.target === lb) closeLightbox(); });
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && lb.classList.contains('open')) closeLightbox();
+      });
+    })();
+  </script>
+</body>
+</html>
