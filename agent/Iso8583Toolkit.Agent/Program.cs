@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using Microsoft.Extensions.FileProviders;
 using Iso8583Toolkit.Agent.Hubs;
 using Iso8583Toolkit.Agent.Services;
 using Iso8583Toolkit.Api.Services;
@@ -78,8 +79,59 @@ var app = builder.Build();
 
 // ── Pipeline ───────────────────────────────────────────────────────────
 app.UseCors();
-app.UseDefaultFiles();
+// Serve physical files from wwwroot: the React SPA assets (/assets/*, /favicon.svg,
+// /logo*.svg) and the static landing page assets (/landing/assets/*).
+// NOTE: no UseDefaultFiles() — "/" must NOT auto-resolve to the React index.html.
+// The "/" and "/app" routes are mapped explicitly below.
 app.UseStaticFiles();
+
+// Resolve the web root once (falls back when WebRootPath is unset, e.g. tests).
+var webRoot = app.Environment.WebRootPath
+              ?? Path.Combine(app.Environment.ContentRootPath, "wwwroot");
+var contentRoot = app.Environment.ContentRootPath;
+
+// HTML entry points live in wwwroot after a Docker/Release build, but in local
+// dev (`dotnet run` without copying the frontend) they only exist in the source
+// tree. Each page therefore resolves across an ordered list of candidates:
+//   1. wwwroot/...                       (production / Docker)
+//   2. ../../frontend/...  (repo source) (dev local)
+// Resolution is per-request so a frontend (re)build is picked up without
+// restarting the host; a clear 404 is returned when no candidate exists.
+string[] landingCandidates =
+{
+    Path.Combine(webRoot, "landing", "index.html"),                                 // prod / Docker
+    Path.Combine(contentRoot, "..", "..", "frontend", "landing", "index.html"),     // dev local
+};
+string[] spaCandidates =
+{
+    Path.Combine(webRoot, "index.html"),                                            // prod / Docker (vite outDir)
+    Path.Combine(contentRoot, "..", "..", "frontend", "isohub", "dist", "index.html"), // dev local (vite build)
+};
+
+static IResult ServePage(string label, string[] candidates)
+{
+    var resolved = candidates.Select(Path.GetFullPath).ToArray();
+    var file = resolved.FirstOrDefault(File.Exists);
+    return file is not null
+        ? Results.File(file, "text/html; charset=utf-8")
+        : Results.Problem(
+            title: $"{label} not found",
+            detail: "Looked in: " + string.Join(" | ", resolved),
+            statusCode: StatusCodes.Status404NotFound);
+}
+
+// Dev local only: the landing's assets (/landing/assets/*) are copied into
+// wwwroot only by the Docker build, so serve them straight from the source tree
+// when wwwroot/landing is absent. No-op in production / Docker.
+var devLandingDir = Path.GetFullPath(Path.Combine(contentRoot, "..", "..", "frontend", "landing"));
+if (!Directory.Exists(Path.Combine(webRoot, "landing")) && Directory.Exists(devLandingDir))
+{
+    app.UseStaticFiles(new StaticFileOptions
+    {
+        FileProvider = new PhysicalFileProvider(devLandingDir),
+        RequestPath = "/landing",
+    });
+}
 
 // ── ISOHUB_MODE=online: block crypto/simulator routes ─────────────────
 // The same image powers both local (full features) and public demo (read-only,
@@ -120,9 +172,14 @@ if (configuredMode == "online")
 app.MapControllers();
 app.MapHub<SimulatorHub>("/hubs/simulator");
 
-// SPA fallback for client-side routing — but NOT for /api or /hubs paths.
-// (Liveness/readiness is served by HealthController at GET /api/health.)
-app.MapFallbackToFile("index.html");
+// ── Page routing ───────────────────────────────────────────────────────
+//   GET /            → static landing page (wwwroot/landing/index.html)
+//   GET /app         → React SPA shell  (wwwroot/index.html)
+//   GET /app/{**}    → React SPA shell  (so client-side routing deep links work)
+//   /api/* , /hubs/* → handled above by controllers / SignalR
+app.MapGet("/", () => ServePage("Landing page", landingCandidates));
+app.MapGet("/app", () => ServePage("App shell", spaCandidates));
+app.MapGet("/app/{**path}", () => ServePage("App shell", spaCandidates));
 
 app.Run();
 
