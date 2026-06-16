@@ -181,6 +181,33 @@ app.MapGet("/", () => ServePage("Landing page", landingCandidates));
 app.MapGet("/app", () => ServePage("App shell", spaCandidates));
 app.MapGet("/app/{**path}", () => ServePage("App shell", spaCandidates));
 
+// ── SEO: sitemap.xml + robots.txt (served from the landing folder) ───────
+app.MapGet("/sitemap.xml", () =>
+{
+    var candidates = new[]
+    {
+        Path.Combine(webRoot, "landing", "sitemap.xml"),
+        Path.GetFullPath(Path.Combine(contentRoot, "..", "..", "frontend", "landing", "sitemap.xml")),
+    };
+    var file = candidates.Select(Path.GetFullPath).FirstOrDefault(File.Exists);
+    return file is not null
+        ? Results.File(file, "application/xml; charset=utf-8")
+        : Results.NotFound();
+});
+
+app.MapGet("/robots.txt", () =>
+{
+    var candidates = new[]
+    {
+        Path.Combine(webRoot, "landing", "robots.txt"),
+        Path.GetFullPath(Path.Combine(contentRoot, "..", "..", "frontend", "landing", "robots.txt")),
+    };
+    var file = candidates.Select(Path.GetFullPath).FirstOrDefault(File.Exists);
+    return file is not null
+        ? Results.File(file, "text/plain; charset=utf-8")
+        : Results.NotFound();
+});
+
 app.Run();
 
 public partial class Program { }
