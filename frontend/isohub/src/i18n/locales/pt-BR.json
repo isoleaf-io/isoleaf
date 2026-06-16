@@ -2,7 +2,7 @@
   "common": {
     "appName": "ISOLeaf",
     "tagline": "ISO 8583 Toolkit",
-    "version": "v1.2.0",
+    "version": "v1.3.0",
     "copy": "Copiar",
     "copied": "Copiado!",
     "clear": "Limpar",
