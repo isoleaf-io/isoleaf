@@ -28,6 +28,10 @@ RUN npm ci
 COPY frontend/isohub/ ./
 RUN npm run build
 
+# Drop the static landing page alongside the SPA. It is served at "/" while the
+# React app lives under "/app"; its assets are referenced as /landing/assets/*.
+COPY frontend/landing/ /src/agent/Iso8583Toolkit.Agent/wwwroot/landing/
+
 # ── Stage 2: .NET build & publish ───────────────────────────────────────────
 FROM mcr.microsoft.com/dotnet/sdk:9.0 AS dotnet-build
 WORKDIR /src
