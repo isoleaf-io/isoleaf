@@ -22,7 +22,7 @@ public sealed class HealthController : ControllerBase
         var version = Assembly.GetExecutingAssembly()
             .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
             ?? Assembly.GetExecutingAssembly().GetName().Version?.ToString()
-            ?? "1.3.0";
+            ?? "1.3.1";
 
         var uptime = DateTime.UtcNow - StartedAt;
 

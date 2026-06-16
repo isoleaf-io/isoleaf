@@ -76,9 +76,10 @@
     .brand {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 3px;
     }
-    .brand img { height: 34px; width: auto; display: block; }
+    /* margin-right cancels the PNG's transparent side-padding so the wordmark hugs the leaf */
+    .brand img { height: 40px; width: auto; object-fit: contain; display: block; margin-right: -8px; }
     .brand .wordmark {
       display: flex;
       flex-direction: column;
@@ -417,8 +418,8 @@
       flex-wrap: wrap;
       gap: 20px;
     }
-    .footer-brand { display: flex; align-items: center; gap: 10px; }
-    .footer-brand img { height: 28px; }
+    .footer-brand { display: flex; align-items: center; gap: 3px; }
+    .footer-brand img { height: 40px; width: auto; object-fit: contain; margin-right: -8px; }
     .footer-brand .name { font-weight: 700; font-size: 17px; color: #fff; }
     .footer-brand .name span { color: #9a9a9a; }
     .footer-links { display: flex; gap: 26px; }
@@ -438,6 +439,10 @@
       /* nav: keep only logo + language toggle + Open app */
       .nav-links a.link { display: none; }
       .nav-links { gap: 14px; }
+
+      /* logo marks on phones */
+      .brand img { height: 34px; }
+      .footer-brand img { height: 34px; }
 
       /* one column stacks */
       .features-grid { grid-template-columns: 1fr; }
@@ -467,7 +472,7 @@
   <nav>
     <div class="container nav-inner">
       <a href="#" class="brand" aria-label="ISOLeaf home">
-        <img src="/landing/assets/logo-dark.svg" alt="ISOLeaf" />
+        <img src="/landing/assets/isoleaf_logo_transp.png" alt="ISOLeaf" />
         <span class="wordmark">
           <span class="name">ISO<span>Leaf</span></span>
           <span class="sub">ISO Message Toolkit</span>
@@ -636,13 +641,14 @@
     <div class="container">
       <div class="footer-inner">
         <a href="#" class="footer-brand">
-          <img src="/landing/assets/logo-dark.svg" alt="ISOLeaf" />
+          <img src="/landing/assets/isoleaf_logo_transp.png" alt="ISOLeaf" />
           <span class="name">ISO<span>Leaf</span></span>
         </a>
         <div class="footer-links">
           <a href="/app#/docs" data-en="Docs" data-pt="Documentação">Docs</a>
           <a href="https://github.com/isoleaf-io/isoleaf" target="_blank" rel="noopener">GitHub</a>
           <a href="https://github.com/isoleaf-io/isoleaf/blob/main/LICENSE" target="_blank" rel="noopener" data-en="License" data-pt="Licença">License</a>
+          <a href="mailto:contato@isoleaf.dev">contato@isoleaf.dev</a>
         </div>
       </div>
       <div class="footer-copy">
