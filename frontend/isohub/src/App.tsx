@@ -7,6 +7,7 @@ import EmvPage from "./pages/Emv";
 import SimulatorPage from "./pages/Simulator";
 import WorkspacePage from "./pages/Workspace";
 import DocsPage from "./pages/Docs";
+import ApiDocsPage from "./pages/Docs/ApiDocsPage";
 
 export default function App() {
   return (
@@ -19,6 +20,7 @@ export default function App() {
       <Route path="/emv" element={<EmvPage />} />
       <Route path="/simulator" element={<SimulatorPage />} />
       <Route path="/docs" element={<DocsPage />} />
+      <Route path="/docs/api" element={<ApiDocsPage />} />
       <Route path="/workspace" element={<WorkspacePage />} />
       <Route path="*" element={<Navigate to="/parser" replace />} />
     </Routes>

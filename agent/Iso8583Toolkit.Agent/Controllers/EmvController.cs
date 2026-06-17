@@ -1,6 +1,7 @@
 using Iso8583Toolkit.Api.DTOs;
 using Iso8583Toolkit.Cryptography.Emv;
 using Iso8583Toolkit.Cryptography.Tlv;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 // Both namespaces define a TlvParseResult: Emv adds Arqc/ATC/etc convenience props on top of
@@ -19,6 +20,10 @@ public sealed class EmvController : ControllerBase
     public EmvController(EmvCryptoService service) => _service = service;
 
     [HttpPost("parse-bit55")]
+    [EndpointSummary("Parse the BER-TLV bytes of an ISO 8583 Bit 55 (EMV data)")]
+    [EndpointDescription("Returns each tag, its decoded value, plus convenience fields extracted from the EMV set (ARQC, ATC, Cryptogram Information Data, Auth Response Code). Failures inside the TLV stream produce a partial result with `isComplete=false` and a `parseError` — the UI can still render whatever was parsed up to the failure byte.")]
+    [ProducesResponseType(typeof(ParseBit55Response), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public IActionResult ParseBit55([FromBody] ParseBit55Request request)
     {
         if (string.IsNullOrWhiteSpace(request.HexBit55))
@@ -40,6 +45,10 @@ public sealed class EmvController : ControllerBase
     }
 
     [HttpPost("validate-arqc")]
+    [EndpointSummary("Validate an ARQC against the issuer's expected value")]
+    [EndpointDescription("Parses the Bit 55 payload to extract the transaction data, derives the expected ARQC from the supplied Issuer Master Key + PAN + PSN, and returns both the calculated and received values plus an `isValid` flag. Used by issuer hosts and integration testers.")]
+    [ProducesResponseType(typeof(ValidateArqcResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public IActionResult ValidateArqc([FromBody] ValidateArqcRequest request)
     {
         if (!Enum.TryParse<EmvProfile>(request.Profile, ignoreCase: true, out var profile))
@@ -56,6 +65,10 @@ public sealed class EmvController : ControllerBase
     }
 
     [HttpPost("generate-arqc")]
+    [EndpointSummary("Compute the Application Request Cryptogram (ARQC) for a transaction")]
+    [EndpointDescription("Derives the ICC Master Key from the IMK/PAN/PSN, then the Session Key per the brand profile, then runs the transaction data through DES/3DES to produce the 8-byte ARQC (returned as 16 hex chars). The response also exposes intermediate values (ICC MK, Session Key, transaction data MAC input) for debugging cryptogram mismatches.")]
+    [ProducesResponseType(typeof(GenerateArqcResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public IActionResult GenerateArqc([FromBody] GenerateArqcRequest request)
     {
         if (!Enum.TryParse<EmvProfile>(request.Profile, ignoreCase: true, out var profile))
@@ -83,6 +96,10 @@ public sealed class EmvController : ControllerBase
     }
 
     [HttpPost("generate-arpc")]
+    [EndpointSummary("Compute the Application Response Cryptogram (ARPC) — the issuer's reply to a card's ARQC")]
+    [EndpointDescription("Supports both Method 1 (default for Visa / Elo / proprietary schemes) and Method 2 (Mastercard CSU-based). Returns the 8-byte ARPC plus the derived Session Key for traceability. Used by the issuer host to give the chip a verifiable \"Auth response accepted/rejected\" message.")]
+    [ProducesResponseType(typeof(GenerateArpcResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public IActionResult GenerateArpc([FromBody] GenerateArpcRequest request)
     {
         if (!Enum.TryParse<EmvProfile>(request.Profile, ignoreCase: true, out var profile))
@@ -104,6 +121,10 @@ public sealed class EmvController : ControllerBase
     }
 
     [HttpPost("build-response-bit55")]
+    [EndpointSummary("Assemble an issuer-response Bit 55 (BER-TLV) payload")]
+    [EndpointDescription("Packs the ARPC, Authorization Response Code and optional Issuer Scripts (71/72) and Issuer Auth Code into the BER-TLV bytes the chip expects in the response message. Returns the hex bytes and the list of tags that were emitted.")]
+    [ProducesResponseType(typeof(BuildBit55ResponseResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public IActionResult BuildResponse([FromBody] BuildBit55ResponseRequest request)
     {
         try
@@ -117,6 +138,10 @@ public sealed class EmvController : ControllerBase
     }
 
     [HttpPost("full-flow")]
+    [EndpointSummary("Run the complete issuer flow: parse → validate ARQC → generate ARPC → build Bit 55 response")]
+    [EndpointDescription("Convenience endpoint that chains `parse-bit55`, `validate-arqc`, `generate-arpc` (Method 1 for Visa/Elo, Method 2 for Mastercard) and `build-response-bit55` into a single call. Returns every intermediate result plus a human-readable summary for the UI's Full-Flow tab.")]
+    [ProducesResponseType(typeof(FullFlowResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public IActionResult FullFlow([FromBody] FullFlowRequest request)
     {
         if (!Enum.TryParse<EmvProfile>(request.Profile, ignoreCase: true, out var profile))

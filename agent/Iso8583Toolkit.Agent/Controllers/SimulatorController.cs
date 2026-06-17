@@ -4,6 +4,7 @@ using Iso8583Toolkit.Agent.Hubs;
 using Iso8583Toolkit.Agent.Models;
 using Iso8583Toolkit.Agent.Services;
 using Iso8583Toolkit.Simulator.Protocol;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Iso8583Toolkit.Agent.Controllers;
@@ -28,9 +29,16 @@ public sealed class SimulatorController : ControllerBase
     }
 
     [HttpGet("sessions")]
+    [EndpointSummary("List every running simulator TCP session")]
+    [EndpointDescription("Returns each Injetor/Rebatedor session the agent currently has open — TCP port, mode, role, layout, response policy and per-session counters. Empty list when no sessions are active.")]
+    [ProducesResponseType(typeof(IEnumerable<object>), StatusCodes.Status200OK)]
     public IActionResult ListSessions() => Ok(_store.GetActiveSessions());
 
     [HttpPost("sessions")]
+    [EndpointSummary("Start a new simulator session (Injetor or Rebatedor)")]
+    [EndpointDescription("Spins up a TCP listener (Rebatedor) or an outbound connection (Injetor) with the supplied `SessionConfig` — port, role, layout, default response code, EMV settings. Returns the created session record. 409 Conflict when the port is busy.")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> StartSession([FromBody] StartSessionRequest request)
     {
         var config = request.Config ?? new SessionConfig();
@@ -43,6 +51,10 @@ public sealed class SimulatorController : ControllerBase
     }
 
     [HttpGet("sessions/{id}")]
+    [EndpointSummary("Fetch a single simulator session by id")]
+    [EndpointDescription("Returns the full session record (config + live counters). 404 when the id is not running.")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public IActionResult GetSession(string id)
     {
         var s = _store.GetSession(id);
@@ -50,17 +62,20 @@ public sealed class SimulatorController : ControllerBase
     }
 
     [HttpDelete("sessions/{id}")]
+    [EndpointSummary("Stop a running simulator session")]
+    [EndpointDescription("Closes the TCP listener/connection and removes the session from the store. Returns 204 No Content even when the id was unknown — idempotent.")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> StopSession(string id)
     {
         await _manager.StopSessionAsync(id);
         return NoContent();
     }
 
-    /// <summary>
-    /// Updates the Issuer-role Bit-55 handling for a running session. The
-    /// next inbound message will use the new config — no restart needed.
-    /// </summary>
     [HttpPut("sessions/{id}/emv-config")]
+    [EndpointSummary("Update the Bit 55 response policy for a running Issuer session")]
+    [EndpointDescription("Switches the Issuer-role session between Echo (mirror the request's Bit 55), GenerateArpc (real cryptogram, optionally validating the inbound ARQC) or Static. The change applies to the next inbound message — no session restart required.")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public IActionResult UpdateEmvConfig(string id, [FromBody] EmvResponseConfig config)
     {
         var session = _store.GetSession(id);
@@ -70,6 +85,11 @@ public sealed class SimulatorController : ControllerBase
     }
 
     [HttpPost("sessions/{id}/inject")]
+    [EndpointSummary("Inject an ISO 8583 message into an existing simulator session")]
+    [EndpointDescription("Pushes the supplied hex wire into the session's live TCP socket. For Injetor sessions it goes out over the outbound connection; for Rebatedor sessions it loops back into the local listener so users can test without a real terminal. Returns 202 Accepted plus the byte count actually written.")]
+    [ProducesResponseType(StatusCodes.Status202Accepted)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Inject(string id, [FromBody] InjectMessageRequest request)
     {
         if (string.IsNullOrWhiteSpace(request.HexMessage))
@@ -108,11 +128,11 @@ public sealed class SimulatorController : ControllerBase
         catch (Exception ex) { return BadRequest(new { error = ex.Message }); }
     }
 
-    /// <summary>
-    /// Fire-and-await: one TCP connect, one frame out, one frame back, close.
-    /// Used by the InjectorPanel for both single-shot and continuous load scenarios.
-    /// </summary>
     [HttpPost("inject-direct")]
+    [EndpointSummary("Fire-and-await: connect, send one ISO 8583 frame, read the reply, close")]
+    [EndpointDescription("Stateless injector used by the InjectorPanel for both single-shot and continuous load tests. Honours optional TPDU prefix + 2-byte length framing, applies per-send variations (STAN/RRN/timestamps/amount) when requested, and returns both the parsed reply and a copy of the bytes actually written so the UI can prove the variations took effect.")]
+    [ProducesResponseType(typeof(InjectDirectResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(InjectDirectResponse), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> InjectDirect([FromBody] InjectDirectRequest request)
     {
         if (string.IsNullOrWhiteSpace(request.Message))
@@ -416,13 +436,22 @@ public sealed class SimulatorController : ControllerBase
     }
 
     [HttpGet("log")]
+    [EndpointSummary("Read the cross-session simulator log")]
+    [EndpointDescription("Returns the most recent messages observed across all sessions in chronological order — each entry carries the raw bytes, decoded MTI, decoded fields and any validation/error metadata. Capped at `limit` (default 100). The store keeps the last few hundred entries; older ones roll off.")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
     public IActionResult GetLog([FromQuery] int limit = 100) => Ok(_store.GetLog(null, limit));
 
     [HttpGet("log/{sessionId}")]
+    [EndpointSummary("Read the simulator log filtered to a single session")]
+    [EndpointDescription("Same shape as `/api/simulator/log` but only includes entries tied to `sessionId`. Powers the per-session log panel in the Simulator page.")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
     public IActionResult GetLogBySession(string sessionId, [FromQuery] int limit = 100) =>
         Ok(_store.GetLog(sessionId, limit));
 
     [HttpDelete("log")]
+    [EndpointSummary("Clear the simulator log")]
+    [EndpointDescription("Wipes every persisted log entry. Idempotent — always returns 204 No Content. Sessions themselves are untouched.")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
     public IActionResult ClearLog() { _store.ClearLog(); return NoContent(); }
 }
 

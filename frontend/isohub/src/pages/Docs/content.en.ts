@@ -1574,4 +1574,187 @@ Breakdown:
       },
     ],
   },
+
+  apiDocs: {
+    id: "apiDocs",
+    blocks: [
+      // ── Section 1: Intro ──────────────────────────────────────────────
+      { type: "heading", level: 2, text: "REST API" },
+      {
+        type: "paragraph",
+        text:
+          "ISOLeaf exposes a REST API for ISO 8583 parsing, EMV cryptography and test-card generation. It is intended for **self-hosted (Docker) mode only** — ideal for plumbing automated test tools, generating synthetic data for homologation pipelines and inspecting captured production traces.",
+      },
+      {
+        type: "callout",
+        tone: "info",
+        text:
+          "Full interactive documentation (every endpoint, schema, \"Try it out\" panel) lives at [/api/docs](/api/docs) — powered by Scalar.",
+      },
+      { type: "divider" },
+
+      // ── Section 2: 5 recommended APIs ─────────────────────────────────
+      { type: "heading", level: 2, text: "Recommended endpoints" },
+      {
+        type: "paragraph",
+        text:
+          "Five endpoints cover the vast majority of integration scenarios — the others are mostly UI plumbing.",
+      },
+
+      // 1. Parse hex
+      { type: "heading", level: 3, text: "POST /api/parse/hex" },
+      { type: "paragraph", text: "**When to use:** automating parse of production traces, validating messages in integration tests, extracting specific bits from ISO logs." },
+      {
+        type: "list",
+        items: [
+          "`hexMessage` — string · the ISO 8583 message bytes; auto-detects ASCII-on-the-wire or binary-hex",
+          "`layoutName` — string · optional, defaults to \"default\" (1987 field set)",
+        ],
+      },
+      {
+        type: "code",
+        lang: "bash",
+        text:
+`curl -X POST http://localhost:8080/api/parse/hex \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "hexMessage": "0100722000000080000016411111111111111100000000000100001000000111223344556677",
+    "layoutName": "default"
+  }'`,
+      },
+      { type: "paragraph", text: "**Returns:** the decoded `mti`, `messageClass`, `activeBits` and `fields[]` (each with `bitNumber`, `name`, `value`, `displayValue` and `length`). Partial parses surface as `success=false` with a structured `parseError` — never 5xx." },
+
+      // 2. Parse Bit 55
+      { type: "heading", level: 3, text: "POST /api/emv/parse-bit55" },
+      { type: "paragraph", text: "**When to use:** inspecting EMV data from captured chip transactions, validating Bit 55 contents in chip tests, debugging TLV tags." },
+      {
+        type: "list",
+        items: [
+          "`hexBit55` — string · BER-TLV hex bytes (e.g. `9F2608…9F1008…`)",
+          "`headerBytes` — number · bytes of proprietary header to skip before the TLV (default 0)",
+        ],
+      },
+      {
+        type: "code",
+        lang: "bash",
+        text:
+`curl -X POST http://localhost:8080/api/emv/parse-bit55 \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "hexBit55": "9F26081122334455667788999F27018F9F10080706010A03A4B0C09F37046A5B4C3D9F3602001E9F1A0200769505000000000",
+    "headerBytes": 0
+  }'`,
+      },
+      { type: "paragraph", text: "**Returns:** `tags[]` (each with `tag`, `name`, `length`, `value`) plus convenience fields (`arqc`, `atc`, `cryptogramType`, `authResponseCode`). Partial parses surface every tag read up to the failure byte plus `parseError`." },
+
+      // 3. Generate card
+      { type: "heading", level: 3, text: "POST /api/cards/generate" },
+      { type: "paragraph", text: "**When to use:** generating mass test data for homologation, creating Luhn-valid synthetic cards with full Track 1/2, CVV and identity payload." },
+      {
+        type: "list",
+        items: [
+          "`brand` — string · \"Visa\", \"Mastercard\", \"Amex\", \"Elo\", \"Hipercard\", \"DinersClub\", \"Discover\" or \"JCB\"",
+          "`cardholderName` — optional · defaults to a random Brazilian name",
+          "`expiry` — optional · YYMM (e.g. \"2912\"), defaults to ~3 years out",
+        ],
+      },
+      {
+        type: "code",
+        lang: "bash",
+        text:
+`curl -X POST http://localhost:8080/api/cards/generate \\
+  -H "Content-Type: application/json" \\
+  -d '{"brand": "Visa"}'`,
+      },
+      { type: "paragraph", text: "**Returns:** `pan`, `panMasked`, `cardholderName`, `expiry`, `expiryFormatted`, `serviceCode`, `cvv`, `cvv2`, `track1`, `track2`, `brand` and `generatedAt`. Test data only — never feed real cardholder data." },
+
+      // 4. Generate ARQC
+      { type: "heading", level: 3, text: "POST /api/emv/generate-arqc" },
+      { type: "paragraph", text: "**When to use:** simulating the chip cryptogram in EMV authorization tests, validating the ARQC flow without a physical card in hand." },
+      {
+        type: "list",
+        items: [
+          "`pan`, `panSequenceNumber`, `atc` — card identity + transaction counter",
+          "`amountAuthorized`, `amountOther`, `transactionDate`, `transactionType` — Bits 9F02 / 9F03 / 9A / 9C",
+          "`terminalCountryCode`, `tvr`, `currencyCode`, `unpredictableNumber`, `aip`, `iad` — terminal + transaction data",
+          "`issuerMasterKey` — 32 hex chars · the test IMK published in the integration suite",
+          "`profile` — \"Visa\", \"Mastercard\" or \"Elo\"",
+        ],
+      },
+      {
+        type: "code",
+        lang: "bash",
+        text:
+`curl -X POST http://localhost:8080/api/emv/generate-arqc \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "issuerMasterKey": "0123456789ABCDEF0123456789ABCDEF",
+    "pan": "4111111111111111",
+    "panSequenceNumber": "00",
+    "atc": "001E",
+    "amountAuthorized": "000000001000",
+    "amountOther": "000000000000",
+    "terminalCountryCode": "0076",
+    "tvr": "0000000000",
+    "currencyCode": "0986",
+    "transactionDate": "250615",
+    "transactionType": "00",
+    "unpredictableNumber": "AABBCCDD",
+    "aip": "1800",
+    "iad": "0706010A03A40000",
+    "profile": "Visa"
+  }'`,
+      },
+      { type: "paragraph", text: "**Returns:** the 8-byte `arqc` (16 hex chars) plus the derived `sessionKey`, `iccMasterKey` and `transactionData` MAC input for traceability. Same algorithm used by the EMV → Generate ARQC tab." },
+
+      // 5. Generate ARPC
+      { type: "heading", level: 3, text: "POST /api/emv/generate-arpc" },
+      { type: "paragraph", text: "**When to use:** simulating the issuer reply in EMV authorization tests, validating the ARPC computation in issuer-host development." },
+      {
+        type: "list",
+        items: [
+          "`arqc` — the ARQC the chip emitted (16 hex chars)",
+          "`issuerMasterKey`, `pan`, `panSequenceNumber`, `atc` — same derivation context as `generate-arqc`",
+          "`authResponseCode` — 4 hex chars representing the 2-char ASCII RC (e.g. \"3030\" = \"00\" approved)",
+          "`profile` — \"Visa\", \"Mastercard\" or \"Elo\"",
+          "`method` — \"Method1\" (Visa / Elo) or \"Method2\" (Mastercard, requires `csu`)",
+        ],
+      },
+      {
+        type: "code",
+        lang: "bash",
+        text:
+`curl -X POST http://localhost:8080/api/emv/generate-arpc \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "arqc": "112233445566778899AABBCCDDEE",
+    "issuerMasterKey": "0123456789ABCDEF0123456789ABCDEF",
+    "pan": "4111111111111111",
+    "panSequenceNumber": "00",
+    "atc": "001E",
+    "authResponseCode": "3030",
+    "csu": null,
+    "profile": "Visa",
+    "method": "Method1"
+  }'`,
+      },
+      { type: "paragraph", text: "**Returns:** the 8-byte `arpc` plus the `sessionKey` used to compute it. Mastercard's Method 2 also surfaces the `csu` echo in the response." },
+
+      { type: "divider" },
+
+      // ── Section 3: Full reference link ────────────────────────────────
+      { type: "heading", level: 2, text: "Full documentation" },
+      {
+        type: "paragraph",
+        text:
+          "For the complete endpoint list — including Builder, Simulator, Workspace, Health and Config — open the interactive Scalar UI:",
+      },
+      {
+        type: "callout",
+        tone: "info",
+        text:
+          "➜ [Open Scalar API Docs](/api/docs) — available only in self-hosted mode (Docker / local agent).",
+      },
+    ],
+  },
 };
