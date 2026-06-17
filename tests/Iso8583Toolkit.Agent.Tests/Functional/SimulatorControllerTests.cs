@@ -242,7 +242,9 @@ public sealed class SimulatorControllerTests
             using var client = await listener.AcceptTcpClientAsync();
             using var stream = client.GetStream();
             var header = new byte[2];
-            await stream.ReadAsync(header.AsMemory(0, 2));
+            // ReadExactlyAsync guarantees the 2 framing bytes — ReadAsync may
+            // return short reads on slow networks (CA2022).
+            await stream.ReadExactlyAsync(header.AsMemory(0, 2));
             var len = (header[0] << 8) | header[1];
             var bodyBuf = new byte[len];
             var read = 0;
@@ -430,8 +432,9 @@ public sealed class SimulatorControllerTests
             using var client = await listener.AcceptTcpClientAsync();
             using var stream = client.GetStream();
             // Standard framed read: 2-byte header, then body.
+            // ReadExactlyAsync guarantees the framing bytes (CA2022).
             var header = new byte[2];
-            await stream.ReadAsync(header.AsMemory(0, 2));
+            await stream.ReadExactlyAsync(header.AsMemory(0, 2));
             var len = (header[0] << 8) | header[1];
             var body = new byte[len];
             var read = 0;
@@ -492,7 +495,8 @@ public sealed class SimulatorControllerTests
                 using var client = await listener.AcceptTcpClientAsync();
                 using var stream = client.GetStream();
                 var header = new byte[2];
-                await stream.ReadAsync(header, 0, 2);
+                // ReadExactlyAsync guarantees the framing bytes (CA2022).
+                await stream.ReadExactlyAsync(header.AsMemory(0, 2));
                 var len = (header[0] << 8) | header[1];
                 var body = new byte[len];
                 var read = 0;

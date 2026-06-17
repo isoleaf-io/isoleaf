@@ -13,35 +13,31 @@ export default defineConfig({
     sourcemap: false,
     // Warn early — caps any single chunk at ~400 KB raw before we ship it.
     chunkSizeWarningLimit: 400,
-    rollupOptions: {
+    // Vite 8 ships Rolldown as the bundler and deprecated rollupOptions
+    // (the function form of manualChunks is on track for removal in v9).
+    // The new home is rolldownOptions.output.codeSplitting.groups — a
+    // declarative list where each entry pins a regex-matched module id to
+    // a named chunk. Trailing `\/` in every test anchors to a path
+    // separator so "react" doesn't accidentally swallow "react-router".
+    // (Rolldown briefly called this `advancedChunks`; renamed to
+    // `codeSplitting` and the old name now emits a deprecation warning.)
+    rolldownOptions: {
       output: {
-        // Vite 8 removed the object form of manualChunks. The function form is
-        // still accepted (deprecated). We match by id substring — substring
-        // matches under node_modules are stable across pnpm/npm hoisting.
-        manualChunks(id) {
-          if (!id.includes("node_modules")) return undefined;
-          if (
-            id.includes("node_modules/react/") ||
-            id.includes("node_modules/react-dom/") ||
-            id.includes("node_modules/react-router/")
-          ) return "vendor-react";
-          if (
-            id.includes("node_modules/@tanstack/react-query/") ||
-            id.includes("node_modules/zustand/") ||
-            id.includes("node_modules/axios/")
-          ) return "vendor-query";
-          if (
-            id.includes("node_modules/@radix-ui/react-dialog/") ||
-            id.includes("node_modules/@radix-ui/react-tabs/")
-          ) return "vendor-radix";
-          if (id.includes("node_modules/@microsoft/signalr/")) return "vendor-signalr";
-          if (
-            id.includes("node_modules/i18next/") ||
-            id.includes("node_modules/react-i18next/") ||
-            id.includes("node_modules/i18next-browser-languagedetector/")
-          ) return "vendor-i18n";
-          if (id.includes("node_modules/lucide-react/")) return "vendor-icons";
-          return undefined;
+        codeSplitting: {
+          groups: [
+            // React core — rarely changes, long cache life.
+            { name: "vendor-react",   test: /node_modules\/(react|react-dom|react-router)\// },
+            // State + data fetching primitives.
+            { name: "vendor-query",   test: /node_modules\/(@tanstack\/react-query|zustand|axios)\// },
+            // Radix UI primitives (every @radix-ui/* installed today).
+            { name: "vendor-radix",   test: /node_modules\/@radix-ui\// },
+            // SignalR client — large, isolated for cache stability.
+            { name: "vendor-signalr", test: /node_modules\/@microsoft\/signalr\// },
+            // i18n stack.
+            { name: "vendor-i18n",    test: /node_modules\/(i18next|react-i18next|i18next-browser-languagedetector)\// },
+            // Icon set.
+            { name: "vendor-icons",   test: /node_modules\/lucide-react\// },
+          ],
         },
       },
     },
