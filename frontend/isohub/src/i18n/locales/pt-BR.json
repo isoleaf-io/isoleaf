@@ -2,7 +2,7 @@
   "common": {
     "appName": "ISOLeaf",
     "tagline": "ISO 8583 Toolkit",
-    "version": "v1.3.1",
+    "version": "v1.3.2",
     "copy": "Copiar",
     "copied": "Copiado!",
     "clear": "Limpar",
@@ -457,6 +457,15 @@
       "guides": {
         "title": "Guias rápidos",
         "description": "Arquitetura do ISOLeaf e receitas práticas: parsear, gerar mensagem, validar ARQC, simular autorizador e injetor."
+      },
+      "api": {
+        "title": "Referência de API",
+        "description": "API REST para parse, geração de cartões e criptografia EMV. Disponível no modo self-hosted — documentação interativa via Scalar."
+      },
+      "apiDocs": {
+        "title": "Referência de API",
+        "subtitle": "Endpoints REST para ISO 8583, criptografia EMV e geração de cartões de teste",
+        "backToDocs": "Voltar para docs"
       },
       "community": {
         "title": "Comunidade & Suporte",

@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using Iso8583Toolkit.Cards.Brands;
 
 namespace Iso8583Toolkit.Api.DTOs;
@@ -5,8 +6,11 @@ namespace Iso8583Toolkit.Api.DTOs;
 // ── Requests ────────────────────────────────────────────────────────────────
 
 public sealed record GenerateCardRequest(
+    [property: Description("Card brand: \"Visa\", \"Mastercard\", \"Amex\", \"Elo\", \"Hipercard\", \"DinersClub\", \"Discover\" or \"JCB\".")]
     string Brand,
+    [property: Description("Cardholder name printed on tracks. Defaults to a randomly chosen Brazilian name when omitted.")]
     string? CardholderName = null,
+    [property: Description("Expiry in YYMM format (e.g. \"2912\" = December 2029). Defaults to ~3 years from today.")]
     string? Expiry = null);
 
 public sealed record ValidatePanRequest(string Pan);

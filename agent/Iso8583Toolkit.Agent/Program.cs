@@ -1,12 +1,18 @@
+using System.ComponentModel;
+using System.Reflection;
 using System.Text.Json.Serialization;
+using Microsoft.AspNetCore.OpenApi;
 using Microsoft.Extensions.FileProviders;
+using Microsoft.OpenApi.Models;
 using Iso8583Toolkit.Agent.Hubs;
+using Iso8583Toolkit.Agent.OpenApi;
 using Iso8583Toolkit.Agent.Services;
 using Iso8583Toolkit.Api.Services;
 using Iso8583Toolkit.Cards;
 using Iso8583Toolkit.Cryptography.Emv;
 using Iso8583Toolkit.IsoCore.Building.Smart;
 using Iso8583Toolkit.IsoCore.Validation;
+using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -63,6 +69,70 @@ builder.Services.AddSingleton<SmartIsoBuilder>();
 // Domain services
 builder.Services.AddSingleton<CardGenerator>();
 builder.Services.AddSingleton<EmvCryptoService>();
+
+// ── OpenAPI ────────────────────────────────────────────────────────────
+// Single document ("v1") covers the whole API surface. Every action is
+// annotated inline with [EndpointSummary] / [EndpointDescription] for the
+// Scalar UI to render — only the five "headline" endpoints carry pre-filled
+// request bodies, the rest are documented in prose but expose empty examples
+// so users have to type their own (intentional: avoids implying that the
+// internal endpoints are part of the public contract).
+builder.Services.AddOpenApi("v1", options =>
+{
+    options.AddDocumentTransformer((doc, _, _) =>
+    {
+        doc.Info = new OpenApiInfo
+        {
+            Title = "ISOLeaf API",
+            Version = "v1",
+            Description = """
+                REST API for ISO 8583 message processing, EMV data handling
+                and test card generation.
+
+                > ⚠️ This API is intended for **local/self-hosted use only**.
+                > Do not send real cardholder data or production keys to
+                > external servers.
+
+                Run locally with Docker:
+                ```
+                docker run -p 8080:8080 ghcr.io/isoleaf-io/isoleaf:latest
+                ```
+                """,
+            Contact = new OpenApiContact { Email = "contato@isoleaf.dev" }
+        };
+        return Task.CompletedTask;
+    });
+
+    // Copy [Description] attributes from DTO properties into the OpenAPI
+    // schema so every documented request/response field surfaces its hint.
+    options.AddSchemaTransformer((schema, ctx, _) =>
+    {
+        var type = ctx.JsonTypeInfo.Type;
+        foreach (var prop in type.GetProperties(BindingFlags.Public | BindingFlags.Instance))
+        {
+            var desc = prop.GetCustomAttribute<DescriptionAttribute>()?.Description;
+            if (string.IsNullOrWhiteSpace(desc)) continue;
+            var camel = char.ToLowerInvariant(prop.Name[0]) + prop.Name[1..];
+            if (schema.Properties.TryGetValue(camel, out var sub)) sub.Description = desc;
+            else if (schema.Properties.TryGetValue(prop.Name, out sub)) sub.Description = desc;
+        }
+        return Task.CompletedTask;
+    });
+
+    // Inject "Try it out" request-body examples for the five headline
+    // endpoints only — internal actions are documented in prose but kept
+    // example-less on purpose.
+    options.AddOperationTransformer((op, ctx, _) =>
+    {
+        var key = $"{ctx.Description.HttpMethod}:/{ctx.Description.RelativePath}";
+        if (OpenApiExamples.RequestBody.TryGetValue(key, out var example) &&
+            op.RequestBody?.Content.TryGetValue("application/json", out var media) == true)
+        {
+            media.Example = example;
+        }
+        return Task.CompletedTask;
+    });
+});
 
 // Agent-specific
 builder.Services.AddSingleton<LocalSessionStore>(sp =>
@@ -171,6 +241,24 @@ if (configuredMode == "online")
 
 app.MapControllers();
 app.MapHub<SimulatorHub>("/hubs/simulator");
+
+// ── OpenAPI document + Scalar UI ───────────────────────────────────────
+// /openapi/v1.json is always available (machine-readable, no risk in online
+// mode). The Scalar UI is gated to standalone — running the agent online
+// implies the user accepts the curated documentation lives elsewhere.
+app.MapOpenApi();
+if (configuredMode != "online")
+{
+    app.MapScalarApiReference("/api/docs", options =>
+    {
+        options.WithTitle("ISOLeaf API");
+    });
+    // Convenience redirect so users don't have to remember the document
+    // segment that Scalar appends. Excluded from the OpenAPI description
+    // so it doesn't show up in the Scalar sidebar as an "endpoint".
+    app.MapGet("/api/docs", () => Results.Redirect("/api/docs/v1"))
+       .ExcludeFromDescription();
+}
 
 // ── Page routing ───────────────────────────────────────────────────────
 //   GET /            → static landing page (wwwroot/landing/index.html)

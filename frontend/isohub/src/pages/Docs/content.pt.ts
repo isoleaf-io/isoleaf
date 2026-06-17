@@ -1574,4 +1574,187 @@ Decompondo:
       },
     ],
   },
+
+  apiDocs: {
+    id: "apiDocs",
+    blocks: [
+      // ── Seção 1: Introdução ───────────────────────────────────────────
+      { type: "heading", level: 2, text: "API REST" },
+      {
+        type: "paragraph",
+        text:
+          "O ISOLeaf expõe uma API REST para parse ISO 8583, criptografia EMV e geração de cartões de teste. Disponível **apenas no modo self-hosted (Docker)** — ideal para integração com ferramentas de teste automatizado, geração de massa de dados para pipelines de homologação e inspeção de traces de produção capturados.",
+      },
+      {
+        type: "callout",
+        tone: "info",
+        text:
+          "Documentação interativa completa (todos os endpoints, schemas, painel \"Try it out\") está em [/api/docs](/api/docs) — powered by Scalar.",
+      },
+      { type: "divider" },
+
+      // ── Seção 2: 5 APIs recomendadas ──────────────────────────────────
+      { type: "heading", level: 2, text: "Endpoints recomendados" },
+      {
+        type: "paragraph",
+        text:
+          "Cinco endpoints cobrem a maior parte dos cenários de integração — os demais são majoritariamente infraestrutura da própria UI.",
+      },
+
+      // 1. Parse hex
+      { type: "heading", level: 3, text: "POST /api/parse/hex" },
+      { type: "paragraph", text: "**Quando usar:** automatizar parse de traces de produção, validar mensagens em testes de integração, extrair campos específicos de logs ISO." },
+      {
+        type: "list",
+        items: [
+          "`hexMessage` — string · bytes da mensagem ISO 8583; auto-detecta ASCII-on-the-wire ou binary-hex",
+          "`layoutName` — string · opcional, default \"default\" (field set 1987)",
+        ],
+      },
+      {
+        type: "code",
+        lang: "bash",
+        text:
+`curl -X POST http://localhost:8080/api/parse/hex \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "hexMessage": "0100722000000080000016411111111111111100000000000100001000000111223344556677",
+    "layoutName": "default"
+  }'`,
+      },
+      { type: "paragraph", text: "**Retorna:** o `mti` decodificado, `messageClass`, `activeBits` e `fields[]` (cada um com `bitNumber`, `name`, `value`, `displayValue` e `length`). Parses parciais voltam como `success=false` com `parseError` estruturado — nunca 5xx." },
+
+      // 2. Parse Bit 55
+      { type: "heading", level: 3, text: "POST /api/emv/parse-bit55" },
+      { type: "paragraph", text: "**Quando usar:** inspecionar dados EMV de transações chip capturadas, validar conteúdo do Bit 55 em testes de chip, debugar tags TLV." },
+      {
+        type: "list",
+        items: [
+          "`hexBit55` — string · bytes BER-TLV em hex (ex: `9F2608…9F1008…`)",
+          "`headerBytes` — number · bytes de header proprietário a pular antes do TLV (default 0)",
+        ],
+      },
+      {
+        type: "code",
+        lang: "bash",
+        text:
+`curl -X POST http://localhost:8080/api/emv/parse-bit55 \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "hexBit55": "9F26081122334455667788999F27018F9F10080706010A03A4B0C09F37046A5B4C3D9F3602001E9F1A0200769505000000000",
+    "headerBytes": 0
+  }'`,
+      },
+      { type: "paragraph", text: "**Retorna:** `tags[]` (cada um com `tag`, `name`, `length`, `value`) mais campos de conveniência (`arqc`, `atc`, `cryptogramType`, `authResponseCode`). Parses parciais surfacem cada tag lida até o byte de falha mais `parseError`." },
+
+      // 3. Generate card
+      { type: "heading", level: 3, text: "POST /api/cards/generate" },
+      { type: "paragraph", text: "**Quando usar:** gerar massa de dados de teste para homologação, criar cartões sintéticos Luhn-válidos com Track 1/2, CVV e identidade completa." },
+      {
+        type: "list",
+        items: [
+          "`brand` — string · \"Visa\", \"Mastercard\", \"Amex\", \"Elo\", \"Hipercard\", \"DinersClub\", \"Discover\" ou \"JCB\"",
+          "`cardholderName` — opcional · default é um nome brasileiro aleatório",
+          "`expiry` — opcional · YYMM (ex: \"2912\"), default ~3 anos no futuro",
+        ],
+      },
+      {
+        type: "code",
+        lang: "bash",
+        text:
+`curl -X POST http://localhost:8080/api/cards/generate \\
+  -H "Content-Type: application/json" \\
+  -d '{"brand": "Visa"}'`,
+      },
+      { type: "paragraph", text: "**Retorna:** `pan`, `panMasked`, `cardholderName`, `expiry`, `expiryFormatted`, `serviceCode`, `cvv`, `cvv2`, `track1`, `track2`, `brand` e `generatedAt`. Apenas dados de teste — nunca alimentar com dados reais de portadores." },
+
+      // 4. Generate ARQC
+      { type: "heading", level: 3, text: "POST /api/emv/generate-arqc" },
+      { type: "paragraph", text: "**Quando usar:** simular o criptograma do chip em testes de autorização EMV, validar o fluxo ARQC sem precisar de um cartão físico." },
+      {
+        type: "list",
+        items: [
+          "`pan`, `panSequenceNumber`, `atc` — identidade do cartão + contador de transação",
+          "`amountAuthorized`, `amountOther`, `transactionDate`, `transactionType` — Bits 9F02 / 9F03 / 9A / 9C",
+          "`terminalCountryCode`, `tvr`, `currencyCode`, `unpredictableNumber`, `aip`, `iad` — dados do terminal + transação",
+          "`issuerMasterKey` — 32 chars hex · a IMK de teste publicada na suíte de integração",
+          "`profile` — \"Visa\", \"Mastercard\" ou \"Elo\"",
+        ],
+      },
+      {
+        type: "code",
+        lang: "bash",
+        text:
+`curl -X POST http://localhost:8080/api/emv/generate-arqc \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "issuerMasterKey": "0123456789ABCDEF0123456789ABCDEF",
+    "pan": "4111111111111111",
+    "panSequenceNumber": "00",
+    "atc": "001E",
+    "amountAuthorized": "000000001000",
+    "amountOther": "000000000000",
+    "terminalCountryCode": "0076",
+    "tvr": "0000000000",
+    "currencyCode": "0986",
+    "transactionDate": "250615",
+    "transactionType": "00",
+    "unpredictableNumber": "AABBCCDD",
+    "aip": "1800",
+    "iad": "0706010A03A40000",
+    "profile": "Visa"
+  }'`,
+      },
+      { type: "paragraph", text: "**Retorna:** o `arqc` de 8 bytes (16 chars hex) mais o `sessionKey` derivado, `iccMasterKey` e `transactionData` (input do MAC) para rastreabilidade. Mesmo algoritmo da aba EMV → Generate ARQC." },
+
+      // 5. Generate ARPC
+      { type: "heading", level: 3, text: "POST /api/emv/generate-arpc" },
+      { type: "paragraph", text: "**Quando usar:** simular a resposta do emissor em testes de autorização EMV, validar o cálculo de ARPC em desenvolvimento de host emissor." },
+      {
+        type: "list",
+        items: [
+          "`arqc` — o ARQC que o chip emitiu (16 chars hex)",
+          "`issuerMasterKey`, `pan`, `panSequenceNumber`, `atc` — mesmo contexto de derivação do `generate-arqc`",
+          "`authResponseCode` — 4 chars hex representando o RC ASCII de 2 chars (ex: \"3030\" = \"00\" aprovado)",
+          "`profile` — \"Visa\", \"Mastercard\" ou \"Elo\"",
+          "`method` — \"Method1\" (Visa / Elo) ou \"Method2\" (Mastercard, exige `csu`)",
+        ],
+      },
+      {
+        type: "code",
+        lang: "bash",
+        text:
+`curl -X POST http://localhost:8080/api/emv/generate-arpc \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "arqc": "112233445566778899AABBCCDDEE",
+    "issuerMasterKey": "0123456789ABCDEF0123456789ABCDEF",
+    "pan": "4111111111111111",
+    "panSequenceNumber": "00",
+    "atc": "001E",
+    "authResponseCode": "3030",
+    "csu": null,
+    "profile": "Visa",
+    "method": "Method1"
+  }'`,
+      },
+      { type: "paragraph", text: "**Retorna:** o `arpc` de 8 bytes mais o `sessionKey` usado no cálculo. O Method 2 do Mastercard também devolve o `csu` na resposta." },
+
+      { type: "divider" },
+
+      // ── Seção 3: Documentação completa ────────────────────────────────
+      { type: "heading", level: 2, text: "Documentação completa" },
+      {
+        type: "paragraph",
+        text:
+          "Para a lista completa de endpoints disponíveis — incluindo Builder, Simulador, Workspace, Health e Config — acesse a documentação interativa via Scalar:",
+      },
+      {
+        type: "callout",
+        tone: "info",
+        text:
+          "➜ [Abrir Scalar API Docs](/api/docs) — disponível apenas no modo self-hosted (Docker / agent local).",
+      },
+    ],
+  },
 };

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { BookOpen, ChevronDown, ChevronRight, Cpu, FileText, Layers, Link as LinkIcon, MessageCircle, Network, Sparkles } from "lucide-react";
+import { Link } from "react-router";
+import { BookOpen, ChevronDown, ChevronRight, Cpu, FileText, Layers, Link as LinkIcon, MessageCircle, Network, Sparkles, Terminal } from "lucide-react";
 import clsx from "clsx";
 import { AppShell } from "@/components/layout/AppShell";
 import { Card, CardBody } from "@/components/ui/Card";
@@ -13,6 +14,9 @@ interface Topic {
   icon: typeof BookOpen;
   titleKey: string;
   descriptionKey: string;
+  /** When set, the card behaves as a navigation tile (no accordion). The
+   *  target is a SPA route under react-router — not an external URL. */
+  to?: string;
 }
 
 const TOPICS: Topic[] = [
@@ -22,6 +26,10 @@ const TOPICS: Topic[] = [
   { id: "glossary", icon: BookOpen, titleKey: "docs.cards.glossary.title", descriptionKey: "docs.cards.glossary.description" },
   { id: "fields",   icon: Layers,   titleKey: "docs.cards.fields.title",   descriptionKey: "docs.cards.fields.description" },
   { id: "guides",   icon: Sparkles, titleKey: "docs.cards.guides.title",   descriptionKey: "docs.cards.guides.description" },
+  // Navigation card: opens the dedicated API reference page (which itself
+  // links out to the Scalar UI). Routed through react-router so the SPA
+  // doesn't reload.
+  { id: "api",      icon: Terminal, titleKey: "docs.cards.api.title",      descriptionKey: "docs.cards.api.description", to: "/docs/api" },
   { id: "community", icon: MessageCircle, titleKey: "docs.cards.community.title", descriptionKey: "docs.cards.community.description" },
 ];
 
@@ -75,6 +83,35 @@ export default function DocsPage() {
         {TOPICS.map((topic) => {
           const Icon = topic.icon;
           const isOpen = openId === topic.id;
+
+          // Navigation-tile branch: react-router Link wraps the card body.
+          // No accordion, no expand state — clicking transitions the SPA to
+          // topic.to without a full reload.
+          if (topic.to) {
+            return (
+              <div key={topic.id} id={topic.id}>
+                <Link
+                  to={topic.to}
+                  className="block group"
+                  data-testid={`docs-card-${topic.id}`}
+                >
+                  <Card className="transition-colors hover:border-accent/40 group-hover:border-accent/40 h-full">
+                    <CardBody className="space-y-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="w-9 h-9 rounded-md bg-accent-bg text-accent-text flex items-center justify-center shrink-0">
+                          <Icon size={18} />
+                        </div>
+                        <ChevronRight size={18} className="text-text-tertiary shrink-0 mt-1 group-hover:text-accent" />
+                      </div>
+                      <h3 className="text-sm font-semibold leading-tight">{t(topic.titleKey)}</h3>
+                      <p className="text-xs text-text-secondary leading-relaxed">{t(topic.descriptionKey)}</p>
+                    </CardBody>
+                  </Card>
+                </Link>
+              </div>
+            );
+          }
+
           return (
             <div
               key={topic.id}

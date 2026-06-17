@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Iso8583Toolkit.Agent.Controllers;
@@ -17,6 +18,9 @@ public sealed class ConfigController : ControllerBase
     public ConfigController(IConfiguration config) => _config = config;
 
     [HttpGet]
+    [EndpointSummary("Report the runtime feature-flag profile (standalone vs online)")]
+    [EndpointDescription("Returns the current `mode` resolved from `ISOHUB_MODE` and the per-feature toggles (simulator, EMV crypto, workspace keys). The frontend uses this to hide locked menus and to label the public demo banner. Standalone is the default when the variable is unset.")]
+    [ProducesResponseType(typeof(AppConfig), StatusCodes.Status200OK)]
     public IActionResult Get() => Ok(BuildConfig(_config));
 
     internal static AppConfig BuildConfig(IConfiguration config)

@@ -1,5 +1,6 @@
 using System.Reflection;
 using Iso8583Toolkit.Agent.Services;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Iso8583Toolkit.Agent.Controllers;
@@ -17,12 +18,15 @@ public sealed class HealthController : ControllerBase
     }
 
     [HttpGet]
+    [EndpointSummary("Liveness probe + agent runtime metadata")]
+    [EndpointDescription("Returns a constant `status=ok` plus the running assembly version, process uptime, active simulator session count and total messages processed since startup. Designed for container HEALTHCHECKs and for the frontend's Agent badge.")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
     public IActionResult Get()
     {
         var version = Assembly.GetExecutingAssembly()
             .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
             ?? Assembly.GetExecutingAssembly().GetName().Version?.ToString()
-            ?? "1.3.1";
+            ?? "1.3.2";
 
         var uptime = DateTime.UtcNow - StartedAt;
 

@@ -94,6 +94,43 @@ Open [http://localhost:8080](http://localhost:8080)
 
 ---
 
+## API
+
+ISOLeaf exposes a REST API for integration with automated test tools
+and data generation pipelines. Available in self-hosted (Docker) mode only.
+
+Interactive documentation (Scalar UI):
+http://localhost:8080/api/docs
+
+### Key endpoints
+
+| Endpoint | Description |
+|---|---|
+| `POST /api/parse/hex` | Parse an ISO 8583 message from hex, ASCII-wire or binary-hex |
+| `POST /api/emv/parse-bit55` | Parse BER-TLV EMV data from Bit 55 |
+| `POST /api/cards/generate` | Generate a synthetic Luhn-valid test card |
+| `POST /api/emv/generate-arqc` | Compute the ARQC cryptogram |
+| `POST /api/emv/generate-arpc` | Compute the ARPC (issuer response cryptogram) |
+
+### Quick example
+
+```bash
+# Parse an ISO 8583 message
+curl -X POST http://localhost:8080/api/parse/hex \
+  -H "Content-Type: application/json" \
+  -d '{"hex": "0100723800000000000000000000"}'
+
+# Generate a test card
+curl -X POST http://localhost:8080/api/cards/generate \
+  -H "Content-Type: application/json" \
+  -d '{"brand": "Visa"}'
+```
+
+> ⚠️ Do not send real cardholder data or production keys to external
+> servers. Run ISOLeaf locally for sensitive operations.
+
+---
+
 ## Features
 
 ### Parser

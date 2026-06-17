@@ -60,6 +60,14 @@ export default defineConfig({
         changeOrigin: true,
         ws: true,
       },
+      // Forward the OpenAPI document too — Scalar UI mounted at /api/docs/v1
+      // fetches it from /openapi/v1.json. Without this rule the dev server
+      // returns the SPA index.html and Scalar shows
+      // "Document 'v1' could not be loaded".
+      "/openapi": {
+        target: "http://127.0.0.1:8080",
+        changeOrigin: true,
+      },
     },
   },
   test: {

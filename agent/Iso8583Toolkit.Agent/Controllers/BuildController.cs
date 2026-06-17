@@ -4,6 +4,7 @@ using Iso8583Toolkit.Api.DTOs;
 using Iso8583Toolkit.Api.Services;
 using Iso8583Toolkit.IsoCore.Building.Smart;
 using Iso8583Toolkit.Simulator.Protocol;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Iso8583Toolkit.Agent.Controllers;
@@ -25,6 +26,10 @@ public sealed class BuildController : ControllerBase
     }
 
     [HttpPost("message")]
+    [EndpointSummary("Build an ISO 8583 wire from an MTI + explicit bit/value list")]
+    [EndpointDescription("Low-level constructor: caller supplies every field they want set and the response carries the serialised wire (ASCII or binary-hex depending on layout). Used by the Builder page when the user is composing a message manually.")]
+    [ProducesResponseType(typeof(IsoBuildResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(IsoBuildResponse), StatusCodes.Status400BadRequest)]
     public IActionResult BuildMessage([FromBody] IsoBuildRequest request)
     {
         if (string.IsNullOrWhiteSpace(request.Mti))
@@ -40,6 +45,9 @@ public sealed class BuildController : ControllerBase
     }
 
     [HttpPost("smart")]
+    [EndpointSummary("Smart-build an ISO 8583 message from a transaction profile")]
+    [EndpointDescription("Higher-level constructor: pick a brand + role + channel + transaction type and the builder fills mandatory and conditional fields based on the brand profile rules (PAN generation, Track 2 derivation, TPDU, Bit 55 derivation, etc). Custom fields override the defaults. Used by the Builder page's \"Smart\" flow and the SmartBuildE2E test suite.")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
     public IActionResult SmartBuild([FromBody] SmartBuildRequest request)
     {
         var workspace = _store.GetWorkspaceConfig();
@@ -101,6 +109,9 @@ public sealed class BuildController : ControllerBase
     }
 
     [HttpGet("smart/profiles")]
+    [EndpointSummary("List the brand profiles available to the smart builder")]
+    [EndpointDescription("Each profile exposes the mandatory/conditional bit sets per MTI and role, the brand's default currency and country, and whether TPDU is required at the Acquirer→Brand or Brand→Issuer hops. Used by the UI to render the brand-specific Builder controls.")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
     public IActionResult GetProfiles()
     {
         var profiles = _profiles.GetAll();
@@ -123,6 +134,9 @@ public sealed class BuildController : ControllerBase
     }
 
     [HttpGet("smart/rules")]
+    [EndpointSummary("List every transformation rule the smart builder may apply")]
+    [EndpointDescription("Reference table of the named rules (Chip→Bit55Added, Reversal→Bit90Added, Track2→DerivedFromPAN…) with a Portuguese description for each. Used by the Builder's \"applied rules\" badges to make the build pipeline transparent.")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
     public IActionResult GetRules() => Ok(new[]
     {
         new { rule = "Chip→Bit55Added", description = "Canal Chip adiciona bit 55 (EMV data)" },
