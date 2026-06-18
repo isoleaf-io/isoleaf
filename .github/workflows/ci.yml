@@ -5,6 +5,11 @@ on:
     branches: [main]
     tags: ['v*']
   pull_request:
+  # Weekly CodeQL sweep so newly-published advisories are caught even when
+  # the codebase is quiet — fires the whole pipeline; `docker` self-gates
+  # via its own `if:` and stays a no-op.
+  schedule:
+    - cron: '0 6 * * 1'  # Mondays 06:00 UTC
 
 # Cancel superseded runs on the same ref — saves CI minutes on PR pushes.
 concurrency:
@@ -98,16 +103,61 @@ jobs:
           extra_args: --only-verified
 
   # ── Stage 4 ────────────────────────────────────────────────────────────────
-  # CodeQL is NOT a workflow job — GitHub-native "Default" code scanning runs
-  # it on its own schedule. The project-wide query filters in
-  # .github/codeql/codeql-config.yml are picked up by that default setup.
-  # Re-adding a workflow CodeQL job here would produce duplicate SARIF
-  # uploads and fail with HTTP 422.
+  # CodeQL Advanced — uses .github/codeql/codeql-config.yml to suppress the
+  # ECB-mandated-by-EMV and catch-of-all-exceptions false positives. Runs in
+  # parallel with `gitleaks`. csharp uses `build-mode: manual` so we can
+  # reuse the NuGet cache (autobuild's separate build would download every
+  # package again from scratch — ~3min wasted).
+  codeql:
+    name: CodeQL (${{ matrix.language }})
+    needs: [backend, frontend]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+    strategy:
+      fail-fast: false
+      matrix:
+        # The `javascript` analyser also covers TypeScript.
+        language: [csharp, javascript]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET 9
+        if: matrix.language == 'csharp'
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+          cache: true
+          cache-dependency-path: '**/*.csproj'
+
+      - name: Restore
+        if: matrix.language == 'csharp'
+        run: dotnet restore Iso8583Toolkit.sln
+
+      - name: Init CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          config-file: .github/codeql/codeql-config.yml
+          # csharp builds explicitly below so the cached restore is honoured;
+          # javascript reads source files directly.
+          build-mode: ${{ matrix.language == 'csharp' && 'manual' || 'none' }}
+
+      - name: Build
+        if: matrix.language == 'csharp'
+        run: dotnet build Iso8583Toolkit.sln --configuration Release --no-restore
+
+      - name: Analyze
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: /language:${{ matrix.language }}
 
   # ── Stages 5 + 6 (merged: build-push-action is atomic) ─────────────────────
   docker:
     name: Docker build & push (GHCR)
-    needs: [gitleaks]
+    needs: [gitleaks, codeql]
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
     runs-on: ubuntu-latest
     permissions:
