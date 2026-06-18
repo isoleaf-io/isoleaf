@@ -144,7 +144,8 @@ public sealed class SimulatorController : ControllerBase
 
         // TargetHost comes straight from the HTTP request body — strip CR/LF
         // before logging to defend against log forging (CWE-117).
-        var safeTargetHost = request.TargetHost?.Replace("\r", "\\r").Replace("\n", "\\n") ?? "";
+        // (Null-check above guarantees non-null here — no `?.` chain needed.)
+        var safeTargetHost = request.TargetHost.Replace("\r", "\\r").Replace("\n", "\\n");
         _logger.LogInformation(
             "InjectDirect called: VaryIdentifiers={VaryId}, VaryAmount={VaryAmt}, MessageLength={Len}, Target={Host}:{Port}",
             request.VaryIdentifiers, request.VaryAmount, request.Message?.Length ?? 0,

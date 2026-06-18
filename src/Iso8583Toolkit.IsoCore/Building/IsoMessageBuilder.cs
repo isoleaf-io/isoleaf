@@ -81,10 +81,9 @@ public sealed class IsoMessageBuilder
                     ? def.MaxLength * 2
                     : def.MaxLength;
 
-                if (rawValue.Length < maxChars)
-                    value = rawValue.PadLeft(maxChars, '0');
-                else
-                    value = rawValue;
+                value = rawValue.Length < maxChars
+                    ? rawValue.PadLeft(maxChars, '0')
+                    : rawValue;
             }
             else
             {
@@ -277,11 +276,7 @@ public sealed class IsoMessageBuilder
             return Encoding.ASCII.GetBytes(value);
 
         if ((value.Length & 1) != 0) return Encoding.ASCII.GetBytes(value);
-        foreach (var c in value)
-        {
-            var isHex = (c >= '0' && c <= '9') || (c >= 'A' && c <= 'F') || (c >= 'a' && c <= 'f');
-            if (!isHex) return Encoding.ASCII.GetBytes(value);
-        }
+        if (!value.All(char.IsAsciiHexDigit)) return Encoding.ASCII.GetBytes(value);
         return Convert.FromHexString(value);
     }
 }

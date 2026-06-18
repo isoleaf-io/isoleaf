@@ -240,6 +240,11 @@ public sealed class FieldValueGenerator
 
     private string GenerateRealEmv(SmartFieldContext ctx, string imk)
     {
+        // _atcCounter is intentionally a process-wide monotonically-increasing
+        // counter so every generated EMV transaction across all builder
+        // instances gets a unique ATC. Interlocked.Increment is the standard
+        // thread-safe write pattern for static counters.
+        // lgtm[cs/static-field-written-by-instance-method]
         var atcInt = Interlocked.Increment(ref _atcCounter);
         var atc = atcInt.ToString("X4").PadLeft(4, '0');
         var amount = (ctx.Amount ?? "000000001000").PadLeft(12, '0');
@@ -303,15 +308,7 @@ public sealed class FieldValueGenerator
         return sb.ToString();
     }
 
-    private static bool IsHexString(string s)
-    {
-        foreach (var c in s)
-        {
-            var isHex = (c >= '0' && c <= '9') || (c >= 'A' && c <= 'F') || (c >= 'a' && c <= 'f');
-            if (!isHex) return false;
-        }
-        return true;
-    }
+    private static bool IsHexString(string s) => s.All(char.IsAsciiHexDigit);
 
     public static string GenerateSimulatedEmv(SmartFieldContext ctx)
     {

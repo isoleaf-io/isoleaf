@@ -30,8 +30,6 @@ interface EmvFromParser {
   brand?: string;
 }
 
-const PROFILES = ["Visa", "Mastercard", "Elo"] as const;
-
 /**
  * Maps a brand string (e.g. from the Parser's detectedBrand) to one of the EMV
  * profile values accepted by the API. Falls back to "Visa" so the form always

@@ -47,19 +47,17 @@ public sealed class IsoMessageValidator
         activeBits.Remove(1);
 
         // Bits active in bitmap but missing from Fields
-        foreach (var bit in activeBits)
+        foreach (var bit in activeBits.Where(b => !message.Fields.ContainsKey(b)))
         {
-            if (!message.Fields.ContainsKey(bit))
-                result.AddError("BITMAP_INCONSISTENCY", $"Bit {bit}",
-                    $"Bit {bit} is active in the bitmap but has no corresponding field in the message.");
+            result.AddError("BITMAP_INCONSISTENCY", $"Bit {bit}",
+                $"Bit {bit} is active in the bitmap but has no corresponding field in the message.");
         }
 
         // Fields present but not active in bitmap
-        foreach (var bit in message.Fields.Keys)
+        foreach (var bit in message.Fields.Keys.Where(b => !activeBits.Contains(b)))
         {
-            if (!activeBits.Contains(bit))
-                result.AddError("BITMAP_INCONSISTENCY", $"Bit {bit}",
-                    $"Field for bit {bit} is present but the bit is not active in the bitmap.");
+            result.AddError("BITMAP_INCONSISTENCY", $"Bit {bit}",
+                $"Field for bit {bit} is present but the bit is not active in the bitmap.");
         }
     }
 
@@ -103,11 +101,10 @@ public sealed class IsoMessageValidator
     {
         if (requiredBits is null or { Count: 0 }) return;
 
-        foreach (var bit in requiredBits)
+        foreach (var bit in requiredBits.Where(b => !message.HasField(b)))
         {
-            if (!message.HasField(bit))
-                result.AddError("REQUIRED_FIELD_MISSING", $"Bit {bit}",
-                    $"Bit {bit} is required but not present in the message.");
+            result.AddError("REQUIRED_FIELD_MISSING", $"Bit {bit}",
+                $"Bit {bit} is required but not present in the message.");
         }
     }
 
@@ -116,11 +113,10 @@ public sealed class IsoMessageValidator
     private static void ValidateUnknownFields(
         IsoMessage message, IsoLayout layout, ValidationResult result)
     {
-        foreach (var bit in message.Fields.Keys)
+        foreach (var bit in message.Fields.Keys.Where(b => !layout.HasField(b)))
         {
-            if (!layout.HasField(bit))
-                result.AddWarning("UNKNOWN_FIELD", $"Bit {bit}",
-                    $"Bit {bit} is present but has no definition in layout '{layout.Name}'.");
+            result.AddWarning("UNKNOWN_FIELD", $"Bit {bit}",
+                $"Bit {bit} is present but has no definition in layout '{layout.Name}'.");
         }
     }
 }

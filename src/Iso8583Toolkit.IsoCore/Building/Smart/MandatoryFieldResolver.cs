@@ -61,13 +61,11 @@ public sealed class MandatoryFieldResolver
 
         // ── Transaction type rules ──────────────────────────────────────────
 
-        if (txType is TransactionType.Debito or TransactionType.Saque)
+        if (txType is TransactionType.Debito or TransactionType.Saque
+            && channel is not TransactionChannel.CNP)
         {
-            if (channel is not TransactionChannel.CNP)
-            {
-                bits.Add(52);
-                rules.Add($"{txType}→Bit52Added");
-            }
+            bits.Add(52);
+            rules.Add($"{txType}→Bit52Added");
         }
 
         if (txType is TransactionType.Saque)

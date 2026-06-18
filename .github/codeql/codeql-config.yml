@@ -18,3 +18,29 @@ queries:
 query-filters:
   - exclude:
       id: cs/ecb-encryption
+  #
+  # cs/catch-of-all-exceptions: ISOLeaf is an ISO 8583 toolkit. Two whole
+  # subsystems — the parser/builder layer (IsoParser, TlvParser,
+  # SmartIsoBuilder, FieldValueGenerator, AutoResponder) and the TCP/SignalR
+  # transport (SimulatorBroker, IsoSessionHandler, TcpSessionManager,
+  # InjectVariationService) — MUST be defensive against any failure mode.
+  # A malformed wire byte, a peer half-closing mid-frame, a hub serializer
+  # blowing up: none of those should ever propagate out of the message
+  # pipeline and crash the agent. Every catch-all in these paths logs the
+  # exception, emits a hub event and returns a structured failure rather
+  # than 5xx. Narrowing to specific types would mean enumerating every
+  # exception .NET (or a third-party brand profile loader, or
+  # System.Net.Sockets, or a serializer) might throw — the maintenance cost
+  # outweighs the analyser hint, and the project-wide convention is the
+  # rule rather than the exception.
+  - exclude:
+      id: cs/catch-of-all-exceptions
+
+# Paths excluded from analysis. Build artefacts under bin/, obj/ are dropped
+# automatically; source generators land in obj/Debug/.../*.g.cs and produce
+# many "useless assignment" / "nested if" alerts on auto-generated regex
+# state machines that we don't own.
+paths-ignore:
+  - '**/obj/**'
+  - '**/bin/**'
+  - '**/*.g.cs'

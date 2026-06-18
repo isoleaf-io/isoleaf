@@ -73,6 +73,7 @@ public sealed class IsoSessionHandler
                 if (oneShot) break;
             }
         }
+        // lgtm[cs/empty-catch-block] cancellation is the normal shutdown path
         catch (OperationCanceledException) { }
         catch (Exception ex)
         {
@@ -418,11 +419,7 @@ public sealed class IsoSessionHandler
 
         for (var i = 0; i < data.Length; i++)
         {
-            var b = data[i];
-            var isHex = (b >= '0' && b <= '9')
-                     || (b >= 'A' && b <= 'F')
-                     || (b >= 'a' && b <= 'f');
-            if (!isHex) return false;
+            if (!char.IsAsciiHexDigit((char)data[i])) return false;
         }
 
         try
