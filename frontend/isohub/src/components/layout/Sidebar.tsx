@@ -6,6 +6,7 @@ import {
   Cpu,
   CreditCard,
   ExternalLink,
+  FileText,
   LayoutGrid,
   Lock,
   Radio,
@@ -16,6 +17,7 @@ import clsx from "clsx";
 import { StatusDot } from "@/components/ui/StatusDot";
 import { useHealth } from "@/hooks/useHealth";
 import { useAppConfig } from "@/contexts/AppConfigContext";
+import { FEATURES, type FeatureKey } from "@/config/features";
 import { APP_VERSION } from "@/version";
 
 interface NavItem {
@@ -24,6 +26,8 @@ interface NavItem {
   icon: typeof Code2;
   /** External link (opens in a new tab). When set, NavRow renders <a> instead of NavLink. */
   external?: boolean;
+  /** Build-time feature flag gating this item. Item is hidden when the flag is off. */
+  feature?: FeatureKey;
 }
 
 interface NavSection {
@@ -31,6 +35,8 @@ interface NavSection {
   items: NavItem[];
   /** Visually separates this section from the previous one with extra spacing. */
   separated?: boolean;
+  /** Build-time feature flag gating the whole section. */
+  feature?: FeatureKey;
 }
 
 const sections: NavSection[] = [
@@ -52,6 +58,22 @@ const sections: NavSection[] = [
   {
     titleKey: "common.nav.testing",
     items: [{ to: "/simulator", labelKey: "common.nav.simulator", icon: Radio }],
+  },
+  {
+    // ISO 20022 — Sprint 6. Whole section and every item are gated by their
+    // own feature flag, so they stay completely invisible (no empty "ISO
+    // 20022" heading) until at least one sub-feature ships.
+    titleKey: "common.nav.iso20022",
+    feature: "iso20022",
+    items: [
+      { to: "/iso20022/parser",    labelKey: "common.nav.iso20022Parser",    icon: Code2,      feature: "iso20022Parser" },
+      { to: "/iso20022/fields",    labelKey: "common.nav.iso20022FieldRef",  icon: FileText,   feature: "iso20022FieldRef" },
+      { to: "/iso20022/validator", labelKey: "common.nav.iso20022Validator", icon: LayoutGrid, feature: "iso20022Validator" },
+      { to: "/iso20022/qrcode",    labelKey: "common.nav.iso20022QrCode",    icon: LayoutGrid, feature: "iso20022QrCode" },
+      { to: "/iso20022/builder",   labelKey: "common.nav.iso20022Builder",   icon: Zap,        feature: "iso20022Builder" },
+      { to: "/iso20022/txid",      labelKey: "common.nav.iso20022Txid",      icon: CreditCard, feature: "iso20022Txid" },
+      { to: "/iso20022/mt-mx",     labelKey: "common.nav.iso20022MtMx",      icon: Cpu,        feature: "iso20022MtMx" },
+    ],
   },
   {
     titleKey: "common.nav.reference",
@@ -166,27 +188,33 @@ export function Sidebar({ isOpen = false, onNavigate }: SidebarProps = {}) {
       </Link>
 
       <nav className="flex-1 overflow-y-auto py-3">
-        {sections.map((section) => (
-          <div
-            key={section.titleKey}
-            className={clsx(
-              "px-3 mb-3",
-              section.separated && "mt-3 pt-3 border-t border-[var(--border)]"
-            )}
-          >
-            <div className="px-2 mb-1 text-[10px] uppercase tracking-wider font-semibold text-text-tertiary">
-              {t(section.titleKey)}
+        {sections
+          // Filter items first (so a fully-gated section with no visible items
+          // also disappears), then drop sections whose own gate is off or
+          // whose item list ended up empty after item-level gating.
+          .map((s) => ({ ...s, items: s.items.filter((i) => !i.feature || FEATURES[i.feature]) }))
+          .filter((s) => (!s.feature || FEATURES[s.feature]) && s.items.length > 0)
+          .map((section) => (
+            <div
+              key={section.titleKey}
+              className={clsx(
+                "px-3 mb-3",
+                section.separated && "mt-3 pt-3 border-t border-[var(--border)]"
+              )}
+            >
+              <div className="px-2 mb-1 text-[10px] uppercase tracking-wider font-semibold text-text-tertiary">
+                {t(section.titleKey)}
+              </div>
+              {section.items.map((item) => (
+                <NavRow
+                  key={item.to}
+                  item={item}
+                  locked={item.to === "/simulator" && !simulatorEnabled}
+                  onNavigate={onNavigate}
+                />
+              ))}
             </div>
-            {section.items.map((item) => (
-              <NavRow
-                key={item.to}
-                item={item}
-                locked={item.to === "/simulator" && !simulatorEnabled}
-                onNavigate={onNavigate}
-              />
-            ))}
-          </div>
-        ))}
+          ))}
       </nav>
 
       {/* Footer-pinned: Workspace lives below the agent status, no section header. */}

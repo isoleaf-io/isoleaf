@@ -23,6 +23,7 @@
     <ProjectReference Include="..\..\src\Iso8583Toolkit.Cryptography\Iso8583Toolkit.Cryptography.csproj" />
     <ProjectReference Include="..\..\src\Iso8583Toolkit.Simulator\Iso8583Toolkit.Simulator.csproj" />
     <ProjectReference Include="..\..\src\Iso8583Toolkit.Api\Iso8583Toolkit.Api.csproj" />
+    <ProjectReference Include="..\..\src\Iso8583Toolkit.Iso20022\Iso8583Toolkit.Iso20022.csproj" />
   </ItemGroup>
 
   <ItemGroup>
