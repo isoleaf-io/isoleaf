@@ -1,0 +1,14 @@
+{
+  "name": "isoleaf-docs-site",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Vanilla HTML/CSS/JS docs site published at https://docs.isoleaf.dev. Content is pulled from frontend/isohub/src/pages/Docs/content.{en,pt}.ts at build time.",
+  "type": "module",
+  "scripts": {
+    "build": "tsx build.ts",
+    "serve": "node serve.mjs"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.0"
+  }
+}

@@ -5,6 +5,7 @@ import {
   Code2,
   Cpu,
   CreditCard,
+  ExternalLink,
   LayoutGrid,
   Lock,
   Radio,
@@ -21,6 +22,8 @@ interface NavItem {
   to: string;
   labelKey: string;
   icon: typeof Code2;
+  /** External link (opens in a new tab). When set, NavRow renders <a> instead of NavLink. */
+  external?: boolean;
 }
 
 interface NavSection {
@@ -53,7 +56,12 @@ const sections: NavSection[] = [
   {
     titleKey: "common.nav.reference",
     separated: true,
-    items: [{ to: "/docs", labelKey: "common.nav.docs", icon: BookOpen }],
+    items: [
+      // Docs live on the dedicated GitHub Pages site so search engines index
+      // them and the React bundle stays lean. The in-app /docs route still
+      // exists as a fallback for direct-URL visits.
+      { to: "https://docs.isoleaf.dev", labelKey: "common.nav.docs", icon: BookOpen, external: true },
+    ],
   },
 ];
 
@@ -74,6 +82,25 @@ function NavRow({
 }) {
   const { t } = useTranslation();
   const Icon = item.icon;
+  const baseCls =
+    "flex items-center gap-2.5 px-2 py-1.5 rounded-md text-sm transition-colors text-text-secondary hover:bg-bg-tertiary hover:text-text-primary";
+
+  if (item.external) {
+    return (
+      <a
+        href={item.to}
+        target="_blank"
+        rel="noopener"
+        onClick={onNavigate}
+        className={baseCls}
+      >
+        <Icon size={15} />
+        <span className="flex-1">{t(item.labelKey)}</span>
+        <ExternalLink size={11} className="text-text-tertiary shrink-0" aria-hidden />
+      </a>
+    );
+  }
+
   return (
     <NavLink
       to={item.to}
