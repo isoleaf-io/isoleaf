@@ -82,16 +82,20 @@ export function ParseBit55Tab() {
           <div>
             <Label>{t("emv.headerLabel")}</Label>
             <div className="flex items-center gap-2">
-              <Input
-                type="number"
-                min={0}
-                max={16}
-                value={header}
-                onChange={(e) => handleHeaderChange(Number(e.target.value))}
-                placeholder="0"
-                className="w-32 font-mono"
-                aria-label={t("emv.headerLabel")}
-              />
+              {/* Width-constrained wrapper because the shared <Input> hard-codes
+                  `w-full` — without this the field expands inside the flex row. */}
+              <div className="w-28">
+                <Input
+                  type="number"
+                  min={0}
+                  max={16}
+                  value={header}
+                  onChange={(e) => handleHeaderChange(Number(e.target.value))}
+                  placeholder="0"
+                  className="font-mono text-center"
+                  aria-label={t("emv.headerLabel")}
+                />
+              </div>
               <span className="text-[11px] text-text-tertiary">{t("emv.headerHint")}</span>
             </div>
           </div>
