@@ -44,3 +44,7 @@ paths-ignore:
   - '**/obj/**'
   - '**/bin/**'
   - '**/*.g.cs'
+  # Local-only static file server used to preview docs-site/ during
+  # development. Never deployed (GitHub Pages serves the static files
+  # directly), so its tiny URL-handling surface doesn't warrant scanning.
+  - 'docs-site/serve.mjs'
