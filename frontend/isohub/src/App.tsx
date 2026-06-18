@@ -8,6 +8,7 @@ import SimulatorPage from "./pages/Simulator";
 import WorkspacePage from "./pages/Workspace";
 import DocsPage from "./pages/Docs";
 import ApiDocsPage from "./pages/Docs/ApiDocsPage";
+import Iso20022ParserPage from "./pages/Iso20022Parser";
 
 export default function App() {
   return (
@@ -19,6 +20,7 @@ export default function App() {
       <Route path="/cards" element={<CardsPage />} />
       <Route path="/emv" element={<EmvPage />} />
       <Route path="/simulator" element={<SimulatorPage />} />
+      <Route path="/iso20022/parser" element={<Iso20022ParserPage />} />
       <Route path="/docs" element={<DocsPage />} />
       <Route path="/docs/api" element={<ApiDocsPage />} />
       <Route path="/workspace" element={<WorkspacePage />} />
