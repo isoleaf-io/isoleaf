@@ -1,0 +1,65 @@
+name: Deploy docs site
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs-site/**'
+      - 'frontend/isohub/src/pages/Docs/**'
+      - 'frontend/isohub/src/i18n/locales/**'
+      - '.github/workflows/docs.yml'
+  workflow_dispatch:
+
+# Single in-flight deploy — GitHub Pages serializes anyway, but cancelling
+# superseded runs saves minutes when pushes land in quick succession.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    name: Build docs JSON
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: docs-site
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          # No lockfile in docs-site/ — tsx is the only dep and version is
+          # pinned with ^4.19.0 in package.json. Skip cache to avoid the warning.
+
+      - name: Install tsx
+        run: npm install --no-audit --no-fund
+
+      - name: Build data.json
+        run: npx tsx build.ts
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          # Publishes the docs-site/ directory as-is. CNAME, index.html,
+          # en/, pt/ and assets/ (now including the just-built data.json)
+          # are all picked up.
+          path: docs-site
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4

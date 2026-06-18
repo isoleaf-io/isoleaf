@@ -1,87 +1,34 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import { renderApp } from "@/test/renderApp";
 import DocsPage from "@/pages/Docs";
 
 /**
- * Returns only the Docs-card buttons (they carry aria-expanded). Filters out
- * sidebar links, theme toggles and other unrelated buttons that may match
- * a regex by accident.
+ * The Docs page is now a launcher of external links to docs.isoleaf.dev.
+ * Each card is an `<a target="_blank">` whose href encodes the section id as
+ * a hash — the docs site uses the hash to deep-link into the right page.
  */
-function getCardByName(name: RegExp): HTMLElement {
-  const matches = screen
-    .getAllByRole("button", { name })
-    .filter((el) => el.hasAttribute("aria-expanded"));
-  if (matches.length === 0) throw new Error(`No Docs card matching ${name}`);
-  return matches[0];
-}
-
 describe("Docs page", () => {
-  beforeEach(() => {
-    // openId is restored from either localStorage OR the URL hash. Both persist
-    // across tests in the same jsdom window — clear both so every case starts
-    // with all cards collapsed.
-    try { window.localStorage.removeItem("isoleaf-docs-open"); } catch { /* ignore */ }
-    try { window.history.replaceState(null, "", window.location.pathname); } catch { /* ignore */ }
+  it("renders one external card per section", () => {
+    renderApp(<DocsPage />);
+    const cards = screen.getAllByTestId(/^docs-card-/);
+    expect(cards.length).toBe(8);
+    for (const c of cards) {
+      expect(c.tagName).toBe("A");
+      expect(c).toHaveAttribute("target", "_blank");
+      expect(c.getAttribute("href")).toMatch(/^https:\/\/docs\.isoleaf\.dev\/(pt|en)\/#[a-z0-9]+$/i);
+    }
   });
 
-  it("clicking ISO 8583 card expands content", async () => {
-    const user = userEvent.setup();
+  it("ISO 8583 card links to the iso8583 section", () => {
     renderApp(<DocsPage />);
-
-    const card = getCardByName(/ISO 8583/i);
-    expect(card).toHaveAttribute("aria-expanded", "false");
-
-    await user.click(card);
-
-    expect(card).toHaveAttribute("aria-expanded", "true");
-    // Heading from the iso8583 section. Multiple section titles may also match
-    // by accident (e.g. table of contents); findAllByText is the safe call.
-    const matches = await screen.findAllByText(/What is ISO 8583|O que é o ISO 8583/i);
-    expect(matches.length).toBeGreaterThan(0);
+    const card = screen.getByTestId("docs-card-iso8583");
+    expect(card.getAttribute("href")).toMatch(/#iso8583$/);
   });
 
-  it("clicking same card collapses content", async () => {
-    const user = userEvent.setup();
+  it("API Reference card links to the apiDocs section", () => {
     renderApp(<DocsPage />);
-
-    const card = getCardByName(/ISO 8583/i);
-    await user.click(card);
-    expect(card).toHaveAttribute("aria-expanded", "true");
-
-    await user.click(card);
-    expect(card).toHaveAttribute("aria-expanded", "false");
-    // After collapse the inner heading disappears.
-    expect(
-      screen.queryByText(/What is ISO 8583|O que é o ISO 8583/i)
-    ).not.toBeInTheDocument();
-  });
-
-  it("clicking different card closes previous", async () => {
-    const user = userEvent.setup();
-    renderApp(<DocsPage />);
-
-    const iso = getCardByName(/ISO 8583/i);
-    const emv = getCardByName(/EMV/i);
-
-    await user.click(iso);
-    expect(iso).toHaveAttribute("aria-expanded", "true");
-
-    await user.click(emv);
-    expect(emv).toHaveAttribute("aria-expanded", "true");
-    // ISO 8583 must have collapsed.
-    expect(iso).toHaveAttribute("aria-expanded", "false");
-  });
-
-  it("architecture section renders inside Guias rápidos", async () => {
-    const user = userEvent.setup();
-    renderApp(<DocsPage />);
-
-    const guides = getCardByName(/Quick guides|Guias rápidos/i);
-    await user.click(guides);
-
-    const matches = await screen.findAllByText(/ISOLeaf architecture|Arquitetura do ISOLeaf/i);
-    expect(matches.length).toBeGreaterThan(0);
+    const card = screen.getByTestId("docs-card-apiDocs");
+    expect(card.getAttribute("href")).toMatch(/#apiDocs$/);
   });
 });
