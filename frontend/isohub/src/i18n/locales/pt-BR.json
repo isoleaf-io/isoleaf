@@ -42,7 +42,15 @@
       "reference": "Referência",
       "docs": "Documentação",
       "workspace": "Workspace",
-      "templates": "Templates"
+      "templates": "Templates",
+      "iso20022": "ISO 20022",
+      "iso20022Parser": "Parser",
+      "iso20022FieldRef": "Referência de campos",
+      "iso20022Validator": "Validador XSD",
+      "iso20022QrCode": "QR Code Pix",
+      "iso20022Builder": "Builder",
+      "iso20022Txid": "TXID / Chaves DICT",
+      "iso20022MtMx": "MT → MX"
     }
   },
   "parser": {
