@@ -241,7 +241,7 @@ public sealed class EndToEndPipelineTests : IClassFixture<EndToEndReportFixture>
             EndToEndTestHelper.AssertField(parsed, 25, "59"); Count();
             lines.Add("Bits 35/52/55 ausentes; Bit 22=010 (manual); Bit 25=59 (POS CNP)");
 
-            var (req, resp) = _h.SimulateRoundTrip(build, EndToEndTestHelper.AdquirenteConfig());
+            var (_, resp) = _h.SimulateRoundTrip(build, EndToEndTestHelper.AdquirenteConfig());
             resp.Mti.Should().Be("0210"); Count();
             resp.GetFieldValue(39).Should().Be("00"); Count();
             EndToEndTestHelper.AssertFieldAbsent(resp, 55); Count();
@@ -318,7 +318,7 @@ public sealed class EndToEndPipelineTests : IClassFixture<EndToEndReportFixture>
             // bit 70 not in default echo list → inject via FieldOverrides
             var config = EndToEndTestHelper.AdquirenteConfig(
                 fieldOverrides: new Dictionary<int, string> { [70] = "301" });
-            var (req, resp) = _h.SimulateRoundTrip(build, config);
+            var (_, resp) = _h.SimulateRoundTrip(build, config);
             resp.Mti.Should().Be("0810"); Count();
             resp.GetFieldValue(39).Should().Be("00"); Count();
             resp.GetFieldValue(70).Should().Be("301"); Count();

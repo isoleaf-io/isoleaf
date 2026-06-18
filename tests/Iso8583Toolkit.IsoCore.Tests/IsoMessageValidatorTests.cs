@@ -205,8 +205,8 @@ public sealed class IsoMessageValidatorTests
     {
         var bm = new bool[64];
         if (hasSecondary) bm[0] = true;
-        foreach (var b in bits)
-            if (b >= 1 && b <= 64) bm[b - 1] = true;
+        foreach (var b in bits.Where(b => b >= 1 && b <= 64))
+            bm[b - 1] = true;
         return bm;
     }
 

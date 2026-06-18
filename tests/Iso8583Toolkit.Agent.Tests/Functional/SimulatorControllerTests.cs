@@ -149,7 +149,7 @@ public sealed class SimulatorControllerTests
         // MTI(4) + bitmap with bit 2(16) + LLVAR length "16"(2) + 16-digit PAN(16) = 38.
         const string body = "02004000000000000000164111111111111111";
 
-        var listener = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0);
+        using var listener = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0);
         listener.Start();
         var port = ((System.Net.IPEndPoint)listener.LocalEndpoint).Port;
         var receivedBytes = new TaskCompletionSource<byte[]>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -232,7 +232,7 @@ public sealed class SimulatorControllerTests
         const string body = "30323030";        // → bytes "0200"
         const string input = "0004" + body;    // pasted wire incl. prefix
 
-        var listener = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0);
+        using var listener = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0);
         listener.Start();
         var port = ((System.Net.IPEndPoint)listener.LocalEndpoint).Port;
 
@@ -309,7 +309,7 @@ public sealed class SimulatorControllerTests
     [Fact]
     public async Task InjectDirect_ReturnsHelpfulError_WhenResponseIsEmpty()
     {
-        var listener = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0);
+        using var listener = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0);
         listener.Start();
         var port = ((System.Net.IPEndPoint)listener.LocalEndpoint).Port;
 
@@ -366,7 +366,7 @@ public sealed class SimulatorControllerTests
     {
         const string requestBody = "02004000000000000000164111111111111111"; // ASCII wire, 38 chars.
         var requestBytes = System.Text.Encoding.ASCII.GetBytes(requestBody);
-        var listener = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0);
+        using var listener = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0);
         listener.Start();
         var port = ((System.Net.IPEndPoint)listener.LocalEndpoint).Port;
 
@@ -423,7 +423,7 @@ public sealed class SimulatorControllerTests
     public async Task InjectDirect_DoesNotHalfClose_WhenPrefixMode()
     {
         const string requestBody = "02004000000000000000164111111111111111";
-        var listener = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0);
+        using var listener = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0);
         listener.Start();
         var port = ((System.Net.IPEndPoint)listener.LocalEndpoint).Port;
 
@@ -484,7 +484,7 @@ public sealed class SimulatorControllerTests
     {
         // Minimal echo server: accept one connection, echo whatever framed bytes
         // come in, close. Tiny on purpose — we only care about the request side.
-        var listener = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0);
+        using var listener = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0);
         listener.Start();
         var port = ((System.Net.IPEndPoint)listener.LocalEndpoint).Port;
 
@@ -552,11 +552,11 @@ public sealed class SimulatorControllerTests
             // Extract bit 11 + bit 37 from the request fields each response carries.
             static string GetField(JsonElement body, int bit)
             {
-                var fields = body.GetProperty("requestFields");
-                foreach (var f in fields.EnumerateArray())
-                    if (f.GetProperty("bitNumber").GetInt32() == bit)
-                        return f.GetProperty("value").GetString()!;
-                return "";
+                var match = body.GetProperty("requestFields").EnumerateArray()
+                    .Where(f => f.GetProperty("bitNumber").GetInt32() == bit)
+                    .Select(f => f.GetProperty("value").GetString())
+                    .FirstOrDefault();
+                return match ?? "";
             }
 
             GetField(b1, 11).Should().NotBe(GetField(b2, 11), "STAN must refresh on each call");

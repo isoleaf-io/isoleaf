@@ -1,3 +1,4 @@
+using System.Text;
 using Iso8583Toolkit.Cards.Luhn;
 
 namespace Iso8583Toolkit.Cards.Brands;
@@ -101,14 +102,16 @@ public sealed class BinRangeRegistry
             prefix = randomPrefix.ToString().PadLeft(range.Start.Length, '0');
         }
 
-        // Fill remaining digits (minus 1 for check digit) with random digits
+        // Fill remaining digits (minus 1 for check digit) with random digits.
+        // StringBuilder avoids the O(n²) realloc cost CodeQL flags for `+=`
+        // in a loop — PanLength tops out at 19 today but the analyzer is
+        // right that the pattern doesn't scale.
         var remaining = range.PanLength - prefix.Length - 1;
-        var partialPan = prefix;
-
+        var sb = new StringBuilder(prefix, range.PanLength);
         for (var i = 0; i < remaining; i++)
-            partialPan += rng.Next(0, 10);
+            sb.Append(rng.Next(0, 10));
 
-        return LuhnAlgorithm.Calculate(partialPan);
+        return LuhnAlgorithm.Calculate(sb.ToString());
     }
 
     /// <summary>

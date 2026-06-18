@@ -20,11 +20,7 @@ public static class IsoWireHelper
     {
         if (string.IsNullOrEmpty(wire)) return false;
         if (wire.Length % 2 != 0) return false;
-        foreach (var c in wire)
-        {
-            if (!Uri.IsHexDigit(c)) return false;
-        }
-        return true;
+        return wire.All(Uri.IsHexDigit);
     }
 
     /// <summary>

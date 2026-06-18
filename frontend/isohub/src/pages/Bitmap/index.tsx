@@ -161,12 +161,6 @@ export default function BitmapPage() {
     navigate("/builder", { state: { fromBitmap: { bits } } });
   };
 
-  const hexValid =
-    hexInput.length === 0 ||
-    isCompleteBitmap(hexInput) ||
-    // Allow partial valid hex while user is still typing — no error border yet.
-    (hexInput.length < 32 && HEX_RE.test(hexInput));
-
   const showInvalidHint = hexInput.length > 0 && !isCompleteBitmap(hexInput) && !HEX_RE.test(hexInput);
 
   const half = Math.ceil(allFields.length / 2);

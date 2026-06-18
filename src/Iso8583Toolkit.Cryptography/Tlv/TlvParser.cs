@@ -33,8 +33,7 @@ public static class TlvParser
         for (var i = 0; i < trimmed.Length; i++)
         {
             var c = trimmed[i];
-            var isHex = (c >= '0' && c <= '9') || (c >= 'A' && c <= 'F') || (c >= 'a' && c <= 'f');
-            if (!isHex)
+            if (!char.IsAsciiHexDigit(c))
                 throw new ArgumentException($"Input contains non-hex character at position {i}: '{c}'.", nameof(hex));
         }
         if ((trimmed.Length & 1) != 0)

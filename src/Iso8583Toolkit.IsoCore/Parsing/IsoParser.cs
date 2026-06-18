@@ -60,10 +60,12 @@ public sealed class IsoParser
         //       chars[0..10) are all hex digits, chars[0..2) parses to 0x60..0x6F,
         //       and chars[10..14) form a valid MTI. Skip 10 chars.
         TpduInfo? tpdu = null;
-        if (raw.Length >= 14
+        var hasLongEnoughInput = raw.Length >= 14;
+        var startsWithHexTpdu = hasLongEnoughInput
             && IsHex(raw, 0, 10)
-            && IsHexInRange(raw, 0, 2, 0x60, 0x6F)
-            && MtiParser.IsValid(raw.Substring(10, 4)))
+            && IsHexInRange(raw, 0, 2, 0x60, 0x6F);
+        var followedByValidMti = startsWithHexTpdu && MtiParser.IsValid(raw.Substring(10, 4));
+        if (followedByValidMti)
         {
             // (B) Hex-encoded TPDU.
             var tpduBytes = Convert.FromHexString(raw.Substring(0, 10));
@@ -193,9 +195,7 @@ public sealed class IsoParser
         if (start + len > s.Length) return false;
         for (var i = start; i < start + len; i++)
         {
-            var c = s[i];
-            var isHex = (c >= '0' && c <= '9') || (c >= 'A' && c <= 'F') || (c >= 'a' && c <= 'f');
-            if (!isHex) return false;
+            if (!char.IsAsciiHexDigit(s[i])) return false;
         }
         return true;
     }
@@ -756,11 +756,7 @@ public sealed class IsoParser
         // Odd length OR any non-hex char → can't decode; preserve the
         // bytes as-is and let the consumer inspect the raw value.
         if ((slice.Length & 1) != 0) return Encoding.ASCII.GetBytes(slice);
-        foreach (var c in slice)
-        {
-            var isHex = (c >= '0' && c <= '9') || (c >= 'A' && c <= 'F') || (c >= 'a' && c <= 'f');
-            if (!isHex) return Encoding.ASCII.GetBytes(slice);
-        }
+        if (!slice.All(char.IsAsciiHexDigit)) return Encoding.ASCII.GetBytes(slice);
         return Convert.FromHexString(slice);
     }
 

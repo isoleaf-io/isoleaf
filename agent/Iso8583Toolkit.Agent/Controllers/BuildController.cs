@@ -68,15 +68,11 @@ public sealed class BuildController : ControllerBase
         }
         else if (request.IncludeTpdu == true)
         {
-            if (!string.IsNullOrWhiteSpace(request.TpduOverride))
-            {
-                overrideTpdu = request.TpduOverride;
-            }
-            else
-            {
-                // Build from workspace NIIs when available; fall back to auto.
-                overrideTpdu = TryBuildTpduFromWorkspace(workspace) ?? TpduBuilder.GenerateAuto();
-            }
+            // Literal override wins; otherwise build from workspace NIIs and
+            // fall back to auto-generation when they're not configured.
+            overrideTpdu = !string.IsNullOrWhiteSpace(request.TpduOverride)
+                ? request.TpduOverride
+                : TryBuildTpduFromWorkspace(workspace) ?? TpduBuilder.GenerateAuto();
         }
 
         var profile = new TransactionProfile

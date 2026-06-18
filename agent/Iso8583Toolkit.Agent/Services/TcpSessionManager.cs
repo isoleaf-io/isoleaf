@@ -132,7 +132,9 @@ public sealed class TcpSessionManager
         if (_sessions.TryRemove(sessionId, out var session))
         {
             await session.Cts.CancelAsync();
-            session.Listener?.Stop();
+            // Dispose calls Stop internally and releases the socket handle —
+            // covers the IDisposable contract CodeQL expects.
+            session.Listener?.Dispose();
             session.Client?.Dispose();
         }
 
@@ -156,6 +158,9 @@ public sealed class TcpSessionManager
         {
             while (!ct.IsCancellationRequested)
             {
+                // Cannot use `using var` here: the client's lifetime extends
+                // into the Task.Run lambda below, which owns disposal in its
+                // own finally block (line ~178). lgtm[cs/local-not-disposed]
                 TcpClient client;
                 try
                 {
@@ -181,7 +186,7 @@ public sealed class TcpSessionManager
         }
         finally
         {
-            active.Listener?.Stop();
+            active.Listener?.Dispose();
             session.Status = SessionStatus.Stopped;
             session.StoppedAt = DateTime.UtcNow;
         }
@@ -201,6 +206,7 @@ public sealed class TcpSessionManager
             // for the Injetor we reuse it to read replies from the remote socket.
             await handler.HandleRebatedorAsync(active.Client!, ct);
         }
+        // lgtm[cs/empty-catch-block] cancellation is the normal shutdown path
         catch (OperationCanceledException) { }
         catch (Exception ex) { _logger.LogError(ex, "Injetor read loop error"); }
         finally

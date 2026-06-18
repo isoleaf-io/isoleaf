@@ -189,14 +189,8 @@ public sealed class IsoParseService
         }
     }
 
-    private static bool IsAsciiPrintable(byte[] bytes)
-    {
-        foreach (var b in bytes)
-        {
-            if (b < 0x20 || b > 0x7E) return false;
-        }
-        return true;
-    }
+    private static bool IsAsciiPrintable(byte[] bytes) =>
+        bytes.All(b => b is >= 0x20 and <= 0x7E);
 
     /// <summary>
     /// Parses a hex bitmap. Accepts:
