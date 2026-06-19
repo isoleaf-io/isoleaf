@@ -76,6 +76,37 @@ public sealed class SchemaRegistry
         return _byNamespace.TryGetValue(xmlNamespace, out var schema) ? schema : null;
     }
 
+    /// <summary>
+    /// Returns every registered namespace that belongs to the same message
+    /// family as the supplied namespace (e.g. all <c>pacs.002.*</c> when given
+    /// <c>urn:iso:std:iso:20022:tech:xsd:pacs.002.001.08</c>). Used to build
+    /// a "supported versions" hint when the exact namespace is unknown.
+    /// Returns an empty list if the family itself is not registered.
+    /// </summary>
+    public IReadOnlyList<string> GetCompatibleVersions(string xmlNamespace)
+    {
+        if (string.IsNullOrEmpty(xmlNamespace)) return [];
+        var prefix = ExtractFamilyPrefix(xmlNamespace);
+        if (prefix == null) return [];
+
+        return _byNamespace.Keys
+            .Where(ns => ExtractFamilyPrefix(ns) == prefix)
+            .Order(StringComparer.Ordinal)
+            .ToList();
+    }
+
+    private static string? ExtractFamilyPrefix(string xmlNamespace)
+    {
+        // Format: urn:iso:std:iso:20022:tech:xsd:family.subId.variant.version
+        // We want "family.subId" (e.g. "pacs.002").
+        var idx = xmlNamespace.IndexOf(NamespacePrefix, StringComparison.Ordinal);
+        if (idx < 0) return null;
+        var msgPart = xmlNamespace[(idx + NamespacePrefix.Length)..];
+        var parts = msgPart.Split('.');
+        if (parts.Length < 2) return null;
+        return $"{parts[0]}.{parts[1]}";
+    }
+
     /// <summary>Detects the message type from the document's root namespace URI. Returns <c>null</c> if the namespace is not registered.</summary>
     public string? DetectMessageType(XmlDocument doc)
     {

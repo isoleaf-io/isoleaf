@@ -10,6 +10,9 @@ using Iso8583Toolkit.Agent.Services;
 using Iso8583Toolkit.Api.Services;
 using Iso8583Toolkit.Cards;
 using Iso8583Toolkit.Cryptography.Emv;
+using Iso8583Toolkit.Iso20022.Services;
+using Iso8583Toolkit.Iso20022.Services.Summary;
+using Iso8583Toolkit.Iso20022.Validation;
 using Iso8583Toolkit.IsoCore.Building.Smart;
 using Iso8583Toolkit.IsoCore.Validation;
 using Scalar.AspNetCore;
@@ -69,6 +72,12 @@ builder.Services.AddSingleton<SmartIsoBuilder>();
 // Domain services
 builder.Services.AddSingleton<CardGenerator>();
 builder.Services.AddSingleton<EmvCryptoService>();
+
+// ISO 20022 — SchemaRegistry is heavy (reads 32 embedded XSDs once); ParserService
+// and SummaryService are stateless after construction, so all three are singletons.
+builder.Services.AddSingleton<SchemaRegistry>();
+builder.Services.AddSingleton<SummaryService>();
+builder.Services.AddSingleton<Iso20022ParserService>();
 
 // ── OpenAPI ────────────────────────────────────────────────────────────
 // Single document ("v1") covers the whole API surface. Every action is

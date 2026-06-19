@@ -2,7 +2,7 @@
   "common": {
     "appName": "ISOLeaf",
     "tagline": "ISO 8583 Toolkit",
-    "version": "v1.3.2",
+    "version": "v1.4.0",
     "copy": "Copiar",
     "copied": "Copiado!",
     "clear": "Limpar",
@@ -529,6 +529,39 @@
       "unavailable": "Esta funcionalidade não está disponível na versão online",
       "reason": "Esta funcionalidade requer a IMK (Issuer Master Key). Por segurança, não aceitamos chaves criptográficas na versão online. Instale o ISOLeaf localmente.",
       "installCta": "→ Como instalar"
+    }
+  },
+  "iso20022": {
+    "parser": {
+      "title": "Parser ISO 20022",
+      "subtitle": "Cole uma mensagem XML ISO 20022 — o tipo da mensagem é detectado automaticamente pelo namespace.",
+      "inputLabel": "Mensagem XML",
+      "placeholder": "Cole seu XML ISO 20022 aqui...",
+      "loadSample": "Carregar exemplo (pacs.008)",
+      "resultTitle": "Árvore parseada",
+      "versionsSupported": "Versões suportadas: {{versions}}"
+    },
+    "summary": {
+      "notFound": "não encontrado",
+      "unknownHint": "Tipo de mensagem reconhecido, mas sem extrator semântico implementado. Consulte a árvore abaixo para inspecionar o conteúdo.",
+      "confidence": {
+        "full": "Completo",
+        "partial": "Parcial",
+        "unknown": "Não mapeado"
+      }
+    },
+    "entries": {
+      "count_one": "{{count}} lançamento",
+      "count_other": "{{count}} lançamentos",
+      "toggleHint": "clique para expandir",
+      "col": {
+        "date": "Data",
+        "amount": "Valor",
+        "direction": "D/C",
+        "status": "Status",
+        "endToEndId": "End-to-end ID",
+        "description": "Descrição"
+      }
     }
   }
 }
