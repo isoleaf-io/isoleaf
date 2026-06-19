@@ -73,6 +73,10 @@ public sealed class Iso20022ParserService
             XmlResolver = null,
             IgnoreWhitespace = true,
             IgnoreComments = true,
+            // Explicit no-op: this stage produces a typed tree only. Schema
+            // validation against the embedded XSDs is a separate concern that
+            // will live in a future Iso20022Validator service.
+            ValidationType = ValidationType.None,
         };
 
         XDocument doc;
@@ -107,9 +111,8 @@ public sealed class Iso20022ParserService
 
         // Attributes become leaf children prefixed with "@". Skip xmlns
         // declarations — they're noise in the tree view.
-        foreach (var attr in element.Attributes())
+        foreach (var attr in element.Attributes().Where(a => !a.IsNamespaceDeclaration))
         {
-            if (attr.IsNamespaceDeclaration) continue;
             children.Add(new Iso20022Node($"@{attr.Name.LocalName}", attr.Value, null, []));
         }
 
@@ -147,6 +150,7 @@ public sealed class Iso20022ParserService
             {
                 DtdProcessing = DtdProcessing.Prohibit,
                 XmlResolver = null,
+                ValidationType = ValidationType.None,
             };
             using var reader = XmlReader.Create(new StringReader(xmlContent), settings);
             while (reader.Read())
