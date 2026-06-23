@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Xml;
 using System.Xml.Schema;
 using Iso8583Toolkit.Iso20022.Exceptions;
@@ -122,12 +123,12 @@ public sealed class Iso20022ValidatorService
 
     private XmlSchema? ResolveSchema(string messageType)
     {
-        foreach (var info in _schemaRegistry.ListSupportedTypes())
-        {
-            if (string.Equals(info.MessageType, messageType, StringComparison.OrdinalIgnoreCase))
-                return _schemaRegistry.GetSchema(info.Namespace);
-        }
-        return null;
+        var match = _schemaRegistry
+            .ListSupportedTypes()
+            .Where(info => string.Equals(info.MessageType, messageType, StringComparison.OrdinalIgnoreCase))
+            .FirstOrDefault();
+
+        return match is null ? null : _schemaRegistry.GetSchema(match.Namespace);
     }
 
     private static string? ExtractRootNamespace(string xmlContent)
