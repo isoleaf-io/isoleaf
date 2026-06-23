@@ -55,3 +55,24 @@ export interface ParseResponse {
 
 export const parseIso20022 = (xmlContent: string) =>
   api.post<ParseResponse>("/iso20022/parse", { xmlContent }).then((r) => r.data);
+
+export interface ValidationErrorDto {
+  message: string;
+  severity: "error" | "warning";
+  lineNumber: number | null;
+  linePosition: number | null;
+  xpath: string | null;
+}
+
+export interface ValidateResponse {
+  messageType: string;
+  isValid: boolean;
+  errorCount: number;
+  warningCount: number;
+  errors: ValidationErrorDto[];
+}
+
+export const validateIso20022 = (xmlContent: string, messageType?: string) =>
+  api
+    .post<ValidateResponse>("/iso20022/validate", { xmlContent, messageType })
+    .then((r) => r.data);

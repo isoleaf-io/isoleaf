@@ -4,17 +4,29 @@
  * implemented, tested and ready to ship. Tests can mock this module via
  * `vi.doMock` when they need a flag to be on.
  */
-export const FEATURES = {
-  // ISO 20022 — Sprint 6
-  // Habilitar cada flag quando a feature estiver completa e pronta para produção
-  iso20022: true,            // módulo ISO 20022 visível no menu
-  iso20022Parser: true,      // 6.1 Parser XML ISO 20022 — released in v1.4.0
-  iso20022FieldRef: true,    // 6.2 Referência de campos — released in v1.4.0
-  iso20022Validator: false,  // 6.3 Validador de schema XSD
-  iso20022QrCode: false,     // 6.4 QR Code Pix
-  iso20022Builder: false,    // 6.5 Builder de mensagens
-  iso20022Txid: false,       // 6.6 TXID + Chaves DICT
-  iso20022MtMx: false,       // 6.7 MT → MX Comparador
-} as const;
 
-export type FeatureKey = keyof typeof FEATURES;
+// Vite injects `import.meta.env.DEV` as a compile-time constant: `true` for
+// the dev server (and Vitest, which runs in dev mode by default), `false`
+// for production builds. The entire ISO 20022 module is gated on this until
+// it ships — production users see no menu entry, no routes, no UI for it.
+const isDev = import.meta.env.DEV;
+
+// Type assertion via `satisfies` instead of `as const`: lets us combine
+// literal `false` values with the runtime-conditional `isDev` boolean
+// without TypeScript widening every entry to `boolean`.
+const FLAGS = {
+  // ISO 20022 — Sprint 6 (visível apenas em dev até o lançamento)
+  iso20022: isDev,            // módulo ISO 20022 visível no menu
+  iso20022Parser: isDev,      // 6.1 Parser XML ISO 20022
+  iso20022FieldRef: isDev,    // 6.2 Referência de campos
+  iso20022Validator: isDev,   // 6.3a Validador XSD
+  iso20022Comparator: isDev,  // 6.3b Comparador de versões
+  iso20022QrCode: false,      // 6.4 QR Code Pix
+  iso20022Builder: false,     // 6.5 Builder de mensagens
+  iso20022Txid: false,        // 6.6 TXID + Chaves DICT
+  iso20022MtMx: false,        // 6.7 MT → MX Comparador
+};
+
+export const FEATURES: Readonly<typeof FLAGS> = FLAGS;
+
+export type FeatureKey = keyof typeof FLAGS;

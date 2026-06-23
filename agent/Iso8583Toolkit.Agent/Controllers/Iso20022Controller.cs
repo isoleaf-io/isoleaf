@@ -12,7 +12,9 @@ namespace Iso8583Toolkit.Agent.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/iso20022")]
-public sealed class Iso20022Controller(Iso20022ParserService parserService) : ControllerBase
+public sealed class Iso20022Controller(
+    Iso20022ParserService parserService,
+    Iso20022ValidatorService validatorService) : ControllerBase
 {
     /// <summary>Parses an ISO 20022 XML message into a typed tree.</summary>
     /// <remarks>
@@ -93,6 +95,56 @@ public sealed class Iso20022Controller(Iso20022ParserService parserService) : Co
             // Well-formed XML but we can't make sense of it (missing root, etc.).
             // 422 communicates "we got it, we just can't process it".
             return UnprocessableEntity(Problem(ex.Message, StatusCodes.Status422UnprocessableEntity));
+        }
+    }
+
+    /// <summary>Validates an ISO 20022 XML against its embedded XSD.</summary>
+    /// <remarks>
+    /// Returns every schema violation found (does not throw on first error).
+    /// Each error carries the line/column from the underlying parser plus an
+    /// XPath resolved via XmlLineMapper, so the UI can pin errors to the
+    /// parsed tree.
+    /// </remarks>
+    [HttpPost("validate")]
+    [EndpointSummary("Validate ISO 20022 XML against its XSD")]
+    [ProducesResponseType<ValidateResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status422UnprocessableEntity)]
+    public IActionResult Validate([FromBody] ValidateRequest request)
+    {
+        if (request is null || string.IsNullOrWhiteSpace(request.XmlContent))
+            return BadRequest(Problem("XML content is required.", StatusCodes.Status400BadRequest));
+
+        try
+        {
+            var result = validatorService.Validate(request.XmlContent, request.MessageType);
+            var dtos = result.Issues.Select(i => new ValidationErrorDto(
+                Message: i.Message,
+                Severity: i.Severity,
+                LineNumber: i.LineNumber,
+                LinePosition: i.LinePosition,
+                XPath: i.XPath)).ToList();
+
+            return Ok(new ValidateResponse(
+                MessageType: result.MessageType,
+                IsValid: result.IsValid,
+                ErrorCount: result.ErrorCount,
+                WarningCount: result.WarningCount,
+                Errors: dtos));
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(Problem(ex.Message, StatusCodes.Status400BadRequest));
+        }
+        catch (IncompatibleVersionException ex)
+        {
+            return UnprocessableEntity(new
+            {
+                title = "Incompatible Version",
+                detail = ex.Message,
+                detectedNamespace = ex.DetectedNamespace,
+                compatibleVersions = ex.CompatibleVersions,
+            });
         }
     }
 

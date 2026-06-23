@@ -68,7 +68,9 @@ const sections: NavSection[] = [
     items: [
       { to: "/iso20022/parser",    labelKey: "common.nav.iso20022Parser",    icon: Code2,      feature: "iso20022Parser" },
       { to: "/iso20022/reference", labelKey: "common.nav.iso20022FieldRef",  icon: FileText,   feature: "iso20022FieldRef" },
-      { to: "/iso20022/validator", labelKey: "common.nav.iso20022Validator", icon: LayoutGrid, feature: "iso20022Validator" },
+      // Validator (6.3a) lives as a button inside the Parser page, not as a
+      // standalone route — no sidebar entry by design.
+      { to: "/iso20022/compare",   labelKey: "common.nav.iso20022Comparator", icon: LayoutGrid, feature: "iso20022Comparator" },
       { to: "/iso20022/qrcode",    labelKey: "common.nav.iso20022QrCode",    icon: LayoutGrid, feature: "iso20022QrCode" },
       { to: "/iso20022/builder",   labelKey: "common.nav.iso20022Builder",   icon: Zap,        feature: "iso20022Builder" },
       { to: "/iso20022/txid",      labelKey: "common.nav.iso20022Txid",      icon: CreditCard, feature: "iso20022Txid" },
