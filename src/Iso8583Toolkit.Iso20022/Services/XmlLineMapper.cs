@@ -64,9 +64,11 @@ public static class XmlLineMapper
                         if (reader.IsEmptyElement) stack.Pop();
                     }
                 }
-                else if (reader.NodeType == XmlNodeType.EndElement)
+                else if (reader.NodeType == XmlNodeType.EndElement
+                         && reader.LocalName != "Document"
+                         && stack.Count > 0)
                 {
-                    if (reader.LocalName != "Document" && stack.Count > 0) stack.Pop();
+                    stack.Pop();
                 }
             }
         }
