@@ -73,14 +73,16 @@ builder.Services.AddSingleton<SmartIsoBuilder>();
 builder.Services.AddSingleton<CardGenerator>();
 builder.Services.AddSingleton<EmvCryptoService>();
 
-// ISO 20022 — SchemaRegistry is heavy (reads 32 embedded XSDs once); ParserService
-// and SummaryService are stateless after construction, so all three are singletons.
-// ReferenceService runs XsdFieldExtractor over every XSD at startup and caches the
-// result; also singleton-by-design.
+// ISO 20022 — SchemaRegistry is heavy (reads 32 embedded XSDs once); ParserService,
+// ValidatorService, SummaryService and the VersionCompareService are stateless
+// after construction, so everything stays singleton. ReferenceService runs
+// XsdFieldExtractor over every XSD at startup and caches the result.
 builder.Services.AddSingleton<SchemaRegistry>();
 builder.Services.AddSingleton<SummaryService>();
 builder.Services.AddSingleton<Iso20022ParserService>();
+builder.Services.AddSingleton<Iso20022ValidatorService>();
 builder.Services.AddSingleton<ReferenceService>();
+builder.Services.AddSingleton<VersionCompareService>();
 
 // ── OpenAPI ────────────────────────────────────────────────────────────
 // Single document ("v1") covers the whole API surface. Every action is
@@ -157,10 +159,24 @@ builder.Services.AddSingleton<LocalSessionStore>(sp =>
 });
 builder.Services.AddSingleton<TcpSessionManager>();
 
+// Response caching for static-shaped endpoints (the ISO 20022 reference
+// catalogue, in particular — its data is derived from embedded XSDs and
+// doesn't change at runtime, so the response is safe to cache aggressively).
+builder.Services.AddResponseCaching();
+
 var app = builder.Build();
+
+// Warm-up of heavy singletons. The ReferenceService eagerly walks 32 XSDs
+// in its constructor (~1.5s cold); without this, the cost lands on the first
+// HTTP hit to /api/iso20022/reference/* — exactly the moment a user is
+// staring at a loading spinner in production. Resolving here moves the cost
+// to container boot, where there's nobody waiting.
+_ = app.Services.GetRequiredService<SchemaRegistry>();
+_ = app.Services.GetRequiredService<ReferenceService>();
 
 // ── Pipeline ───────────────────────────────────────────────────────────
 app.UseCors();
+app.UseResponseCaching();
 // Serve physical files from wwwroot: the React SPA assets (/assets/*, /favicon.svg,
 // /logo*.svg) and the static landing page assets (/landing/assets/*).
 // NOTE: no UseDefaultFiles() — "/" must NOT auto-resolve to the React index.html.

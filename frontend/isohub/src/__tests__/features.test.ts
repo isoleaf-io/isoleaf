@@ -1,14 +1,15 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 describe("FEATURES flags", () => {
-  it("ships Parser and Field Reference enabled (v1.4.0) with every other sub-flag off", async () => {
+  it("ships Parser, Field Reference, Validator and Comparator enabled with the rest gated", async () => {
     const { FEATURES } = await import("@/config/features");
-    // Module gate + Parser (6.1) and Field Reference (6.2) shipped in v1.4.0.
+    // Module gate + 6.1 + 6.2 (v1.4.0) + 6.3a + 6.3b (v1.4.2).
     expect(FEATURES.iso20022).toBe(true);
     expect(FEATURES.iso20022Parser).toBe(true);
     expect(FEATURES.iso20022FieldRef).toBe(true);
+    expect(FEATURES.iso20022Validator).toBe(true);
+    expect(FEATURES.iso20022Comparator).toBe(true);
     // Everything else stays gated until its own release.
-    expect(FEATURES.iso20022Validator).toBe(false);
     expect(FEATURES.iso20022QrCode).toBe(false);
     expect(FEATURES.iso20022Builder).toBe(false);
     expect(FEATURES.iso20022Txid).toBe(false);
@@ -24,10 +25,10 @@ describe("useFeature()", () => {
 
   it("returns the real flag value from the unmocked module", async () => {
     const { useFeature } = await import("@/hooks/useFeature");
-    // Parser + Field Reference shipped in v1.4.0; the rest stay off.
     expect(useFeature("iso20022Parser")).toBe(true);
     expect(useFeature("iso20022FieldRef")).toBe(true);
-    expect(useFeature("iso20022Validator")).toBe(false);
+    expect(useFeature("iso20022Validator")).toBe(true);
+    expect(useFeature("iso20022Comparator")).toBe(true);
     expect(useFeature("iso20022MtMx")).toBe(false);
   });
 

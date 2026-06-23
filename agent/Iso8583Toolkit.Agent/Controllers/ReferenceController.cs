@@ -17,7 +17,9 @@ namespace Iso8583Toolkit.Agent.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/iso20022/reference")]
-public sealed class ReferenceController(ReferenceService referenceService) : ControllerBase
+public sealed class ReferenceController(
+    ReferenceService referenceService,
+    VersionCompareService compareService) : ControllerBase
 {
     // Stateless generator; instantiating once per controller is fine, but a
     // static field would also work. Keeping it as instance state to mirror
@@ -26,12 +28,16 @@ public sealed class ReferenceController(ReferenceService referenceService) : Con
 
     [HttpGet]
     [EndpointSummary("List supported message types")]
+    // Catalogue is built from embedded XSDs — never changes within a run.
+    // Cache aggressively on the proxy/client to keep production snappy.
+    [ResponseCache(Duration = 3600)]
     [ProducesResponseType<MessageTypeListResponse>(StatusCodes.Status200OK)]
     public IActionResult GetMessageTypes()
         => Ok(new MessageTypeListResponse(referenceService.GetMessageTypes()));
 
     [HttpGet("{messageType}")]
     [EndpointSummary("Get the field tree for one message type")]
+    [ResponseCache(Duration = 3600, VaryByQueryKeys = ["messageType"])]
     [ProducesResponseType<MessageReferenceResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
     public IActionResult GetReference(string messageType)
@@ -71,6 +77,70 @@ public sealed class ReferenceController(ReferenceService referenceService) : Con
         var results = referenceService.Search(term);
         var dtos = results.Select(MapSearchResult).ToList();
         return Ok(new SearchResponse(term, dtos.Count, dtos));
+    }
+
+    [HttpGet("compare")]
+    [EndpointSummary("Diff two versions of the same ISO 20022 message family")]
+    [ProducesResponseType<CompareResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    public IActionResult Compare([FromQuery] string? from, [FromQuery] string? to)
+    {
+        if (string.IsNullOrWhiteSpace(from) || string.IsNullOrWhiteSpace(to))
+        {
+            return BadRequest(new ProblemDetails
+            {
+                Title = "Missing parameters",
+                Detail = "Both 'from' and 'to' query parameters are required.",
+                Status = StatusCodes.Status400BadRequest,
+            });
+        }
+
+        try
+        {
+            var result = compareService.Compare(from, to);
+            var dto = new CompareResponse(
+                FromVersion: result.FromVersion,
+                ToVersion: result.ToVersion,
+                Family: result.Family,
+                AddedCount: result.Added.Count,
+                RemovedCount: result.Removed.Count,
+                ChangedCount: result.Changed.Count,
+                Added: result.Added
+                    .Select(a => new AddedFieldDto(a.Name, a.XPath, a.TypeName, a.Cardinality, a.IsMandatory))
+                    .ToList(),
+                Removed: result.Removed
+                    .Select(r => new RemovedFieldDto(r.Name, r.XPath, r.TypeName, r.Cardinality))
+                    .ToList(),
+                Changed: result.Changed
+                    .Select(c => new ChangedFieldDto(
+                        c.Name,
+                        c.XPath,
+                        c.Changes.Select(ch => new FieldChangeDto(ch.PropertyName, ch.OldValue, ch.NewValue)).ToList()))
+                    .ToList());
+            return Ok(dto);
+        }
+        catch (ArgumentException ex)
+        {
+            // Cross-family or empty input — caller's mistake; 400 is right.
+            return BadRequest(new ProblemDetails
+            {
+                Title = "Invalid comparison",
+                Detail = ex.Message,
+                Status = StatusCodes.Status400BadRequest,
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            // Unknown message type — surfaced as 404 because the resource the
+            // user asked for (the reference for that version) doesn't exist.
+            return NotFound(new ProblemDetails
+            {
+                Title = "Message type not found",
+                Detail = ex.Message,
+                Status = StatusCodes.Status404NotFound,
+            });
+        }
     }
 
     [HttpGet("{messageType}/example/{*xpath}")]

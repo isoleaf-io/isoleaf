@@ -2,7 +2,7 @@
   "common": {
     "appName": "ISOLeaf",
     "tagline": "ISO 8583 Toolkit",
-    "version": "v1.4.1",
+    "version": "v1.4.2",
     "copy": "Copiar",
     "copied": "Copiado!",
     "clear": "Limpar",
@@ -48,6 +48,7 @@
       "iso20022Parser": "Parser",
       "iso20022FieldRef": "Referência de campos",
       "iso20022Validator": "Validador XSD",
+      "iso20022Comparator": "Comparador de versões",
       "iso20022QrCode": "QR Code Pix",
       "iso20022Builder": "Builder",
       "iso20022Txid": "TXID / Chaves DICT",

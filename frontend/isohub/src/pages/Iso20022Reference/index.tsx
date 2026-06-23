@@ -88,13 +88,19 @@ export default function Iso20022ReferencePage() {
 
   // Boot: fetch the supported-types list once. Default the selection so the
   // browse panel renders something on first paint instead of an empty card.
+  // `typesLoading` covers the cold-start window: in production the agent
+  // walks 32 XSDs on first request, which can take a few seconds — without
+  // a visible loading cue the page looks broken.
+  const [typesLoading, setTypesLoading] = useState(true);
   useEffect(() => {
+    setTypesLoading(true);
     listMessageTypes()
       .then((d) => {
         setMessageTypes(d.messageTypes);
         if (d.messageTypes.length > 0) setSelectedType(d.messageTypes[0]);
       })
-      .catch((e: Error) => setError(e.message));
+      .catch((e: Error) => setError(e.message))
+      .finally(() => setTypesLoading(false));
   }, []);
 
   // Refetch the tree whenever the user picks a new message type (browse mode).
@@ -212,6 +218,18 @@ export default function Iso20022ReferencePage() {
                     </span>
                   )}
                 </div>
+                {typesLoading && messageTypes.length === 0 ? (
+                  // Skeleton matched to the selector's height so the layout
+                  // doesn't jump when the catalogue finishes loading. The
+                  // text doubles as a "we're not stuck" affordance during
+                  // the cold-start window in production.
+                  <div
+                    className="flex items-center gap-2 bg-bg-input border border-[var(--border)] rounded-md px-3 py-1.5 animate-pulse text-sm text-text-tertiary"
+                    data-testid="iso20022-reference-types-loading"
+                  >
+                    {t("common.loading")}... carregando schemas
+                  </div>
+                ) : (
                 <MessageTypeSelector
                   messageTypes={messageTypes}
                   selectedType={selectedType}
@@ -225,6 +243,7 @@ export default function Iso20022ReferencePage() {
                     setHighlightedXPath(null);
                   }}
                 />
+                )}
               </div>
 
               {loading && (

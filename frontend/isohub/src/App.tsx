@@ -10,6 +10,7 @@ import DocsPage from "./pages/Docs";
 import ApiDocsPage from "./pages/Docs/ApiDocsPage";
 import Iso20022ParserPage from "./pages/Iso20022Parser";
 import Iso20022ReferencePage from "./pages/Iso20022Reference";
+import Iso20022ComparatorPage from "./pages/Iso20022Comparator";
 
 export default function App() {
   return (
@@ -23,6 +24,7 @@ export default function App() {
       <Route path="/simulator" element={<SimulatorPage />} />
       <Route path="/iso20022/parser" element={<Iso20022ParserPage />} />
       <Route path="/iso20022/reference" element={<Iso20022ReferencePage />} />
+      <Route path="/iso20022/compare" element={<Iso20022ComparatorPage />} />
       <Route path="/docs" element={<DocsPage />} />
       <Route path="/docs/api" element={<ApiDocsPage />} />
       <Route path="/workspace" element={<WorkspacePage />} />
