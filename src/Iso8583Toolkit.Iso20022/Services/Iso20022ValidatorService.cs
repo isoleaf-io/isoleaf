@@ -38,6 +38,13 @@ public sealed class Iso20022ValidatorService
         _schemaRegistry = schemaRegistry;
     }
 
+    /// <summary>
+    /// Validates ISO 20022 XML content against the resolved schema for the supplied
+    /// or detected message type and returns all collected validation issues.
+    /// </summary>
+    /// <param name="xmlContent">The ISO 20022 XML payload to validate.</param>
+    /// <param name="messageType">Optional message type override; when null, the type is auto-detected.</param>
+    /// <returns>A <see cref="ValidationResult"/> containing validity status and collected issues.</returns>
     /// <exception cref="ArgumentException">When the input is null/empty.</exception>
     /// <exception cref="IncompatibleVersionException">When the XML namespace doesn't match a registered schema.</exception>
     public ValidationResult Validate(string xmlContent, string? messageType = null)
