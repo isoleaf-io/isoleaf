@@ -67,7 +67,7 @@ const sections: NavSection[] = [
     feature: "iso20022",
     items: [
       { to: "/iso20022/parser",    labelKey: "common.nav.iso20022Parser",    icon: Code2,      feature: "iso20022Parser" },
-      { to: "/iso20022/fields",    labelKey: "common.nav.iso20022FieldRef",  icon: FileText,   feature: "iso20022FieldRef" },
+      { to: "/iso20022/reference", labelKey: "common.nav.iso20022FieldRef",  icon: FileText,   feature: "iso20022FieldRef" },
       { to: "/iso20022/validator", labelKey: "common.nav.iso20022Validator", icon: LayoutGrid, feature: "iso20022Validator" },
       { to: "/iso20022/qrcode",    labelKey: "common.nav.iso20022QrCode",    icon: LayoutGrid, feature: "iso20022QrCode" },
       { to: "/iso20022/builder",   labelKey: "common.nav.iso20022Builder",   icon: Zap,        feature: "iso20022Builder" },

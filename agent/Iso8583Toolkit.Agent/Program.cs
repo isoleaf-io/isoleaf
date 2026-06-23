@@ -75,9 +75,12 @@ builder.Services.AddSingleton<EmvCryptoService>();
 
 // ISO 20022 — SchemaRegistry is heavy (reads 32 embedded XSDs once); ParserService
 // and SummaryService are stateless after construction, so all three are singletons.
+// ReferenceService runs XsdFieldExtractor over every XSD at startup and caches the
+// result; also singleton-by-design.
 builder.Services.AddSingleton<SchemaRegistry>();
 builder.Services.AddSingleton<SummaryService>();
 builder.Services.AddSingleton<Iso20022ParserService>();
+builder.Services.AddSingleton<ReferenceService>();
 
 // ── OpenAPI ────────────────────────────────────────────────────────────
 // Single document ("v1") covers the whole API surface. Every action is

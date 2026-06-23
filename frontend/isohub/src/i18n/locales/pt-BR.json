@@ -2,12 +2,13 @@
   "common": {
     "appName": "ISOLeaf",
     "tagline": "ISO 8583 Toolkit",
-    "version": "v1.4.0",
+    "version": "v1.4.1",
     "copy": "Copiar",
     "copied": "Copiado!",
     "clear": "Limpar",
     "export": "Exportar JSON",
     "parse": "Parsear",
+    "search": "Buscar",
     "build": "Construir",
     "generate": "Gerar",
     "save": "Salvar",
@@ -561,6 +562,63 @@
         "status": "Status",
         "endToEndId": "End-to-end ID",
         "description": "Descrição"
+      }
+    },
+    "reference": {
+      "title": "Referência de Campos ISO 20022",
+      "subtitle": "Explore os campos de cada mensagem ISO 20022 ou busque um campo específico entre todos os tipos suportados.",
+      "messageType": "Tipo de mensagem",
+      "byMessage": "Por mensagem",
+      "fieldSearch": "Busca de campos",
+      "totalFields_one": "{{count}} campo",
+      "totalFields_other": "{{count}} campos",
+      "consistent": "Consistente",
+      "variesByType": "Varia por tipo",
+      "differences": "Diferenças detectadas",
+      "noResults": "Nenhum campo encontrado.",
+      "searchPlaceholder": "Ex: MsgId, EndToEndId, Ccy...",
+      "results_one": "{{count}} resultado para \"{{term}}\"",
+      "results_other": "{{count}} resultados para \"{{term}}\"",
+      "messages_one": "{{count}} mensagem",
+      "messages_other": "{{count}} mensagens",
+      "col": {
+        "messageType": "Tipo de mensagem",
+        "xpath": "XPath",
+        "cardinality": "Cardinalidade",
+        "type": "Tipo"
+      },
+      "detail": {
+        "tabIso": "Padrão ISO",
+        "tabXml": "Exemplo XML",
+        "tabUsedIn": "Usado em",
+        "iso": {
+          "type": "Tipo",
+          "length": "Tamanho",
+          "lengthExact_one": "{{count}} caractere",
+          "lengthExact_other": "{{count}} caracteres",
+          "lengthRange": "{{min}}..{{max}} caracteres",
+          "mandatory": "Obrigatoriedade",
+          "mandatoryYes": "Mandatório",
+          "mandatoryNo": "Opcional",
+          "acceptedPattern": "Padrão aceito",
+          "enumeration": "Enumeração: {{values}}",
+          "noRestriction": "Alfanumérico, sem restrição de charset pelo padrão",
+          "cardinality": "Cardinalidade",
+          "cardOneOne": "exatamente uma ocorrência",
+          "cardZeroOne": "zero ou uma ocorrência",
+          "cardRepeats": "pode repetir",
+          "description": "Descrição",
+          "xpath": "XPath"
+        },
+        "xml": {
+          "disclaimer": "XML mínimo gerado dos XSDs embarcados. Apenas campos obrigatórios incluídos; valores são placeholders."
+        },
+        "usedIn": {
+          "consistent": "Propriedades consistentes em todos os tipos",
+          "inconsistent": "Propriedades variam entre tipos",
+          "current": "atual",
+          "diffsHeader": "Diferenças detectadas — implemente tratamento específico por tipo ao parsear este campo:"
+        }
       }
     }
   }
