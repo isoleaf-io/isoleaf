@@ -2,12 +2,13 @@
   "common": {
     "appName": "ISOLeaf",
     "tagline": "ISO 8583 Toolkit",
-    "version": "v1.4.0",
+    "version": "v1.4.1",
     "copy": "Copy",
     "copied": "Copied!",
     "clear": "Clear",
     "export": "Export JSON",
     "parse": "Parse",
+    "search": "Search",
     "build": "Build",
     "generate": "Generate",
     "save": "Save",
@@ -561,6 +562,63 @@
         "status": "Status",
         "endToEndId": "End-to-end ID",
         "description": "Description"
+      }
+    },
+    "reference": {
+      "title": "ISO 20022 Field Reference",
+      "subtitle": "Explore the fields of every supported ISO 20022 message, or search for a specific field across all types.",
+      "messageType": "Message type",
+      "byMessage": "By message",
+      "fieldSearch": "Field search",
+      "totalFields_one": "{{count}} field",
+      "totalFields_other": "{{count}} fields",
+      "consistent": "Consistent",
+      "variesByType": "Varies by type",
+      "differences": "Differences detected",
+      "noResults": "No fields found.",
+      "searchPlaceholder": "E.g.: MsgId, EndToEndId, Ccy...",
+      "results_one": "{{count}} result for \"{{term}}\"",
+      "results_other": "{{count}} results for \"{{term}}\"",
+      "messages_one": "{{count}} message",
+      "messages_other": "{{count}} messages",
+      "col": {
+        "messageType": "Message type",
+        "xpath": "XPath",
+        "cardinality": "Cardinality",
+        "type": "Type"
+      },
+      "detail": {
+        "tabIso": "ISO standard",
+        "tabXml": "XML example",
+        "tabUsedIn": "Used in",
+        "iso": {
+          "type": "Type",
+          "length": "Length",
+          "lengthExact_one": "{{count}} character",
+          "lengthExact_other": "{{count}} characters",
+          "lengthRange": "{{min}}..{{max}} characters",
+          "mandatory": "Mandatory",
+          "mandatoryYes": "Mandatory",
+          "mandatoryNo": "Optional",
+          "acceptedPattern": "Accepted pattern",
+          "enumeration": "Enumeration: {{values}}",
+          "noRestriction": "Alphanumeric, no charset restriction in the standard",
+          "cardinality": "Cardinality",
+          "cardOneOne": "exactly one occurrence",
+          "cardZeroOne": "zero or one occurrence",
+          "cardRepeats": "may repeat",
+          "description": "Description",
+          "xpath": "XPath"
+        },
+        "xml": {
+          "disclaimer": "Minimal XML generated from the embedded XSDs. Only mandatory fields are included; values are placeholders."
+        },
+        "usedIn": {
+          "consistent": "Consistent properties across every type",
+          "inconsistent": "Properties vary between types",
+          "current": "current",
+          "diffsHeader": "Differences detected — implement type-specific handling when parsing this field:"
+        }
       }
     }
   }
