@@ -44,6 +44,9 @@ public sealed class VersionCompareService
         _referenceService = referenceService;
     }
 
+    /// <summary>
+    /// Compares two ISO 20022 message types from the same family and returns XPath-based field differences.
+    /// </summary>
     /// <exception cref="ArgumentException">When the two messageTypes belong to different families.</exception>
     /// <exception cref="InvalidOperationException">When either messageType isn't loaded in the registry.</exception>
     public CompareResult Compare(string fromMessageType, string toMessageType)
