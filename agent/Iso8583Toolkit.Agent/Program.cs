@@ -281,6 +281,26 @@ app.MapGet("/", () => ServePage("Landing page", landingCandidates));
 app.MapGet("/app", () => ServePage("App shell", spaCandidates));
 app.MapGet("/app/{**path}", () => ServePage("App shell", spaCandidates));
 
+
+app.MapFallback(context =>
+{
+    var path = context.Request.Path.Value ?? string.Empty;
+
+    // Deixa passar: API, hubs, arquivos estáticos, openapi
+    if (path.StartsWith("/api", StringComparison.OrdinalIgnoreCase) ||
+        path.StartsWith("/hubs", StringComparison.OrdinalIgnoreCase) ||
+        path.StartsWith("/openapi", StringComparison.OrdinalIgnoreCase) ||
+        path.Contains('.')) // arquivos estáticos (ex: .js, .css, .svg)
+    {
+        context.Response.StatusCode = 404;
+        return Task.CompletedTask;
+    }
+
+    // Tudo mais → SPA shell
+    var result = ServePage("App shell", spaCandidates);
+    return result.ExecuteAsync(context);
+});
+
 // ── SEO: sitemap.xml + robots.txt (served from the landing folder) ───────
 app.MapGet("/sitemap.xml", () =>
 {
