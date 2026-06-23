@@ -238,7 +238,7 @@ public sealed class XsdFieldExtractor
     private static string? GetDocumentation(XmlSchemaElement element)
     {
         var annotation = element.Annotation
-            ?? (element.SchemaType as XmlSchemaAnnotated)?.Annotation;
+            ?? element.SchemaType?.Annotation;
         if (annotation == null) return null;
 
         foreach (XmlSchemaObject item in annotation.Items)
