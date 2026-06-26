@@ -54,4 +54,14 @@ public record FieldDefinition
 
     /// <summary>Direct children of this field. Empty for simple types.</summary>
     public IReadOnlyList<FieldDefinition> Children { get; init; } = [];
+
+    /// <summary>
+    /// True when this field is a branch of an <c>xs:choice</c> in its
+    /// parent's content model. The Builder uses this to pick exactly one
+    /// branch when rendering the XML skeleton — otherwise the output
+    /// contains both <c>&lt;IBAN&gt;</c> and <c>&lt;Othr&gt;</c> for an
+    /// account, both <c>&lt;OrgId&gt;</c> and <c>&lt;PrvtId&gt;</c> for a
+    /// party identifier, etc.
+    /// </summary>
+    public bool IsChoice { get; init; }
 }

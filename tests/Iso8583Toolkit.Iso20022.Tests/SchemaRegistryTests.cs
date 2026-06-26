@@ -21,7 +21,7 @@ public class SchemaRegistryTests
         """;
 
     [Fact]
-    public void SchemaRegistry_LoadsAll32Schemas_WithoutErrors()
+    public void SchemaRegistry_LoadsAllSchemas_WithoutErrors()
     {
         // Constructor performs every XSD read; if any fails it throws.
         var act = () => new SchemaRegistry();
@@ -29,10 +29,12 @@ public class SchemaRegistryTests
     }
 
     [Fact]
-    public void SchemaRegistry_ListSupportedTypes_Returns32Types()
+    public void SchemaRegistry_ListSupportedTypes_Returns36Types()
     {
+        // Updated after camt.056 (4 variants) and camt.060 (2 variants)
+        // joined the embedded set: 32 → 36.
         var registry = new SchemaRegistry();
-        registry.ListSupportedTypes().Should().HaveCount(32);
+        registry.ListSupportedTypes().Should().HaveCount(36);
     }
 
     [Fact]
@@ -74,7 +76,8 @@ public class SchemaRegistryTests
 
         byFamily.Should().BeEquivalentTo(new Dictionary<string, int>
         {
-            ["camt"] = 11,
+            // camt counts: 052 ×3 + 053 ×3 + 054 ×3 + 056 ×4 + 060 ×2 = 15.
+            ["camt"] = 15,
             ["head"] = 1,
             ["pacs"] = 16,
             ["pain"] = 4,

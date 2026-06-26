@@ -49,6 +49,7 @@
       "iso20022FieldRef": "Field reference",
       "iso20022Validator": "XSD validator",
       "iso20022Comparator": "Version comparator",
+      "iso20022Builder": "Builder",
       "iso20022QrCode": "Pix QR code",
       "iso20022Builder": "Builder",
       "iso20022Txid": "TXID / DICT keys",

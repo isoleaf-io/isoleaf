@@ -17,9 +17,15 @@ public sealed class SummaryService
         var all = new List<ISummaryExtractor>
         {
             new Pacs008Extractor(),
-            new Pain001Extractor(),
+            new Pacs009Extractor(),
+            new Pacs004Extractor(),
+            new Pacs028Extractor(),
             new Pacs002Extractor(),
+            new Pain001Extractor(),
+            new Pain002Extractor(),
             new Camt053Extractor(),
+            new Camt054Extractor(),
+            new Camt056Extractor(),
         };
 
         _extractors = new Dictionary<string, ISummaryExtractor>(StringComparer.OrdinalIgnoreCase);

@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
+import { useLocation } from "react-router";
 import { useTranslation } from "react-i18next";
 import { useMutation } from "@tanstack/react-query";
 import { AxiosError } from "axios";
-import { CheckCircle2, GitCompare, RotateCcw, ShieldCheck, XCircle } from "lucide-react";
+import { CheckCircle2, CornerUpLeft, GitCompare, RotateCcw, ShieldCheck, XCircle } from "lucide-react";
 import { MonoText } from "@/components/ui/MonoText";
 import { AppShell } from "@/components/layout/AppShell";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
@@ -12,15 +13,29 @@ import { ErrorBanner } from "@/components/shared/ErrorBanner";
 import { ParsedTree } from "@/components/Iso20022/ParsedTree";
 import { MessageSummaryCard } from "@/components/Iso20022/MessageSummaryCard";
 import { VersionComparatorModal } from "@/components/Iso20022/VersionComparatorModal";
+import { GenerateReturnModal } from "@/components/Iso20022/GenerateReturnModal";
 import { FEATURES } from "@/config/features";
 import {
+  generateIso20022Return,
   parseIso20022,
   validateIso20022,
+  type GenerateReturnResponse,
   type IncompatibleVersionError,
   type ParsedNode,
   type ParseResponse,
   type ValidateResponse,
 } from "@/api/iso20022";
+
+const RETURN_SUPPORTED_PREFIXES = ["pacs.008", "pacs.009", "pacs.004", "pain.001"];
+
+function formatReturnError(err: unknown): string | null {
+  if (!err) return null;
+  if (err instanceof AxiosError) {
+    const detail = (err.response?.data as { detail?: string } | undefined)?.detail;
+    if (typeof detail === "string" && detail.length > 0) return detail;
+  }
+  return "Erro ao gerar return";
+}
 import { listMessageTypes } from "@/api/iso20022Reference";
 
 type Translator = (key: string, options?: Record<string, unknown>) => string;
@@ -149,7 +164,14 @@ function formatError(err: unknown, t: Translator): string | undefined {
 
 export default function Iso20022ParserPage() {
   const { t } = useTranslation();
-  const [xml, setXml] = useState("");
+  const location = useLocation();
+  // Honour router state seeded by other pages (notably the Builder's "Abrir
+  // no Parser" button). Apply only once on first mount; subsequent typing
+  // in the textarea is the user's own state.
+  const [xml, setXml] = useState(() => {
+    const seeded = (location.state as { xml?: string } | null)?.xml;
+    return typeof seeded === "string" ? seeded : "";
+  });
   const [result, setResult] = useState<ParseResponse | null>(null);
 
   const mutation = useMutation({
@@ -170,6 +192,23 @@ export default function Iso20022ParserPage() {
   // enabled, lazily, so the modal can hydrate its dropdowns instantly.
   const [comparatorOpen, setComparatorOpen] = useState(false);
   const [messageTypes, setMessageTypes] = useState<string[]>([]);
+
+  // Return-generation modal — only relevant for source families we can map
+  // to a response (pacs.008/009/004, pain.001).
+  const [returnResult, setReturnResult] = useState<GenerateReturnResponse | null>(null);
+  const [returnModalOpen, setReturnModalOpen] = useState(false);
+  const returnMutation = useMutation({
+    mutationFn: (vars: { xmlContent: string; targetMessageType?: string }) =>
+      generateIso20022Return(vars.xmlContent, vars.targetMessageType),
+    onSuccess: (data) => {
+      setReturnResult(data);
+      setReturnModalOpen(true);
+    },
+  });
+  const returnError = formatReturnError(returnMutation.error);
+  const supportsReturn =
+    result != null &&
+    RETURN_SUPPORTED_PREFIXES.some((p) => result.messageType.startsWith(p));
   useEffect(() => {
     if (!FEATURES.iso20022Comparator) return;
     listMessageTypes()
@@ -235,11 +274,23 @@ export default function Iso20022ParserPage() {
                   <GitCompare size={13} /> Comparar versão
                 </Button>
               )}
+              {supportsReturn && (
+                <Button
+                  variant="secondary"
+                  onClick={() => returnMutation.mutate({ xmlContent: xml })}
+                  disabled={returnMutation.isPending}
+                  data-testid="iso20022-return-button"
+                >
+                  <CornerUpLeft size={13} />{" "}
+                  {returnMutation.isPending ? t("common.loading") : "Gerar Return"}
+                </Button>
+              )}
               <Button variant="secondary" onClick={handleClear} disabled={!xml && !result}>
                 <RotateCcw size={13} /> {t("common.clear")}
               </Button>
             </div>
             {error && <ErrorBanner message={error} />}
+            {returnError && <ErrorBanner message={returnError} />}
           </CardBody>
         </Card>
 
@@ -273,6 +324,20 @@ export default function Iso20022ParserPage() {
           messageTypes={messageTypes}
           lockedFromVersion={result?.messageType}
           currentXPaths={result ? extractXPaths(result.root) : []}
+        />
+      )}
+
+      {returnResult && (
+        <GenerateReturnModal
+          isOpen={returnModalOpen}
+          onClose={() => setReturnModalOpen(false)}
+          xml={returnResult.xml}
+          returnMessageType={returnResult.returnMessageType}
+          availableReturnTypes={returnResult.availableReturnTypes}
+          onSwitchType={(type) =>
+            returnMutation.mutate({ xmlContent: xml, targetMessageType: type })
+          }
+          switching={returnMutation.isPending}
         />
       )}
     </AppShell>

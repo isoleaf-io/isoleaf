@@ -19,21 +19,31 @@ public sealed class Pacs008Extractor : SummaryExtractorBase
 
         return
         [
+            // Required for confidence — pacs.008 isn't meaningful without
+            // amount, payer, payee, both banks and the end-to-end id.
             new("Valor",              amtEl?.Value),
             new("Moeda",              amtEl?.Attribute("Ccy")?.Value),
-            new("Data de liquidação", Get(hdr, "IntrBkSttlmDt")
-                                   ?? Get(tx,  "IntrBkSttlmDt")),
             new("Devedor",            Get(tx, "Dbtr", "Nm")),
-            new("IBAN/conta devedor", Get(tx, "DbtrAcct", "Id", "IBAN")
-                                   ?? Get(tx, "DbtrAcct", "Id", "Othr", "Id")),
             new("BIC banco devedor",  Get(tx, "DbtrAgt", "FinInstnId", "BICFI")),
             new("Credor",             Get(tx, "Cdtr", "Nm")),
-            new("IBAN/conta credor",  Get(tx, "CdtrAcct", "Id", "IBAN")
-                                   ?? Get(tx, "CdtrAcct", "Id", "Othr", "Id")),
             new("BIC banco credor",   Get(tx, "CdtrAgt", "FinInstnId", "BICFI")),
             new("End-to-end ID",      Get(tx, "PmtId", "EndToEndId")),
-            new("Transaction ID",     Get(tx, "PmtId", "TxId")),
-            new("Instruction ID",     Get(tx, "PmtId", "InstrId")),
+
+            // Optional — surfaced when present but absence shouldn't drop
+            // the badge to "partial" on an otherwise-valid message.
+            new("Data de liquidação", Get(hdr, "IntrBkSttlmDt")
+                                   ?? Get(tx,  "IntrBkSttlmDt"),
+                                      IsRequiredForConfidence: false),
+            new("IBAN/conta devedor", Get(tx, "DbtrAcct", "Id", "IBAN")
+                                   ?? Get(tx, "DbtrAcct", "Id", "Othr", "Id"),
+                                      IsRequiredForConfidence: false),
+            new("IBAN/conta credor",  Get(tx, "CdtrAcct", "Id", "IBAN")
+                                   ?? Get(tx, "CdtrAcct", "Id", "Othr", "Id"),
+                                      IsRequiredForConfidence: false),
+            new("Transaction ID",     Get(tx, "PmtId", "TxId"),
+                                      IsRequiredForConfidence: false),
+            new("Instruction ID",     Get(tx, "PmtId", "InstrId"),
+                                      IsRequiredForConfidence: false),
         ];
     }
 }

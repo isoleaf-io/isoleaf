@@ -76,3 +76,21 @@ export const validateIso20022 = (xmlContent: string, messageType?: string) =>
   api
     .post<ValidateResponse>("/iso20022/validate", { xmlContent, messageType })
     .then((r) => r.data);
+
+export interface GenerateReturnResponse {
+  originalMessageType: string;
+  returnMessageType: string;
+  xml: string;
+  availableReturnTypes: string[];
+}
+
+export const generateIso20022Return = (
+  xmlContent: string,
+  targetMessageType?: string,
+) =>
+  api
+    .post<GenerateReturnResponse>("/iso20022/generate-return", {
+      xmlContent,
+      targetMessageType: targetMessageType ?? null,
+    })
+    .then((r) => r.data);

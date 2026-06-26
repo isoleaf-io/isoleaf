@@ -15,24 +15,32 @@ public sealed class XmlExampleGenerator
     private static readonly Dictionary<string, string> TypePlaceholders =
         new(StringComparer.OrdinalIgnoreCase)
         {
-            ["Max35Text"]                    = "PLACEHOLDER",
-            ["Max140Text"]                   = "PLACEHOLDER",
-            ["Max128Text"]                   = "PLACEHOLDER",
+            ["Max35Text"]                    = "MSG-20240115-001",
+            ["Max140Text"]                   = "Sample text description",
+            ["Max70Text"]                    = "Sample text",
+            ["Max128Text"]                   = "Sample text description for field",
             ["Max15NumericText"]             = "1",
             ["Max5NumericText"]              = "1",
             ["ISODate"]                      = "2024-01-15",
             ["ISODateTime"]                  = "2024-01-15T10:30:00",
-            ["ActiveCurrencyCode"]           = "BRL",
-            ["ActiveOrHistoricCurrencyCode"] = "BRL",
-            ["DecimalNumber"]                = "0.00",
-            ["BaseOneRate"]                  = "1.0",
+            ["ActiveCurrencyCode"]           = "USD",
+            ["ActiveOrHistoricCurrencyCode"] = "USD",
+            ["DecimalNumber"]                = "1000.00",
+            ["BaseOneRate"]                  = "1.0000",
             ["TrueFalseIndicator"]           = "true",
             ["YesNoIndicator"]               = "true",
-            ["CountryCode"]                  = "BR",
-            ["BICFIDec2014Identifier"]       = "BRASBRRJXXX",
-            ["IBAN2007Identifier"]           = "BR1800360305000010009795493P1",
+            ["CountryCode"]                  = "US",
+            ["BICFIDec2014Identifier"]       = "AAAAUSXX",
+            ["IBAN2007Identifier"]           = "GB29NWBK60161331926819",
             ["UUIDv4Identifier"]             = "550e8400-e29b-41d4-a716-446655440000",
             ["LEIIdentifier"]                = "529900T8BM49AURSDO55",
+            ["ExternalServiceLevel1Code"]    = "SEPA",
+            ["ExternalLocalInstrument1Code"] = "INST",
+            ["Priority2Code"]                = "NORM",
+            ["SettlementMethod1Code"]        = "CLRG",
+            ["ChargeBearerType1Code"]        = "SHAR",
+            ["ExternalPaymentTransactionStatus1Code"] = "ACCP",
+            ["ExternalReturnReason1Code"]    = "AC04",
         };
 
     /// <summary>
@@ -40,18 +48,53 @@ public sealed class XmlExampleGenerator
     /// mandatory fields. Use this when no specific field needs to be highlighted.
     /// </summary>
     public string GenerateMinimal(string xmlNamespace, IReadOnlyList<FieldDefinition> fields)
+        => GenerateMinimal(xmlNamespace, fields, null, null);
+
+    /// <summary>
+    /// Same as <see cref="GenerateMinimal(string,IReadOnlyList{FieldDefinition})"/>
+    /// but lets the caller pin specific values by XPath (or by attribute path
+    /// such as <c>FIToFICstmrCdtTrf/CdtTrfTxInf/IntrBkSttlmAmt/@Ccy</c>) —
+    /// used by the Builder so ecosystem-specific defaults (Pix → BRL, SEPA →
+    /// EUR, etc.) substitute the generic placeholders.
+    /// </summary>
+    public string GenerateMinimal(
+        string xmlNamespace,
+        IReadOnlyList<FieldDefinition> fields,
+        IReadOnlyDictionary<string, string>? overrides)
+        => GenerateMinimal(xmlNamespace, fields, overrides, null);
+
+    /// <summary>
+    /// Adds an "include optional" set: every XPath in that set is treated as
+    /// mandatory for the purpose of emission, so the Builder's "+ Adicionar
+    /// campo opcional" UI can surface those fields in the XML preview
+    /// without the user having to type the parent path by hand.
+    /// </summary>
+    public string GenerateMinimal(
+        string xmlNamespace,
+        IReadOnlyList<FieldDefinition> fields,
+        IReadOnlyDictionary<string, string>? overrides,
+        ISet<string>? includeOptionalXPaths)
     {
         ArgumentNullException.ThrowIfNull(xmlNamespace);
         ArgumentNullException.ThrowIfNull(fields);
 
+        var include = includeOptionalXPaths ?? (ISet<string>)new HashSet<string>(StringComparer.Ordinal);
         var sb = new StringBuilder();
         sb.AppendLine("""<?xml version="1.0" encoding="UTF-8"?>""");
         sb.AppendLine($"""<Document xmlns="{xmlNamespace}">""");
-        foreach (var field in fields.Where(f => f.IsMandatory))
-            AppendField(sb, field, indent: 1);
+        foreach (var field in fields.Where(f => f.IsMandatory || include.Contains(f.XPath)))
+            AppendField(sb, field, indent: 1, overrides, include);
         sb.Append("</Document>");
         return sb.ToString();
     }
+
+    /// <summary>
+    /// Public so the Builder service can reuse the same placeholder logic
+    /// when populating the per-field default in the editor table — keeps
+    /// the form values in sync with what would land in the generated XML.
+    /// </summary>
+    public string DefaultValueFor(FieldDefinition field)
+        => GetPlaceholder(field);
 
     /// <summary>
     /// Generates a minimal XML document and wraps the field at
@@ -82,31 +125,110 @@ public sealed class XmlExampleGenerator
         return sb.ToString();
     }
 
+    /// <summary>
+    /// CurrencyAndAmount-family types are XSD-complex (simpleContent +
+    /// attribute) but semantically leaves — render them as &lt;X Ccy="…"&gt;0.00&lt;/X&gt;
+    /// rather than the empty &lt;X/&gt; the generic complex-walker would emit.
+    /// Exposed so <see cref="Iso8583Toolkit.Iso20022.Builder.BuilderService"/>
+    /// can apply the same rule when projecting the editor tree — otherwise an
+    /// IntrBkSttlmAmt shows up as an empty section in the UI even though the
+    /// XML treats it as a leaf.
+    /// </summary>
+    public static bool IsLeafLikeComplex(FieldDefinition field) =>
+        field.TypeName.Contains("CurrencyAndAmount", StringComparison.OrdinalIgnoreCase);
+
     // ---- Internal walkers ---------------------------------------------------
-    private void AppendField(StringBuilder sb, FieldDefinition field, int indent)
+    private void AppendField(
+        StringBuilder sb,
+        FieldDefinition field,
+        int indent,
+        IReadOnlyDictionary<string, string>? overrides = null,
+        ISet<string>? includeOptional = null)
     {
         var pad = new string(' ', indent * 2);
+        var include = includeOptional ?? (ISet<string>)new HashSet<string>(StringComparer.Ordinal);
 
-        if (!field.IsComplex)
+        if (!field.IsComplex || IsLeafLikeComplex(field))
         {
-            var value = GetPlaceholder(field);
-            var attrs = GetAttributes(field);
+            var value = TryOverride(overrides, field.XPath) ?? GetPlaceholder(field);
+            var attrs = GetAttributes(field, overrides);
             sb.AppendLine($"{pad}<{field.Name}{attrs}>{value}</{field.Name}>");
             return;
         }
 
-        var mandatoryChildren = field.Children.Where(c => c.IsMandatory).ToList();
-        if (mandatoryChildren.Count == 0)
+        var includedChildren = SelectIncludedChildren(field, overrides, include);
+        if (includedChildren.Count == 0)
         {
             sb.AppendLine($"{pad}<{field.Name}/>");
             return;
         }
 
         sb.AppendLine($"{pad}<{field.Name}>");
-        foreach (var child in mandatoryChildren)
-            AppendField(sb, child, indent + 1);
+        foreach (var child in includedChildren)
+            AppendField(sb, child, indent + 1, overrides, include);
         sb.AppendLine($"{pad}</{field.Name}>");
     }
+
+    /// <summary>
+    /// Picks which children of a complex node to emit. The base rule is
+    /// "mandatory OR explicitly included", but xs:choice arms need
+    /// special handling: a parent with choice branches must emit AT MOST
+    /// ONE of them. Preference order for the chosen arm is
+    /// (1) an arm with a scenario override, (2) an arm with a descendant
+    /// in the include set, (3) the first arm declared.
+    /// </summary>
+    private static List<FieldDefinition> SelectIncludedChildren(
+        FieldDefinition field,
+        IReadOnlyDictionary<string, string>? overrides,
+        ISet<string> include)
+    {
+        var choiceChildren = field.Children.Where(c => c.IsChoice).ToList();
+        var nonChoiceChildren = field.Children
+            .Where(c => !c.IsChoice && (c.IsMandatory || include.Contains(c.XPath)))
+            .ToList();
+
+        if (choiceChildren.Count == 0) return nonChoiceChildren;
+
+        var pickedChoice =
+            choiceChildren.FirstOrDefault(c => HasOverrideUnder(c, overrides))
+            ?? choiceChildren.FirstOrDefault(c => HasIncludeUnder(c, include))
+            ?? choiceChildren.FirstOrDefault();
+
+        if (pickedChoice is null) return nonChoiceChildren;
+
+        var merged = new List<FieldDefinition>(nonChoiceChildren.Count + 1);
+        merged.AddRange(nonChoiceChildren);
+        merged.Add(pickedChoice);
+        // Preserve XSD declaration order so the output sequence stays valid.
+        var indexOf = new Dictionary<string, int>(StringComparer.Ordinal);
+        for (var i = 0; i < field.Children.Count; i++)
+            indexOf[field.Children[i].XPath] = i;
+        merged.Sort((a, b) => indexOf[a.XPath].CompareTo(indexOf[b.XPath]));
+        return merged;
+    }
+
+    private static bool HasOverrideUnder(
+        FieldDefinition field,
+        IReadOnlyDictionary<string, string>? overrides)
+    {
+        if (overrides is null || overrides.Count == 0) return false;
+        if (overrides.ContainsKey(field.XPath)) return true;
+        foreach (var child in field.Children)
+            if (HasOverrideUnder(child, overrides)) return true;
+        return false;
+    }
+
+    private static bool HasIncludeUnder(FieldDefinition field, ISet<string> include)
+    {
+        if (include.Count == 0) return false;
+        if (include.Contains(field.XPath)) return true;
+        foreach (var child in field.Children)
+            if (HasIncludeUnder(child, include)) return true;
+        return false;
+    }
+
+    private static string? TryOverride(IReadOnlyDictionary<string, string>? overrides, string xpath)
+        => overrides is not null && overrides.TryGetValue(xpath, out var v) ? v : null;
 
     private void AppendFieldWithHighlight(
         StringBuilder sb,
@@ -177,12 +299,23 @@ public sealed class XmlExampleGenerator
         return "VALUE";
     }
 
-    private static string GetAttributes(FieldDefinition field)
+    private static string GetAttributes(
+        FieldDefinition field,
+        IReadOnlyDictionary<string, string>? overrides = null)
     {
         // ActiveCurrencyAndAmount / ActiveOrHistoricCurrencyAndAmount need the
         // Ccy attribute to be XSD-valid; everything else writes no attributes.
         if (field.TypeName.Contains("CurrencyAndAmount", StringComparison.OrdinalIgnoreCase))
-            return " Ccy=\"BRL\"";
+        {
+            // Honour an explicit per-attribute override (e.g. SEPA → EUR,
+            // Pix → BRL) so the user-visible attribute matches what
+            // ScenarioRegistry promises. USD is the ecosystem-neutral
+            // fallback — Pix and SEPA scenarios pin their own currency
+            // explicitly, and defaulting to BRL was leaking into pacs.009
+            // (CBPR+, T2) when those scenarios forgot to set @Ccy.
+            var ccy = TryOverride(overrides, $"{field.XPath}/@Ccy") ?? "USD";
+            return $" Ccy=\"{ccy}\"";
+        }
         return string.Empty;
     }
 }
