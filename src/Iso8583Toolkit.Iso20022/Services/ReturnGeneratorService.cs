@@ -112,12 +112,15 @@ public sealed class ReturnGeneratorService
             ValidationFlags = XmlSchemaValidationFlags.None,
             Schemas = schemas,
         };
+        settings.ValidationEventHandler += (_, e) =>
+            throw e.Exception ?? new XmlSchemaValidationException(e.Message);
 
         XDocument doc;
         try
         {
             using var reader = XmlReader.Create(new StringReader(xmlContent), settings);
-            doc = XDocument.Load(reader);
+            reader.MoveToContent();
+            doc = XDocument.Load(reader, LoadOptions.SetLineInfo);
         }
         catch (XmlException ex)
         {
