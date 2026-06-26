@@ -59,14 +59,27 @@ public sealed class ReturnGeneratorService
             ?? throw new InvalidOperationException(
                 "Cannot detect message type from XML namespace.");
 
-        var nsForValidation = _schemaRegistry.GetNamespaceForMessageType(originalMessageType);
-        var xsd = _schemaRegistry.GetSchemaContent(nsForValidation);
+        // Resolve namespace from messageType using the real SchemaRegistry
+        // API — there's no GetNamespaceForMessageType / GetSchemaContent;
+        // ListSupportedTypes + GetSchema(namespace) is the supported path.
+        var schemaInfo = _schemaRegistry
+            .ListSupportedTypes()
+            .FirstOrDefault(s => string.Equals(
+                s.MessageType, originalMessageType,
+                StringComparison.OrdinalIgnoreCase));
+
+        if (schemaInfo is null)
+            throw new InvalidOperationException(
+                $"Schema not found for message type '{originalMessageType}'.");
+
+        var schema = _schemaRegistry.GetSchema(schemaInfo.Namespace);
+        if (schema is null)
+            throw new InvalidOperationException(
+                $"Could not load XSD for namespace '{schemaInfo.Namespace}'.");
 
         var schemas = new XmlSchemaSet();
-        using (var xsdReader = XmlReader.Create(new StringReader(xsd)))
-        {
-            schemas.Add(nsForValidation, xsdReader);
-        }
+        schemas.Add(schema);
+        schemas.Compile();
 
         var settings = new XmlReaderSettings
         {
