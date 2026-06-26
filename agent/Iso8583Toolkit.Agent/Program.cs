@@ -10,6 +10,8 @@ using Iso8583Toolkit.Agent.Services;
 using Iso8583Toolkit.Api.Services;
 using Iso8583Toolkit.Cards;
 using Iso8583Toolkit.Cryptography.Emv;
+using Iso8583Toolkit.Iso20022.Builder;
+using Iso8583Toolkit.Iso20022.Schema;
 using Iso8583Toolkit.Iso20022.Services;
 using Iso8583Toolkit.Iso20022.Services.Summary;
 using Iso8583Toolkit.Iso20022.Validation;
@@ -83,6 +85,11 @@ builder.Services.AddSingleton<Iso20022ParserService>();
 builder.Services.AddSingleton<Iso20022ValidatorService>();
 builder.Services.AddSingleton<ReferenceService>();
 builder.Services.AddSingleton<VersionCompareService>();
+builder.Services.AddSingleton<ReturnGeneratorService>();
+// Builder side (6.4): scenario catalogue + the renderer it drives.
+builder.Services.AddSingleton<XmlExampleGenerator>();
+builder.Services.AddSingleton<ScenarioRegistry>();
+builder.Services.AddSingleton<BuilderService>();
 
 // ── OpenAPI ────────────────────────────────────────────────────────────
 // Single document ("v1") covers the whole API surface. Every action is

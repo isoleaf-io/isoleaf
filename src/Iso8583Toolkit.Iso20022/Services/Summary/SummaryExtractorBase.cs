@@ -14,8 +14,15 @@ public abstract class SummaryExtractorBase : ISummaryExtractor
     public MessageSummaryResult Extract(XDocument doc, XNamespace ns)
     {
         var fields = ExtractFields(doc, ns);
-        var foundCount = fields.Count(f => f.Value != null);
-        var confidence = fields.Count > 0 && foundCount == fields.Count ? "full" : "partial";
+        // Only required fields contribute to the badge — that way a valid
+        // pacs.008 with no IntrBkSttlmDt or no DbtrAcct/IBAN still reads
+        // "full". Extractors mark optional rows with
+        // IsRequiredForConfidence = false.
+        var requiredFields = fields.Where(f => f.IsRequiredForConfidence).ToList();
+        var foundRequired = requiredFields.Count(f => f.Value != null);
+        var confidence = requiredFields.Count == 0 || foundRequired == requiredFields.Count
+            ? "full"
+            : "partial";
         return new MessageSummaryResult(OperationName, confidence, fields);
     }
 

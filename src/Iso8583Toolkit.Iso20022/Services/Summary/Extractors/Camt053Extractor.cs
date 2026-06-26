@@ -18,15 +18,22 @@ public sealed class Camt053Extractor : SummaryExtractorBase
 
         return
         [
+            // Required — a statement is defined by id, period, account,
+            // and the two balances.
             new("Statement ID",      Get(stmt, "Id")),
             new("Período (início)",  Get(stmt, "FrToDt", "FrDtTm")),
             new("Período (fim)",     Get(stmt, "FrToDt", "ToDtTm")),
             new("IBAN/conta",        Get(stmt, "Acct", "Id", "IBAN")
                                   ?? Get(stmt, "Acct", "Id", "Othr", "Id")),
-            new("Titular",           Get(stmt, "Acct", "Ownr", "Nm")),
             new("Saldo abertura",    FormatBalance(openingBal, ns)),
             new("Saldo fechamento",  FormatBalance(closingBal, ns)),
-            new("Nº de lançamentos", Get(stmt, "TxsSummry", "TtlNtries", "NbOfNtries")),
+
+            // Optional — owner name and the entry count are nice to have
+            // but absence shouldn't downgrade a valid statement.
+            new("Titular",           Get(stmt, "Acct", "Ownr", "Nm"),
+                                     IsRequiredForConfidence: false),
+            new("Nº de lançamentos", Get(stmt, "TxsSummry", "TtlNtries", "NbOfNtries"),
+                                     IsRequiredForConfidence: false),
         ];
     }
 

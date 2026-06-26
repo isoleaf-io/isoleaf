@@ -46,7 +46,8 @@ public sealed class XsdFieldExtractor
         XmlSchemaElement element,
         XmlSchemaSet schemaSet,
         string parentXPath,
-        int depth)
+        int depth,
+        bool isChoice = false)
     {
         if (depth > MaxDepth) return [];
 
@@ -60,7 +61,11 @@ public sealed class XsdFieldExtractor
         var restrictions = GetRestrictions(element, schemaSet);
         var documentation = GetDocumentation(element);
         var children = isComplex && depth < MaxDepth
-            ? ExtractChildren(GetComplexTypeChildren(element, schemaSet), schemaSet, xpath, depth + 1)
+            ? ExtractChildrenWithContext(
+                GetComplexTypeChildrenWithContext(element, schemaSet),
+                schemaSet,
+                xpath,
+                depth + 1)
             : [];
 
         var field = new FieldDefinition
@@ -78,24 +83,26 @@ public sealed class XsdFieldExtractor
             Enumerations = restrictions.Enumerations,
             Documentation = documentation,
             Children = children,
+            IsChoice = isChoice,
         };
 
         return [field];
     }
 
-    private IReadOnlyList<FieldDefinition> ExtractChildren(
-        IEnumerable<XmlSchemaElement> elements,
+    private IReadOnlyList<FieldDefinition> ExtractChildrenWithContext(
+        IEnumerable<(XmlSchemaElement Element, bool IsChoice)> elements,
         XmlSchemaSet schemaSet,
         string parentXPath,
         int depth)
     {
         var result = new List<FieldDefinition>();
-        foreach (var el in elements)
-            result.AddRange(ExtractChildren(el, schemaSet, parentXPath, depth));
+        foreach (var (el, isChoice) in elements)
+            result.AddRange(ExtractChildren(el, schemaSet, parentXPath, depth, isChoice));
         return result;
     }
 
-    private static IEnumerable<XmlSchemaElement> GetComplexTypeChildren(
+    private static IEnumerable<(XmlSchemaElement Element, bool IsChoice)>
+        GetComplexTypeChildrenWithContext(
         XmlSchemaElement element,
         XmlSchemaSet schemaSet)
     {
@@ -105,40 +112,60 @@ public sealed class XsdFieldExtractor
         // ContentTypeParticle is the post-compile particle (set by Compile()).
         // Particle is the raw declaration. Prefer the compiled one when present.
         var particle = complexType.ContentTypeParticle ?? complexType.Particle;
-        foreach (var child in GetParticleElements(particle, schemaSet))
+        foreach (var child in GetParticleElementsWithContext(particle))
             yield return child;
     }
 
-    private static IEnumerable<XmlSchemaElement> GetParticleElements(
-        XmlSchemaParticle? particle,
+    // Retained for the entry-point lookup of the message root — that path
+    // doesn't care about choice context.
+    private static IEnumerable<XmlSchemaElement> GetComplexTypeChildren(
+        XmlSchemaElement element,
         XmlSchemaSet schemaSet)
+    {
+        foreach (var (el, _) in GetComplexTypeChildrenWithContext(element, schemaSet))
+            yield return el;
+    }
+
+    /// <summary>
+    /// Walks the particle tree carrying the "is this branch coming out of
+    /// an xs:choice" flag down to every emitted element. Choice context is
+    /// sticky: once you've descended into a choice, every leaf below is a
+    /// choice arm even if the immediate parent is a sequence/all.
+    /// </summary>
+    private static IEnumerable<(XmlSchemaElement Element, bool IsChoice)>
+        GetParticleElementsWithContext(XmlSchemaParticle? particle)
     {
         switch (particle)
         {
             case XmlSchemaSequence seq:
                 foreach (XmlSchemaObject item in seq.Items)
-                    foreach (var e in EmitOrRecurse(item, schemaSet))
+                    foreach (var e in EmitOrRecurseWithContext(item, isChoiceBranch: false))
                         yield return e;
                 break;
             case XmlSchemaChoice choice:
                 foreach (XmlSchemaObject item in choice.Items)
-                    foreach (var e in EmitOrRecurse(item, schemaSet))
+                    foreach (var e in EmitOrRecurseWithContext(item, isChoiceBranch: true))
                         yield return e;
                 break;
             case XmlSchemaAll all:
                 foreach (XmlSchemaObject item in all.Items)
                     if (item is XmlSchemaElement el)
-                        yield return el;
+                        yield return (el, false);
                 break;
         }
     }
 
-    private static IEnumerable<XmlSchemaElement> EmitOrRecurse(XmlSchemaObject item, XmlSchemaSet schemaSet)
+    private static IEnumerable<(XmlSchemaElement Element, bool IsChoice)>
+        EmitOrRecurseWithContext(XmlSchemaObject item, bool isChoiceBranch)
     {
-        if (item is XmlSchemaElement el) yield return el;
+        if (item is XmlSchemaElement el) yield return (el, isChoiceBranch);
         else if (item is XmlSchemaParticle inner)
-            foreach (var e in GetParticleElements(inner, schemaSet))
-                yield return e;
+        {
+            // Inside a choice, every nested sequence/choice/all is still a
+            // choice arm from the parent's perspective.
+            foreach (var (e, nestedChoice) in GetParticleElementsWithContext(inner))
+                yield return (e, isChoiceBranch || nestedChoice);
+        }
     }
 
     private static XmlSchemaComplexType? ResolveComplexType(

@@ -14,7 +14,8 @@ namespace Iso8583Toolkit.Agent.Controllers;
 [Route("api/iso20022")]
 public sealed class Iso20022Controller(
     Iso20022ParserService parserService,
-    Iso20022ValidatorService validatorService) : ControllerBase
+    Iso20022ValidatorService validatorService,
+    ReturnGeneratorService returnGeneratorService) : ControllerBase
 {
     /// <summary>Parses an ISO 20022 XML message into a typed tree.</summary>
     /// <remarks>
@@ -153,6 +154,40 @@ public sealed class Iso20022Controller(
             node.Value,
             node.Namespace,
             node.Children.Select(MapNode).ToList());
+
+    /// <summary>
+    /// Generates a return/response skeleton from an original ISO 20022 message.
+    /// Supported routes: pacs.008 → pacs.004 (default) or pacs.002,
+    /// pacs.009 → pacs.004 or pacs.002, pacs.004 → pacs.002, pain.001 → pain.002.
+    /// </summary>
+    [HttpPost("generate-return")]
+    [EndpointSummary("Generate return message from an ISO 20022 original")]
+    [ProducesResponseType<GenerateReturnResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status422UnprocessableEntity)]
+    public IActionResult GenerateReturn([FromBody] GenerateReturnRequest request)
+    {
+        if (request is null || string.IsNullOrWhiteSpace(request.XmlContent))
+            return BadRequest(Problem("XML content is required.", StatusCodes.Status400BadRequest));
+
+        try
+        {
+            var result = returnGeneratorService.Generate(request.XmlContent, request.TargetMessageType);
+            return Ok(new GenerateReturnResponse(
+                result.OriginalMessageType,
+                result.ReturnMessageType,
+                result.Xml,
+                result.AvailableReturnTypes));
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(Problem(ex.Message, StatusCodes.Status400BadRequest));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return UnprocessableEntity(Problem(ex.Message, StatusCodes.Status422UnprocessableEntity));
+        }
+    }
 
     private static ProblemDetails Problem(string detail, int status) =>
         new()

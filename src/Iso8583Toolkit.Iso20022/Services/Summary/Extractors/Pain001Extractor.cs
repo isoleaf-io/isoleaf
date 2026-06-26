@@ -16,18 +16,25 @@ public sealed class Pain001Extractor : SummaryExtractorBase
 
         return
         [
+            // Required — a customer initiation needs id, payer, payee, amount.
             new("Message ID",         Get(hdr, "MsgId")),
             new("Data de criação",    Get(hdr, "CreDtTm")),
             new("Nº de transações",   Get(hdr, "NbOfTxs")),
-            new("Valor total",        Get(hdr, "CtrlSum")),
             new("Devedor",            Get(pmt, "Dbtr", "Nm")),
-            new("IBAN/conta devedor", Get(pmt, "DbtrAcct", "Id", "IBAN")
-                                   ?? Get(pmt, "DbtrAcct", "Id", "Othr", "Id")),
-            new("Moeda",              Get(pmt, "PmtTpInf", "SvcLvl", "Cd")),
             new("Credor",             Get(tx,  "Cdtr", "Nm")),
             new("Valor",              Get(tx,  "Amt", "InstdAmt")),
             new("End-to-end ID",      Get(tx,  "PmtId", "EndToEndId")),
-            new("Remittance info",    Get(tx,  "RmtInf", "Ustrd")),
+
+            // Optional — settable but not load-bearing for "full" badge.
+            new("Valor total",        Get(hdr, "CtrlSum"),
+                                      IsRequiredForConfidence: false),
+            new("IBAN/conta devedor", Get(pmt, "DbtrAcct", "Id", "IBAN")
+                                   ?? Get(pmt, "DbtrAcct", "Id", "Othr", "Id"),
+                                      IsRequiredForConfidence: false),
+            new("Moeda",              Get(pmt, "PmtTpInf", "SvcLvl", "Cd"),
+                                      IsRequiredForConfidence: false),
+            new("Remittance info",    Get(tx,  "RmtInf", "Ustrd"),
+                                      IsRequiredForConfidence: false),
         ];
     }
 }

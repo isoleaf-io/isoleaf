@@ -49,6 +49,7 @@
       "iso20022FieldRef": "Referência de campos",
       "iso20022Validator": "Validador XSD",
       "iso20022Comparator": "Comparador de versões",
+      "iso20022Builder": "Builder",
       "iso20022QrCode": "QR Code Pix",
       "iso20022Builder": "Builder",
       "iso20022Txid": "TXID / Chaves DICT",

@@ -22,7 +22,7 @@ const FLAGS = {
   iso20022Validator: isDev,   // 6.3a Validador XSD
   iso20022Comparator: isDev,  // 6.3b Comparador de versões
   iso20022QrCode: false,      // 6.4 QR Code Pix
-  iso20022Builder: false,     // 6.5 Builder de mensagens
+  iso20022Builder: isDev,     // 6.5 Builder de mensagens (dev-only até release)
   iso20022Txid: false,        // 6.6 TXID + Chaves DICT
   iso20022MtMx: false,        // 6.7 MT → MX Comparador
 };

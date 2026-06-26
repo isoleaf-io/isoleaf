@@ -23,4 +23,13 @@ public record MessageSummaryResult(
     /// <summary>Statement entries (Ntry rows). Only populated for camt.053.</summary>
     List<Extractors.StatementEntryResult>? Entries = null);
 
-public record SummaryFieldResult(string Label, string? Value);
+/// <summary>
+/// One labelled value pair on the summary card. <paramref name="IsRequiredForConfidence"/>
+/// drives the full/partial badge: missing required fields demote the badge to
+/// partial, but a missing optional (settlement date, account IBAN, instruction
+/// id…) leaves a valid message at full.
+/// </summary>
+public record SummaryFieldResult(
+    string Label,
+    string? Value,
+    bool IsRequiredForConfidence = true);
