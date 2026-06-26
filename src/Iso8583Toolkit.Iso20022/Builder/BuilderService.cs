@@ -56,6 +56,10 @@ public sealed class BuilderService
         _xmlExampleGenerator = xmlExampleGenerator;
     }
 
+    /// <summary>
+    /// Builds the builder payload for a message type and scenario, including
+    /// the section/field tree and generated XML example.
+    /// </summary>
     /// <exception cref="InvalidOperationException">When the message type isn't loaded in the registry.</exception>
     /// <exception cref="ArgumentException">When the scenario id is unknown.</exception>
     public BuildResult Build(

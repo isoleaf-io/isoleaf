@@ -174,13 +174,8 @@ public sealed class BuilderController(
         HashSet<string> ecosystemXPaths,
         List<AvailableFieldDto> out_)
     {
-        foreach (var f in fields)
+        foreach (var f in fields.Where(f => !f.Name.StartsWith('@')))
         {
-            // Attribute pseudo-fields (e.g. "@Ccy") aren't real children — the
-            // generator handles them as element attributes. Don't surface
-            // them to the picker.
-            if (f.Name.StartsWith('@')) continue;
-
             if (!f.IsComplex && !f.IsMandatory && !ecosystemXPaths.Contains(f.XPath))
             {
                 out_.Add(new AvailableFieldDto(

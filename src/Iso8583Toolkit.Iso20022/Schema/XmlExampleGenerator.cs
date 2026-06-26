@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Text;
 
 namespace Iso8583Toolkit.Iso20022.Schema;
@@ -213,18 +214,14 @@ public sealed class XmlExampleGenerator
     {
         if (overrides is null || overrides.Count == 0) return false;
         if (overrides.ContainsKey(field.XPath)) return true;
-        foreach (var child in field.Children)
-            if (HasOverrideUnder(child, overrides)) return true;
-        return false;
+        return field.Children.Any(child => HasOverrideUnder(child, overrides));
     }
 
     private static bool HasIncludeUnder(FieldDefinition field, ISet<string> include)
     {
         if (include.Count == 0) return false;
         if (include.Contains(field.XPath)) return true;
-        foreach (var child in field.Children)
-            if (HasIncludeUnder(child, include)) return true;
-        return false;
+        return field.Children.Any(child => HasIncludeUnder(child, include));
     }
 
     private static string? TryOverride(IReadOnlyDictionary<string, string>? overrides, string xpath)

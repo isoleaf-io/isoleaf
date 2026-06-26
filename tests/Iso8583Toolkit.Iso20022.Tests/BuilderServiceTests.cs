@@ -3,6 +3,7 @@ using Iso8583Toolkit.Iso20022.Builder;
 using Iso8583Toolkit.Iso20022.Schema;
 using Iso8583Toolkit.Iso20022.Services;
 using Iso8583Toolkit.Iso20022.Validation;
+using System.Linq;
 
 namespace Iso8583Toolkit.Iso20022.Tests;
 
@@ -280,8 +281,8 @@ public class BuilderServiceTests
     {
         foreach (var s in sections)
         {
-            foreach (var f in s.Fields)
-                if (f.XPath == xpath) return f;
+            var direct = s.Fields.FirstOrDefault(f => f.XPath == xpath);
+            if (direct != null) return direct;
             var deeper = FindField(s.Sections, xpath);
             if (deeper != null) return deeper;
         }

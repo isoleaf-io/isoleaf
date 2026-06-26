@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Search } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
-import { getFieldLabel } from "@/config/iso20022FieldLabels";
 
 export interface FlatField {
   name: string;

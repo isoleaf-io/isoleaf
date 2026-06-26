@@ -1,6 +1,7 @@
 using System.Text;
 using System.Xml;
 using System.Xml.Linq;
+using System.Xml.Schema;
 using Iso8583Toolkit.Iso20022.Validation;
 
 namespace Iso8583Toolkit.Iso20022.Services;
@@ -43,6 +44,10 @@ public sealed class ReturnGeneratorService
         _schemaRegistry = schemaRegistry;
     }
 
+    /// <summary>
+    /// Generates a return/response XML skeleton from an ISO 20022 input message,
+    /// optionally targeting a specific return message type.
+    /// </summary>
     /// <exception cref="ArgumentException">XML is empty, the prefix isn't routed, or the requested target type is unknown.</exception>
     /// <exception cref="InvalidOperationException">Namespace doesn't match any registered XSD.</exception>
     public ReturnGeneratorResult Generate(string xmlContent, string? targetMessageType = null)
@@ -50,21 +55,44 @@ public sealed class ReturnGeneratorService
         if (string.IsNullOrWhiteSpace(xmlContent))
             throw new ArgumentException("XML content is required.", nameof(xmlContent));
 
+        var originalMessageType = _schemaRegistry.DetectMessageType(xmlContent)
+            ?? throw new InvalidOperationException(
+                "Cannot detect message type from XML namespace.");
+
+        var nsForValidation = _schemaRegistry.GetNamespaceForMessageType(originalMessageType);
+        var xsd = _schemaRegistry.GetSchemaContent(nsForValidation);
+
+        var schemas = new XmlSchemaSet();
+        using (var xsdReader = XmlReader.Create(new StringReader(xsd)))
+        {
+            schemas.Add(nsForValidation, xsdReader);
+        }
+
         var settings = new XmlReaderSettings
         {
             DtdProcessing = DtdProcessing.Prohibit,
             XmlResolver = null,
-            ValidationType = ValidationType.None,
+            ValidationType = ValidationType.Schema,
+            ValidationFlags = XmlSchemaValidationFlags.None,
+            Schemas = schemas,
         };
 
         XDocument doc;
-        using (var reader = XmlReader.Create(new StringReader(xmlContent), settings))
+        try
+        {
+            using var reader = XmlReader.Create(new StringReader(xmlContent), settings);
             doc = XDocument.Load(reader);
+        }
+        catch (XmlException ex)
+        {
+            throw new ArgumentException("XML content is not a valid ISO 20022 document.", nameof(xmlContent), ex);
+        }
+        catch (XmlSchemaValidationException ex)
+        {
+            throw new ArgumentException("XML content failed schema validation.", nameof(xmlContent), ex);
+        }
 
         var rootNs = doc.Root?.Name.NamespaceName ?? string.Empty;
-        var originalMessageType = _schemaRegistry.DetectMessageType(xmlContent)
-            ?? throw new InvalidOperationException(
-                "Cannot detect message type from XML namespace.");
 
         var prefix = ExtractPrefix(originalMessageType);
 
