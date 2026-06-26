@@ -59,6 +59,29 @@ public sealed class ReturnGeneratorService
             ?? throw new InvalidOperationException(
                 "Cannot detect message type from XML namespace.");
 
+        // Check routing FIRST — running XSD validation on, say, a camt.053
+        // would fail at the schema layer and surface as
+        // "XML content failed schema validation" when the real reason is
+        // that we just don't generate returns for that family. Caller gets
+        // the precise ArgumentException with the supported list instead.
+        var prefix = ExtractPrefix(originalMessageType);
+
+        if (!ReturnMap.TryGetValue(prefix, out var returnInfo))
+            throw new ArgumentException(
+                $"Return generation not supported for '{prefix}'. " +
+                $"Supported: {string.Join(", ", ReturnMap.Keys)}",
+                nameof(xmlContent));
+
+        var returnPrefix = targetMessageType is null
+            ? returnInfo.Default
+            : ExtractPrefix(targetMessageType);
+
+        if (!returnInfo.Available.Contains(returnPrefix, StringComparer.OrdinalIgnoreCase))
+            throw new ArgumentException(
+                $"Target type '{returnPrefix}' not available for source '{prefix}'. " +
+                $"Available: {string.Join(", ", returnInfo.Available)}",
+                nameof(targetMessageType));
+
         // Resolve namespace from messageType using the real SchemaRegistry
         // API — there's no GetNamespaceForMessageType / GetSchemaContent;
         // ListSupportedTypes + GetSchema(namespace) is the supported path.
@@ -106,24 +129,6 @@ public sealed class ReturnGeneratorService
         }
 
         var rootNs = doc.Root?.Name.NamespaceName ?? string.Empty;
-
-        var prefix = ExtractPrefix(originalMessageType);
-
-        if (!ReturnMap.TryGetValue(prefix, out var returnInfo))
-            throw new ArgumentException(
-                $"Return generation not supported for '{prefix}'. " +
-                $"Supported: {string.Join(", ", ReturnMap.Keys)}",
-                nameof(xmlContent));
-
-        var returnPrefix = targetMessageType is null
-            ? returnInfo.Default
-            : ExtractPrefix(targetMessageType);
-
-        if (!returnInfo.Available.Contains(returnPrefix, StringComparer.OrdinalIgnoreCase))
-            throw new ArgumentException(
-                $"Target type '{returnPrefix}' not available for source '{prefix}'. " +
-                $"Available: {string.Join(", ", returnInfo.Available)}",
-                nameof(targetMessageType));
 
         var ns = XNamespace.Get(rootNs);
         var xml = returnPrefix switch
