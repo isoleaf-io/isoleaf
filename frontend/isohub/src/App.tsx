@@ -12,6 +12,7 @@ import Iso20022ParserPage from "./pages/Iso20022Parser";
 import Iso20022ReferencePage from "./pages/Iso20022Reference";
 import Iso20022ComparatorPage from "./pages/Iso20022Comparator";
 import Iso20022BuilderPage from "./pages/Iso20022Builder";
+import PixQrCodePage from "./pages/PixQrCode";
 
 export default function App() {
   return (
@@ -27,6 +28,7 @@ export default function App() {
       <Route path="/iso20022/reference" element={<Iso20022ReferencePage />} />
       <Route path="/iso20022/compare" element={<Iso20022ComparatorPage />} />
       <Route path="/iso20022/builder" element={<Iso20022BuilderPage />} />
+      <Route path="/pix/qrcode" element={<PixQrCodePage />} />
       <Route path="/docs" element={<DocsPage />} />
       <Route path="/docs/api" element={<ApiDocsPage />} />
       <Route path="/workspace" element={<WorkspacePage />} />

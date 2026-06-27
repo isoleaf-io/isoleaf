@@ -53,7 +53,44 @@
       "iso20022QrCode": "QR Code Pix",
       "iso20022Builder": "Builder",
       "iso20022Txid": "TXID / Chaves DICT",
-      "iso20022MtMx": "MT → MX"
+      "iso20022MtMx": "MT → MX",
+      "pix": "Brazilian Pix",
+      "pixQrCode": "QR Code"
+    }
+  },
+  "pix": {
+    "qrcode": {
+      "title": "QR Code Pix",
+      "subtitle": "Decodifique e gere payloads EMV de Pix Copia e Cola",
+      "tabs": {
+        "decode": "Decodificar",
+        "generate": "Gerar"
+      },
+      "decode": {
+        "inputLabel": "Payload EMV (Pix Copia e Cola)",
+        "placeholder": "Cole aqui o payload completo (começa com 0002…)",
+        "button": "Decodificar",
+        "summaryTitle": "Resumo",
+        "fieldsTitle": "Campos do payload"
+      },
+      "generate": {
+        "formTitle": "Dados do recebedor",
+        "previewTitle": "QR Code gerado",
+        "button": "Gerar QR Code",
+        "copy": "Copiar payload",
+        "decode": "Decodificar",
+        "generateTxId": "Gerar TXID",
+        "singleUse": "QR de uso único (POI dinâmico)"
+      },
+      "fields": {
+        "qrType": "Tipo do QR",
+        "pixKey": "Chave Pix",
+        "merchantName": "Nome do recebedor",
+        "merchantCity": "Cidade",
+        "amount": "Valor",
+        "description": "Descrição",
+        "txId": "TXID"
+      }
     }
   },
   "parser": {
