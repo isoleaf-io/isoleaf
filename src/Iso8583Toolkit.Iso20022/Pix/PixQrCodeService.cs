@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -288,9 +289,8 @@ public sealed class PixQrCodeService
     {
         var d = value.Trim().Normalize(NormalizationForm.FormD);
         var sb = new StringBuilder(d.Length);
-        foreach (var c in d)
-            if (CharUnicodeInfo.GetUnicodeCategory(c) != UnicodeCategory.NonSpacingMark)
-                sb.Append(c);
+        foreach (var c in d.Where(c => CharUnicodeInfo.GetUnicodeCategory(c) != UnicodeCategory.NonSpacingMark))
+            sb.Append(c);
         var result = sb.ToString().Normalize(NormalizationForm.FormC).ToUpperInvariant();
         return result.Length > maxLength ? result[..maxLength] : result;
     }
