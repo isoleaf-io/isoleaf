@@ -9,6 +9,7 @@ import {
   FileText,
   LayoutGrid,
   Lock,
+  QrCode,
   Radio,
   Settings,
   Zap,
@@ -72,9 +73,17 @@ const sections: NavSection[] = [
       // standalone route — no sidebar entry by design.
       { to: "/iso20022/compare",   labelKey: "common.nav.iso20022Comparator", icon: LayoutGrid, feature: "iso20022Comparator" },
       { to: "/iso20022/builder",   labelKey: "common.nav.iso20022Builder",   icon: Zap,        feature: "iso20022Builder" },
-      { to: "/iso20022/qrcode",    labelKey: "common.nav.iso20022QrCode",    icon: LayoutGrid, feature: "iso20022QrCode" },
       { to: "/iso20022/txid",      labelKey: "common.nav.iso20022Txid",      icon: CreditCard, feature: "iso20022Txid" },
       { to: "/iso20022/mt-mx",     labelKey: "common.nav.iso20022MtMx",      icon: Cpu,        feature: "iso20022MtMx" },
+    ],
+  },
+  {
+    // Brazilian Pix — Sprint 7. Each Pix item carries its own flag so the
+    // whole heading disappears in production builds until at least one
+    // sub-feature flips on.
+    titleKey: "common.nav.pix",
+    items: [
+      { to: "/pix/qrcode", labelKey: "common.nav.pixQrCode", icon: QrCode, feature: "pixQrCode" },
     ],
   },
   {

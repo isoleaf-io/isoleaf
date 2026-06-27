@@ -53,7 +53,44 @@
       "iso20022QrCode": "Pix QR code",
       "iso20022Builder": "Builder",
       "iso20022Txid": "TXID / DICT keys",
-      "iso20022MtMx": "MT → MX"
+      "iso20022MtMx": "MT → MX",
+      "pix": "Brazilian Pix",
+      "pixQrCode": "QR Code"
+    }
+  },
+  "pix": {
+    "qrcode": {
+      "title": "Pix QR Code",
+      "subtitle": "Decode and generate EMV Pix Copia-e-Cola payloads",
+      "tabs": {
+        "decode": "Decode",
+        "generate": "Generate"
+      },
+      "decode": {
+        "inputLabel": "EMV payload (Pix Copia-e-Cola)",
+        "placeholder": "Paste the full payload here (starts with 0002…)",
+        "button": "Decode",
+        "summaryTitle": "Summary",
+        "fieldsTitle": "Payload fields"
+      },
+      "generate": {
+        "formTitle": "Merchant data",
+        "previewTitle": "Generated QR Code",
+        "button": "Generate QR Code",
+        "copy": "Copy payload",
+        "decode": "Decode",
+        "generateTxId": "Generate TXID",
+        "singleUse": "Single-use QR (dynamic POI)"
+      },
+      "fields": {
+        "qrType": "QR type",
+        "pixKey": "Pix key",
+        "merchantName": "Merchant name",
+        "merchantCity": "City",
+        "amount": "Amount",
+        "description": "Description",
+        "txId": "TXID"
+      }
     }
   },
   "parser": {
