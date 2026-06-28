@@ -55,7 +55,8 @@
       "iso20022Txid": "TXID / DICT keys",
       "iso20022MtMx": "MT → MX",
       "pix": "Brazilian Pix",
-      "pixQrCode": "QR Code"
+      "pixQrCode": "QR Code",
+      "pixFlowVisualizer": "Flow Visualizer"
     }
   },
   "pix": {
@@ -90,6 +91,31 @@
         "amount": "Amount",
         "description": "Description",
         "txId": "TXID"
+      }
+    },
+    "flow": {
+      "title": "Pix Flow Visualizer",
+      "subtitle": "Orchestrate the multi-message Pix flow and see the cross-references in action",
+      "selectFlow": "Flow type",
+      "generate": "Generate Flow",
+      "diagramTitle": "Message sequence",
+      "parseTitle": "Parse summary",
+      "unmapped": "Message type has no semantic extractor yet — only the XML above is available.",
+      "noSelection": "Step details",
+      "stepTitle": "Step {{id}}",
+      "clickHint": "Click a message in the diagram to view its XML.",
+      "alertsTitle": "{{count}} consistency issue(s) detected",
+      "replace": "Replace XML",
+      "clearOverride": "Restore generated",
+      "overrideBadge": "Override",
+      "overrideTitle": "Override step {{id}} — {{type}}",
+      "overrideHint": "Paste the XML you want pinned for this step. IDs are validated against the anchor step.",
+      "applyOverride": "Apply override",
+      "types": {
+        "transfer": "Pix Transfer",
+        "transferReturn": "Transfer with Return",
+        "openFinance": "Open Finance",
+        "rejected": "With Rejection"
       }
     }
   },

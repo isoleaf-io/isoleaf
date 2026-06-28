@@ -275,6 +275,10 @@ public sealed class ScenarioRegistry
                     "BkToCstmrDbtCdtNtfctn/Ntfctn/Ntry/BkTxCd/Domn/Cd",
                     "BkToCstmrDbtCdtNtfctn/Ntfctn/Ntry/BkTxCd/Domn/Fmly/Cd",
                     "BkToCstmrDbtCdtNtfctn/Ntfctn/Ntry/BkTxCd/Domn/Fmly/SubFmlyCd",
+                    // Pix flow needs the original EndToEndId echoed back
+                    // here to tie the credit notification to the pacs.008
+                    // that produced it.
+                    "BkToCstmrDbtCdtNtfctn/Ntfctn/Ntry/NtryDtls/TxDtls/Refs/EndToEndId",
                 },
                 FieldHints: new Dictionary<string, string>
                 {

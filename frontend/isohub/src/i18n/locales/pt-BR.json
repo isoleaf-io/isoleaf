@@ -55,7 +55,8 @@
       "iso20022Txid": "TXID / Chaves DICT",
       "iso20022MtMx": "MT → MX",
       "pix": "Brazilian Pix",
-      "pixQrCode": "QR Code"
+      "pixQrCode": "QR Code",
+      "pixFlowVisualizer": "Flow Visualizer"
     }
   },
   "pix": {
@@ -90,6 +91,31 @@
         "amount": "Valor",
         "description": "Descrição",
         "txId": "TXID"
+      }
+    },
+    "flow": {
+      "title": "Pix Flow Visualizer",
+      "subtitle": "Orquestre o fluxo multi-mensagem do Pix e veja as referências cruzadas em ação",
+      "selectFlow": "Tipo de fluxo",
+      "generate": "Gerar Flow",
+      "diagramTitle": "Sequência de mensagens",
+      "parseTitle": "Resumo do parse",
+      "unmapped": "Tipo de mensagem ainda não tem extrator semântico — exibimos apenas o XML acima.",
+      "noSelection": "Detalhes do passo",
+      "stepTitle": "Passo {{id}}",
+      "clickHint": "Clique em uma mensagem do diagrama para ver o XML.",
+      "alertsTitle": "{{count}} inconsistência(s) detectada(s)",
+      "replace": "Substituir XML",
+      "clearOverride": "Restaurar gerado",
+      "overrideBadge": "Override",
+      "overrideTitle": "Substituir passo {{id}} — {{type}}",
+      "overrideHint": "Cole o XML que deseja pinar para este passo. Os IDs serão validados contra o passo âncora.",
+      "applyOverride": "Aplicar override",
+      "types": {
+        "transfer": "Transferência Pix",
+        "transferReturn": "Transferência com Devolução",
+        "openFinance": "Open Finance",
+        "rejected": "Com Rejeição"
       }
     }
   },

@@ -12,6 +12,7 @@ import {
   QrCode,
   Radio,
   Settings,
+  Workflow,
   Zap,
 } from "lucide-react";
 import clsx from "clsx";
@@ -84,6 +85,7 @@ const sections: NavSection[] = [
     titleKey: "common.nav.pix",
     items: [
       { to: "/pix/qrcode", labelKey: "common.nav.pixQrCode", icon: QrCode, feature: "pixQrCode" },
+      { to: "/pix/flow",   labelKey: "common.nav.pixFlowVisualizer", icon: Workflow, feature: "pixFlowVisualizer" },
     ],
   },
   {
