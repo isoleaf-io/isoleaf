@@ -104,6 +104,9 @@ public sealed class PixFlowService
 
     public IReadOnlyList<string> SupportedFlows => Flows.Keys.ToList();
 
+    /// <summary>
+    /// Generates all steps for the requested Pix flow, applying optional per-step XML overrides.
+    /// </summary>
     /// <exception cref="ArgumentException">When <paramref name="flowType"/> isn't registered.</exception>
     public PixFlowResult GenerateFlow(
         string flowType,
@@ -187,15 +190,14 @@ public sealed class PixFlowService
             // we don't accidentally compare the pacs.008's own PmtId.
             foreach (var refs in doc.Descendants().Where(e => e.Name.LocalName == "Refs"))
             {
-                foreach (var e2e in refs.Descendants().Where(e => e.Name.LocalName == "EndToEndId"))
+                foreach (var e2e in refs.Descendants()
+                    .Where(e => e.Name.LocalName == "EndToEndId")
+                    .Where(e => !string.IsNullOrEmpty(e.Value)
+                             && !string.Equals(e.Value, anchor.EndToEndId, StringComparison.Ordinal)))
                 {
-                    if (!string.IsNullOrEmpty(e2e.Value)
-                        && !string.Equals(e2e.Value, anchor.EndToEndId, StringComparison.Ordinal))
-                    {
-                        alerts.Add(new PixFlowAlert(
-                            steps[i].StepId, "EndToEndId (Refs)",
-                            anchor.EndToEndId, e2e.Value, "error"));
-                    }
+                    alerts.Add(new PixFlowAlert(
+                        steps[i].StepId, "EndToEndId (Refs)",
+                        anchor.EndToEndId, e2e.Value, "error"));
                 }
             }
         }
@@ -252,9 +254,8 @@ public sealed class PixFlowService
         var rootChild = doc.Root?.Elements().FirstOrDefault()?.Name.LocalName;
         var isCamt054 = rootChild == "BkToCstmrDbtCdtNtfctn";
 
-        foreach (var el in doc.Descendants())
+        foreach (var el in doc.Descendants().Where(e => !e.HasElements))
         {
-            if (el.HasElements) continue;
             switch (el.Name.LocalName)
             {
                 case "OrgnlMsgId":
