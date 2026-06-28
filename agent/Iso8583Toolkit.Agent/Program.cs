@@ -92,6 +92,8 @@ builder.Services.AddSingleton<ScenarioRegistry>();
 builder.Services.AddSingleton<BuilderService>();
 // Sprint 7 — Pix QR Code (EMV-MPM) decode/generate + key/TXID helpers.
 builder.Services.AddSingleton<Iso8583Toolkit.Iso20022.Pix.PixQrCodeService>();
+// Sprint 7.3 — Pix Flow Visualizer (multi-message orchestrator).
+builder.Services.AddSingleton<Iso8583Toolkit.Iso20022.Pix.Flow.PixFlowService>();
 
 // ── OpenAPI ────────────────────────────────────────────────────────────
 // Single document ("v1") covers the whole API surface. Every action is

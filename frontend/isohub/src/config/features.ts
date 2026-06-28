@@ -24,6 +24,7 @@ const FLAGS = {
   iso20022QrCode: false,      // 6.4 QR Code Pix (legacy slot — replaced by pixQrCode)
   iso20022Builder: isDev,     // 6.5 Builder de mensagens (dev-only até release)
   pixQrCode: isDev,           // 7.1 QR Code Pix — Brazilian Pix section (dev-only até release)
+  pixFlowVisualizer: isDev,   // 7.3 Pix Flow Visualizer (multi-message sequence)
   iso20022Txid: false,        // 6.6 TXID + Chaves DICT
   iso20022MtMx: false,        // 6.7 MT → MX Comparador
 };
