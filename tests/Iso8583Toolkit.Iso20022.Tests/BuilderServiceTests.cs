@@ -70,6 +70,42 @@ public class BuilderServiceTests
     }
 
     [Fact]
+    public void Build_Pain012_PixAutomaticoMandate_RendersSrdeServiceLevel()
+    {
+        // Sprint 7.4: the pix-automatico-mandate scenario must produce a
+        // valid pain.012 with SvcLvl/Cd = "SRDE" (Pix Automático).
+        var result = Builder.Build("pain.012.001.07", "pix-automatico-mandate");
+
+        result.MessageType.Should().Be("pain.012.001.07");
+        result.ScenarioId.Should().Be("pix-automatico-mandate");
+        result.Xml.Should().Contain("<Cd>SRDE</Cd>");
+        result.Xml.Should().Contain("<SeqTp>FRST</SeqTp>");
+
+        var svcLvl = FindField(result.Sections,
+            "MndtAccptncRpt/UndrlygAccptncDtls/OrgnlMndt/OrgnlMndt/Tp/SvcLvl/Cd");
+        svcLvl.Should().NotBeNull();
+        svcLvl!.Value.Should().Be("SRDE");
+    }
+
+    [Fact]
+    public void Build_Pain009_PixAutomaticoInitiation_RendersSrdeServiceLevel()
+    {
+        // pain.009 is the initiation leg of Pix Automático — same SRDE
+        // service level, same FRST first-debit hint, but under <Mndt>
+        // (not <OrgnlMndt>).
+        var result = Builder.Build("pain.009.001.07", "pix-automatico-initiation");
+
+        result.MessageType.Should().Be("pain.009.001.07");
+        result.ScenarioId.Should().Be("pix-automatico-initiation");
+        result.Xml.Should().Contain("<Cd>SRDE</Cd>");
+        result.Xml.Should().Contain("<SeqTp>FRST</SeqTp>");
+
+        var svcLvl = FindField(result.Sections, "MndtInitnReq/Mndt/Tp/SvcLvl/Cd");
+        svcLvl.Should().NotBeNull();
+        svcLvl!.Value.Should().Be("SRDE");
+    }
+
+    [Fact]
     public void Build_UnknownScenarioId_ThrowsArgumentException()
     {
         var act = () => Builder.Build("pacs.008.001.09", "not-a-real-scenario");

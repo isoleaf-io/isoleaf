@@ -10,6 +10,9 @@ export interface PixFlowStep {
   /** When set, the message hops through this actor before reaching toActor
    *  (BCB/SPI "repasse" rendered as a dashed arrow). */
   viaActor?: string | null;
+  /** True when this step is the SPI-to-PSP relay leg of a message — the
+   *  diagram renders such arrows with a dashed stroke. */
+  isRelay?: boolean;
 }
 
 export interface PixFlowAlert {

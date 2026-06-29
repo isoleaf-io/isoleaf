@@ -23,6 +23,8 @@ public sealed class SummaryService
             new Pacs002Extractor(),
             new Pain001Extractor(),
             new Pain002Extractor(),
+            new Pain009Extractor(),
+            new Pain012Extractor(),
             new Camt053Extractor(),
             new Camt054Extractor(),
             new Camt056Extractor(),

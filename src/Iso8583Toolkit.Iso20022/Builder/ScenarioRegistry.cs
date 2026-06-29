@@ -294,6 +294,113 @@ public sealed class ScenarioRegistry
                         = "Pix: mesmo EndToEndId da pacs.008 original",
                 }),
 
+            // Pix Automático — INITIATION leg (pain.009 MndtInitnReq).
+            // Originator side: payer's PSP asks the payee's PSP to
+            // authorise recurring debits. Mandate body lives under
+            // MndtInitnReq/Mndt (Mandate19). BCB pins SvcLvl/Cd to
+            // "SRDE"; SeqTp = "FRST" for the first debit. MndtReqId,
+            // TrckgInd, Cdtr, Dbtr and DbtrAgt are XSD-mandatory;
+            // everything else is opt-in via overrides.
+            new(
+                ScenarioId: "pix-automatico-initiation",
+                EcosystemId: "brazilian-pix",
+                MessageTypePrefix: "pain.009",
+                DisplayName: "Mandate Initiation (Pix Automático)",
+                Description: "Solicitação de autorização de recorrência enviada pelo PSP Recebedor ao PSP Pagador via SPI",
+                FieldOverrides: new Dictionary<string, string>
+                {
+                    ["MndtInitnReq/GrpHdr/MsgId"] = "9999901020240115000005",
+                    ["MndtInitnReq/GrpHdr/CreDtTm"] = "2024-01-15T10:30:00",
+                    ["MndtInitnReq/Mndt/MndtId"] = "MNDT-PIXAUT-20240115-0001",
+                    ["MndtInitnReq/Mndt/MndtReqId"] = "MNDREQ-PIXAUT-20240115-0001",
+                    ["MndtInitnReq/Mndt/Tp/SvcLvl/Cd"] = "SRDE",
+                    ["MndtInitnReq/Mndt/Ocrncs/SeqTp"] = "FRST",
+                    ["MndtInitnReq/Mndt/TrckgInd"] = "true",
+                    ["MndtInitnReq/Mndt/MaxAmt"] = "500.00",
+                    ["MndtInitnReq/Mndt/MaxAmt/@Ccy"] = "BRL",
+                    ["MndtInitnReq/Mndt/Cdtr/Nm"] = "Maria Santos",
+                    ["MndtInitnReq/Mndt/Dbtr/Nm"] = "João Silva",
+                    ["MndtInitnReq/Mndt/DbtrAgt/FinInstnId/BICFI"] = "BRASBRRJXXX",
+                },
+                AdditionalMandatoryXPaths: new[]
+                {
+                    // Pull the optional but business-essential mandate
+                    // fields into the rendered XML.
+                    "MndtInitnReq/Mndt/MndtId",
+                    "MndtInitnReq/Mndt/Tp/SvcLvl/Cd",
+                    "MndtInitnReq/Mndt/Ocrncs/SeqTp",
+                    "MndtInitnReq/Mndt/MaxAmt",
+                },
+                FieldHints: new Dictionary<string, string>
+                {
+                    ["MndtInitnReq/GrpHdr/MsgId"]
+                        = "No Pix Automático, a iniciação parte do PSP RECEBEDOR — diferente do Pix transacional onde a iniciação parte do pagador.",
+                    ["MndtInitnReq/Mndt/Ocrncs/SeqTp"]
+                        = "FRST=primeiro débito, RCUR=recorrente, FNAL=último, OOFF=único",
+                    ["MndtInitnReq/Mndt/Tp/SvcLvl/Cd"]
+                        = "Pix Automático: sempre SRDE",
+                    ["MndtInitnReq/Mndt/TrckgInd"]
+                        = "true para mandatos com rastreamento via SPI",
+                }),
+
+            // Pix Automático — ACCEPTANCE REPORT leg (pain.012
+            // MndtAccptncRpt). Receiver side responds to the
+            // MandateInitiationRequest above with the acceptance result
+            // and (optionally) a copy of the original mandate.
+            new(
+                ScenarioId: "pix-automatico-mandate",
+                EcosystemId: "brazilian-pix",
+                MessageTypePrefix: "pain.012",
+                DisplayName: "Mandate Acceptance Report (Pix Automático)",
+                Description: "Aceitação de mandato de débito recorrente via Pix Automático",
+                FieldOverrides: new Dictionary<string, string>
+                {
+                    ["MndtAccptncRpt/GrpHdr/MsgId"] = "9999901020240115000005",
+                    ["MndtAccptncRpt/GrpHdr/CreDtTm"] = "2024-01-15T10:30:00",
+                    ["MndtAccptncRpt/UndrlygAccptncDtls/AccptncRslt/Accptd"] = "true",
+                    ["MndtAccptncRpt/UndrlygAccptncDtls/OrgnlMndt/OrgnlMndt/MndtId"]
+                        = "MNDT-PIXAUT-20240115-0001",
+                    ["MndtAccptncRpt/UndrlygAccptncDtls/OrgnlMndt/OrgnlMndt/MndtReqId"]
+                        = "MNDREQ-PIXAUT-20240115-0001",
+                    ["MndtAccptncRpt/UndrlygAccptncDtls/OrgnlMndt/OrgnlMndt/Tp/SvcLvl/Cd"]
+                        = "SRDE",
+                    ["MndtAccptncRpt/UndrlygAccptncDtls/OrgnlMndt/OrgnlMndt/Ocrncs/SeqTp"]
+                        = "FRST",
+                    ["MndtAccptncRpt/UndrlygAccptncDtls/OrgnlMndt/OrgnlMndt/FrstColltnDt"]
+                        = "2024-01-16",
+                    ["MndtAccptncRpt/UndrlygAccptncDtls/OrgnlMndt/OrgnlMndt/MaxAmt"]
+                        = "500.00",
+                    ["MndtAccptncRpt/UndrlygAccptncDtls/OrgnlMndt/OrgnlMndt/MaxAmt/@Ccy"]
+                        = "BRL",
+                    ["MndtAccptncRpt/UndrlygAccptncDtls/OrgnlMndt/OrgnlMndt/Cdtr/Nm"]
+                        = "Maria Santos",
+                    ["MndtAccptncRpt/UndrlygAccptncDtls/OrgnlMndt/OrgnlMndt/Dbtr/Nm"]
+                        = "João Silva",
+                },
+                AdditionalMandatoryXPaths: new[]
+                {
+                    // OrgnlMndt is an opt-in choice arm — these mark the
+                    // mandate body as required so the rendered XML includes
+                    // it (otherwise only AccptncRslt would show up).
+                    "MndtAccptncRpt/UndrlygAccptncDtls/OrgnlMndt/OrgnlMndt/MndtId",
+                    "MndtAccptncRpt/UndrlygAccptncDtls/OrgnlMndt/OrgnlMndt/MndtReqId",
+                    "MndtAccptncRpt/UndrlygAccptncDtls/OrgnlMndt/OrgnlMndt/Tp/SvcLvl/Cd",
+                    "MndtAccptncRpt/UndrlygAccptncDtls/OrgnlMndt/OrgnlMndt/Ocrncs/SeqTp",
+                    "MndtAccptncRpt/UndrlygAccptncDtls/OrgnlMndt/OrgnlMndt/FrstColltnDt",
+                    "MndtAccptncRpt/UndrlygAccptncDtls/OrgnlMndt/OrgnlMndt/MaxAmt",
+                    "MndtAccptncRpt/UndrlygAccptncDtls/OrgnlMndt/OrgnlMndt/Cdtr/Nm",
+                    "MndtAccptncRpt/UndrlygAccptncDtls/OrgnlMndt/OrgnlMndt/Dbtr/Nm",
+                },
+                FieldHints: new Dictionary<string, string>
+                {
+                    ["MndtAccptncRpt/UndrlygAccptncDtls/OrgnlMndt/OrgnlMndt/Ocrncs/SeqTp"]
+                        = "FRST=primeiro débito, RCUR=recorrente, FNAL=último, OOFF=único",
+                    ["MndtAccptncRpt/UndrlygAccptncDtls/OrgnlMndt/OrgnlMndt/Tp/SvcLvl/Cd"]
+                        = "Pix Automático: sempre SRDE",
+                    ["MndtAccptncRpt/UndrlygAccptncDtls/OrgnlMndt/OrgnlMndt/FrstColltnDt"]
+                        = "Data do primeiro débito — mínimo D+1",
+                }),
+
             // ── SEPA (EPC) ────────────────────────────────────────────────────
             new(
                 ScenarioId: "sepa-credit-transfer",

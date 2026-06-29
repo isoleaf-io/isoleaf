@@ -30,6 +30,7 @@ public sealed class PixFlowService
         string FromActor,
         string ToActor,
         string? ViaActor = null,
+        bool IsRelay = false,
         Func<string, string>? PostProcess = null);
 
     private sealed record FlowDefinition(IReadOnlyList<FlowStepDef> Steps);
@@ -94,6 +95,37 @@ public sealed class PixFlowService
                     "Rejeição", "SPI/BCB", "PSP Pagador",
                     PostProcess: ReplaceTxStatusWithRjct),
             ]),
+            // Pix Automático — per BCB's "Guia de Implementação do Pix
+            // Automático", the mandate flow is INITIATED BY THE PAYEE's
+            // PSP (not the payer, as in transactional Pix). The PSP
+            // Recebedor sends pain.009 to ask for authorisation; the
+            // PSP Pagador answers with pain.012 carrying the user's
+            // decision.
+            //   • Steps 1–2: pain.009 PSP Recebedor → (SPI repasse) → PSP Pagador
+            //   • Steps 3–4: pain.012 PSP Pagador → (SPI repasse) → PSP Recebedor
+            //   • Steps 5–6: internal notifications from each PSP to its
+            //                client (rendered as pain.012; the format the
+            //                BCB recommends for client-facing acceptance).
+            // MndtId is the anchor cross-reference field and travels
+            // unchanged across every hop (PropagateIntoXml updates MndtId
+            // under both <Mndt> and <OrgnlMndt>).
+            ["pix-automatico"] = new(
+            [
+                new(1, "pain.009.001.07", "pix-automatico-initiation",
+                    "Solicitação de mandato", "PSP Recebedor", "SPI/BCB"),
+                new(2, "pain.009.001.07", "pix-automatico-initiation",
+                    "Repasse ao PSP Pagador", "SPI/BCB", "PSP Pagador",
+                    IsRelay: true),
+                new(3, "pain.012.001.07", "pix-automatico-mandate",
+                    "Confirmação/Rejeição do mandato", "PSP Pagador", "SPI/BCB"),
+                new(4, "pain.012.001.07", "pix-automatico-mandate",
+                    "Notificação ao PSP Recebedor", "SPI/BCB", "PSP Recebedor",
+                    IsRelay: true),
+                new(5, "pain.012.001.07", "pix-automatico-mandate",
+                    "Notificação ao pagador", "PSP Pagador", "Pagador"),
+                new(6, "pain.012.001.07", "pix-automatico-mandate",
+                    "Notificação ao recebedor", "PSP Recebedor", "Recebedor"),
+            ]),
         };
 
     public PixFlowService(BuilderService builder)
@@ -135,21 +167,27 @@ public sealed class PixFlowService
             }
             rawSteps.Add(new PixFlowStep(
                 sd.StepId, sd.MessageType, sd.Label, sd.FromActor, sd.ToActor, xml,
-                ViaActor: sd.ViaActor));
+                ViaActor: sd.ViaActor,
+                IsRelay: sd.IsRelay));
         }
 
-        // Anchor = first step. Every other generated step pulls its
-        // OrgnlMsgId / OrgnlEndToEndId / OrgnlTxId / OrgnlUETR from there
-        // so the flow reads as one logical transaction.
-        var anchor = ExtractAnchor(rawSteps[0].Xml);
+        // Anchor selection: if the user provided overrides, pick the
+        // override whose message type is the most ID-rich (pacs.008 > 009 >
+        // pain.001 > pain.012 > pacs.004 > pacs.002). That step's IDs
+        // become the source of truth and propagate BOTH backward and
+        // forward — fixing the Open Finance case where overriding the
+        // pacs.008 (step 2) used to leave the pain.001 (step 1) with a
+        // stale, unrelated EndToEndId.
+        var anchorIdx = FindAnchorStepIndex(rawSteps, overrides);
+        var anchor = ExtractAnchor(rawSteps[anchorIdx].Xml);
 
         var propagatedSteps = new List<PixFlowStep>(rawSteps.Count);
         for (var i = 0; i < rawSteps.Count; i++)
         {
             var s = rawSteps[i];
-            // Skip step 1 (anchor itself) and any user-supplied override
+            // Skip the anchor itself and any user-supplied override
             // — overrides are pinned as-is; mismatches surface as alerts.
-            if (i == 0 || overrides.ContainsKey(s.StepId))
+            if (i == anchorIdx || overrides.ContainsKey(s.StepId))
             {
                 propagatedSteps.Add(s);
                 continue;
@@ -157,8 +195,36 @@ public sealed class PixFlowService
             propagatedSteps.Add(s with { Xml = PropagateIntoXml(s.Xml, anchor) });
         }
 
-        var alerts = ValidateFlowConsistency(propagatedSteps);
+        var alerts = ValidateAgainstAnchor(propagatedSteps, anchorIdx);
         return new PixFlowResult(flowType, propagatedSteps, alerts);
+    }
+
+    /// <summary>
+    /// Picks the index of the step whose XML is the most authoritative
+    /// source of cross-reference ids. When the user supplies one or
+    /// more overrides, prefer them in this order
+    /// (pacs.008 → pacs.009 → pain.001 → pain.012 → pacs.004 → pacs.002);
+    /// otherwise fall back to step 0.
+    /// </summary>
+    private static int FindAnchorStepIndex(
+        IReadOnlyList<PixFlowStep> steps,
+        IReadOnlyDictionary<int, string> overrides)
+    {
+        if (overrides.Count == 0) return 0;
+        string[] preference = ["pacs.008", "pacs.009", "pain.001", "pain.012", "pacs.004", "pacs.002"];
+        foreach (var pref in preference)
+        {
+            for (var i = 0; i < steps.Count; i++)
+            {
+                if (overrides.ContainsKey(steps[i].StepId)
+                    && steps[i].MessageType.StartsWith(pref, StringComparison.OrdinalIgnoreCase))
+                    return i;
+            }
+        }
+        // Catch-all: first overridden step in document order.
+        for (var i = 0; i < steps.Count; i++)
+            if (overrides.ContainsKey(steps[i].StepId)) return i;
+        return 0;
     }
 
     /// <summary>
@@ -168,13 +234,23 @@ public sealed class PixFlowService
     /// disagreements (both sides populated but different).
     /// </summary>
     public IReadOnlyList<PixFlowAlert> ValidateFlowConsistency(IReadOnlyList<PixFlowStep> steps)
+        => steps.Count == 0 ? [] : ValidateAgainstAnchor(steps, anchorIndex: 0);
+
+    /// <summary>
+    /// Same as <see cref="ValidateFlowConsistency"/> but anchored on a
+    /// caller-specified step — used by <see cref="GenerateFlow"/> when an
+    /// override moves the anchor away from step 0.
+    /// </summary>
+    private static IReadOnlyList<PixFlowAlert> ValidateAgainstAnchor(
+        IReadOnlyList<PixFlowStep> steps, int anchorIndex)
     {
         if (steps.Count == 0) return [];
-        var anchor = ExtractAnchor(steps[0].Xml);
+        var anchor = ExtractAnchor(steps[anchorIndex].Xml);
         var alerts = new List<PixFlowAlert>();
 
-        for (var i = 1; i < steps.Count; i++)
+        for (var i = 0; i < steps.Count; i++)
         {
+            if (i == anchorIndex) continue;
             var doc = ParseSafe(steps[i].Xml);
             if (doc is null) continue;
 
@@ -211,17 +287,20 @@ public sealed class PixFlowService
         var doc = ParseSafe(xml)
             ?? throw new InvalidOperationException("Anchor step is not valid XML.");
 
-        // IntrBkSttlmAmt (pacs.008/pacs.009) or InstdAmt (pain.001) carries
-        // the headline value + currency. Prefer the interbank settlement
-        // amount; fall back to InstdAmt when the anchor is a pain.001.
+        // IntrBkSttlmAmt (pacs.008/pacs.009), InstdAmt (pain.001) or
+        // MaxAmt (pain.009 — Pix Automático) carries the headline value
+        // + currency. Prefer the interbank settlement amount; fall back
+        // to InstdAmt for pain.001 and MaxAmt for the mandate request.
         var amtEl = doc.Descendants()
-            .FirstOrDefault(e => e.Name.LocalName is "IntrBkSttlmAmt" or "InstdAmt"
+            .FirstOrDefault(e => e.Name.LocalName is "IntrBkSttlmAmt" or "InstdAmt" or "MaxAmt"
                               && !e.HasElements);
         var amount = amtEl?.Value;
         var ccy = amtEl?.Attributes()
             .FirstOrDefault(a => a.Name.LocalName == "Ccy")?.Value;
 
-        // Names + creditor account from the underlying credit-transfer block.
+        // Names + creditor account from the underlying credit-transfer
+        // block — also covers pain.009/pain.012 where Cdtr/Nm and Dbtr/Nm
+        // live under <Mndt> / <OrgnlMndt> with the same parent local-name.
         var dbtrNm = doc.Descendants()
             .FirstOrDefault(e => e.Name.LocalName == "Nm"
                               && e.Parent?.Name.LocalName == "Dbtr")?.Value;
@@ -234,6 +313,21 @@ public sealed class PixFlowService
             .Select(e => e.Value)
             .FirstOrDefault();
 
+        // Mandate ids and Pix Automático specifics. MndtId is the
+        // headline cross-reference; MndtReqId is the request handle
+        // that the pain.012 must echo back under OrgnlMndt; SeqTp and
+        // SvcLvlCd must agree on both sides of the mandate exchange.
+        var mndtId = FirstValue(doc, "MndtId");
+        var mndtReqId = FirstValue(doc, "MndtReqId");
+        var seqTp = doc.Descendants()
+            .FirstOrDefault(e => e.Name.LocalName == "SeqTp"
+                              && !e.HasElements
+                              && e.Parent?.Name.LocalName == "Ocrncs")?.Value;
+        var svcLvlCd = doc.Descendants()
+            .FirstOrDefault(e => e.Name.LocalName == "Cd"
+                              && !e.HasElements
+                              && e.Parent?.Name.LocalName == "SvcLvl")?.Value;
+
         return new AnchorIds(
             MsgId: FirstValue(doc, "MsgId") ?? string.Empty,
             EndToEndId: FirstValue(doc, "EndToEndId") ?? string.Empty,
@@ -243,7 +337,11 @@ public sealed class PixFlowService
             Ccy: ccy,
             DbtrNm: dbtrNm,
             CdtrNm: cdtrNm,
-            CdtrAcctId: cdtrAcctId);
+            CdtrAcctId: cdtrAcctId,
+            MndtId: mndtId,
+            MndtReqId: mndtReqId,
+            SeqTp: seqTp,
+            SvcLvlCd: svcLvlCd);
     }
 
     private static string PropagateIntoXml(string xml, AnchorIds anchor)
@@ -271,13 +369,69 @@ public sealed class PixFlowService
                     if (anchor.UETR is not null) el.Value = anchor.UETR;
                     break;
                 case "EndToEndId":
-                    // For camt.054 the original EndToEndId is mirrored
-                    // under Refs/EndToEndId. Only update when nested
-                    // under Refs so we don't touch a fresh PmtId in some
-                    // downstream pacs.008-like body.
+                    // Two propagation targets:
+                    //  • Refs/EndToEndId in camt.054 (mirror of original)
+                    //  • PmtId/EndToEndId in pain.001, pacs.008 and pacs.009
+                    //    when THIS step isn't the anchor (back-propagation
+                    //    case: anchor is the pacs.008 override and the
+                    //    upstream pain.001 needs to adopt that EndToEndId).
                     if (!string.IsNullOrEmpty(anchor.EndToEndId)
-                        && el.Ancestors().Any(a => a.Name.LocalName == "Refs"))
+                        && (el.Ancestors().Any(a => a.Name.LocalName == "Refs")
+                            || el.Parent?.Name.LocalName == "PmtId"))
                         el.Value = anchor.EndToEndId;
+                    break;
+                case "MndtId":
+                    // Pix Automático: same MndtId across every hop.
+                    if (!string.IsNullOrEmpty(anchor.MndtId)
+                        && el.Parent?.Name.LocalName is "OrgnlMndt" or "Mndt")
+                        el.Value = anchor.MndtId;
+                    break;
+                case "MndtReqId":
+                    // pain.009 request id is echoed by pain.012's OrgnlMndt.
+                    if (!string.IsNullOrEmpty(anchor.MndtReqId)
+                        && el.Parent?.Name.LocalName is "OrgnlMndt" or "Mndt"
+                                                       or "MndtAccptncRpt" or "MndtInitnReq")
+                        el.Value = anchor.MndtReqId;
+                    break;
+                case "SeqTp":
+                    if (!string.IsNullOrEmpty(anchor.SeqTp)
+                        && el.Parent?.Name.LocalName == "Ocrncs")
+                        el.Value = anchor.SeqTp;
+                    break;
+                case "Cd":
+                    // SvcLvl/Cd — must agree between pain.009 and pain.012.
+                    if (!string.IsNullOrEmpty(anchor.SvcLvlCd)
+                        && el.Parent?.Name.LocalName == "SvcLvl")
+                        el.Value = anchor.SvcLvlCd;
+                    break;
+                case "MaxAmt":
+                    // pain.009 → pain.012: mirror amount + @Ccy so a
+                    // user-supplied value in the mandate request carries
+                    // into the acceptance report.
+                    if (!string.IsNullOrEmpty(anchor.Amount))
+                    {
+                        el.Value = anchor.Amount;
+                        if (!string.IsNullOrEmpty(anchor.Ccy))
+                        {
+                            var ccyAttr = el.Attributes()
+                                .FirstOrDefault(a => a.Name.LocalName == "Ccy");
+                            if (ccyAttr is not null) ccyAttr.Value = anchor.Ccy;
+                            else el.SetAttributeValue("Ccy", anchor.Ccy);
+                        }
+                    }
+                    break;
+                case "Nm":
+                    // Cross-message creditor/debtor name propagation.
+                    // Covers pain.009 → pain.012 (Mndt/Cdtr/Nm into
+                    // OrgnlMndt/Cdtr/Nm), pacs.008 → camt.054 RltdPties,
+                    // and pain.001 → pacs.008 when the anchor moves
+                    // forward via override.
+                    if (el.Parent?.Name.LocalName == "Cdtr"
+                        && !string.IsNullOrEmpty(anchor.CdtrNm))
+                        el.Value = anchor.CdtrNm;
+                    else if (el.Parent?.Name.LocalName == "Dbtr"
+                        && !string.IsNullOrEmpty(anchor.DbtrNm))
+                        el.Value = anchor.DbtrNm;
                     break;
             }
         }
@@ -321,25 +475,9 @@ public sealed class PixFlowService
             if (acctOthr is not null) acctOthr.Value = anchor.CdtrAcctId;
         }
 
-        // Optional: if the camt.054 carries RltdPties under TxDtls (not
-        // mandatory today but defensive against future scenario tweaks),
-        // mirror Dbtr/Cdtr names too.
-        if (!string.IsNullOrEmpty(anchor.DbtrNm))
-        {
-            var dbtrNm = doc.Descendants().FirstOrDefault(e =>
-                e.Name.LocalName == "Nm"
-                && e.Parent?.Name.LocalName == "Dbtr"
-                && e.Ancestors().Any(a => a.Name.LocalName == "RltdPties"));
-            if (dbtrNm is not null) dbtrNm.Value = anchor.DbtrNm;
-        }
-        if (!string.IsNullOrEmpty(anchor.CdtrNm))
-        {
-            var cdtrNm = doc.Descendants().FirstOrDefault(e =>
-                e.Name.LocalName == "Nm"
-                && e.Parent?.Name.LocalName == "Cdtr"
-                && e.Ancestors().Any(a => a.Name.LocalName == "RltdPties"));
-            if (cdtrNm is not null) cdtrNm.Value = anchor.CdtrNm;
-        }
+        // Cdtr/Nm + Dbtr/Nm under RltdPties are now covered by the
+        // generic Nm-by-parent rule in PropagateIntoXml — no special
+        // case needed here.
     }
 
     private static void CompareField(

@@ -31,6 +31,7 @@ const FLOW_TYPES = [
   { id: "pix-transfer-with-return", labelKey: "pix.flow.types.transferReturn" },
   { id: "pix-open-finance",         labelKey: "pix.flow.types.openFinance" },
   { id: "pix-rejected",             labelKey: "pix.flow.types.rejected" },
+  { id: "pix-automatico",           labelKey: "pix.flow.types.automatico" },
 ] as const;
 
 // Distinct hues per ISO 20022 family so the diagram reads as colour-coded
@@ -343,12 +344,15 @@ function SequenceDiagram({
             } else {
               const x1 = colX(fromI);
               const x2 = colX(toI);
+              // SPI "repasse" legs (steps marked IsRelay) render dashed
+              // even when modelled as standalone steps (no ViaActor).
+              const dashed = s.isRelay === true;
               arrows.push(
                 <g key={s.stepId} onClick={() => onSelect(s)} style={{ cursor: "pointer" }}>
                   {x1 === x2
                     ? renderSelfArrow(x1, baseY, color, isSelected, s.messageType)
                     : renderArrow(x1, baseY, x2, baseY,
-                        color, isSelected, s.messageType, s.label, false)}
+                        color, isSelected, s.messageType, s.label, dashed)}
                 </g>,
               );
               rowCursor += 1;

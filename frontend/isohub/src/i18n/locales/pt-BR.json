@@ -115,7 +115,8 @@
         "transfer": "Transferência Pix",
         "transferReturn": "Transferência com Devolução",
         "openFinance": "Open Finance",
-        "rejected": "Com Rejeição"
+        "rejected": "Com Rejeição",
+        "automatico": "Pix Automático (Mandato)"
       }
     }
   },
