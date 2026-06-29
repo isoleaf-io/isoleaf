@@ -87,6 +87,9 @@ builder.Services.AddSingleton<ReferenceService>();
 builder.Services.AddSingleton<VersionCompareService>();
 builder.Services.AddSingleton<ReturnGeneratorService>();
 // Builder side (6.4): scenario catalogue + the renderer it drives.
+// Sprint 8.1 — PaymentTestDataGenerator must be registered BEFORE
+// ScenarioRegistry so DI can inject it into the registry's constructor.
+builder.Services.AddSingleton<Iso8583Toolkit.Iso20022.TestData.PaymentTestDataGenerator>();
 builder.Services.AddSingleton<XmlExampleGenerator>();
 builder.Services.AddSingleton<ScenarioRegistry>();
 builder.Services.AddSingleton<BuilderService>();

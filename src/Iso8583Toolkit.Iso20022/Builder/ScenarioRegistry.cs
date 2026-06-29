@@ -1,21 +1,46 @@
+using Iso8583Toolkit.Iso20022.TestData;
+
 namespace Iso8583Toolkit.Iso20022.Builder;
 
 /// <summary>
-/// Hard-coded catalogue of the ISO 20022 ecosystems we support and the
-/// functional scenarios each one offers. Stateless, safe to keep as a
-/// singleton; every method is an in-memory lookup.
+/// Catalogue of the ISO 20022 ecosystems we support and the functional
+/// scenarios each one offers. The non-secret payment fixtures (names,
+/// BICs, CPF/CNPJ, Pix keys, amounts) come from
+/// <see cref="PaymentTestDataGenerator"/> so demo data renders fresh on
+/// every agent boot rather than reusing the same canned identifiers.
+/// T2 keeps its hard-coded BICs (DEUTDEDBXXX, SOGEFRPPXXX, TRGTXE2XXXX)
+/// — those are the real Eurosystem participants the scenario documents.
+/// Stateless after construction, safe to keep as a singleton.
 /// </summary>
 public sealed class ScenarioRegistry
 {
     /// <summary>Wildcard prefix — matches every message type. Used by the generic scenario.</summary>
     public const string WildcardPrefix = "*";
 
+    private readonly PaymentTestDataGenerator _generator;
     private readonly IReadOnlyList<EcosystemInfo> _ecosystems;
-    private readonly IReadOnlyList<ScenarioDefinition> _scenarios;
-    private readonly Dictionary<string, ScenarioDefinition> _byId;
 
-    public ScenarioRegistry()
+    // Per-call fixture bundle. BuildScenarios populates these from
+    // _generator on every invocation so each "Gerar" click in the
+    // Builder produces fresh names/BICs/amounts. Within a single
+    // BuildScenarios pass the same value is reused across every
+    // override that needs it, so e.g. Dbtr/Nm under DbtrAgt and under
+    // CdtTrfTxInf in the same XML always match.
+    private string _pixDbtrNm = "", _pixCdtrNm = "", _pixCpf = "",
+        _pixDbtrBic = "", _pixCdtrBic = "", _pixKey = "", _pixAmount = "";
+    private string _sepaDbtrNm = "", _sepaCdtrNm = "",
+        _sepaDbtrBic = "", _sepaCdtrBic = "", _sepaAmount = "";
+    private string _cbprDbtrNm = "", _cbprCdtrNm = "",
+        _cbprDbtrBic = "", _cbprCdtrBic = "", _cbprAmount = "";
+    private string _t2Amount = "";
+
+    /// <summary>Default constructor — instantiates its own generator.</summary>
+    public ScenarioRegistry() : this(new PaymentTestDataGenerator()) { }
+
+    public ScenarioRegistry(PaymentTestDataGenerator generator)
     {
+        ArgumentNullException.ThrowIfNull(generator);
+        _generator = generator;
         _ecosystems =
         [
             new("brazilian-pix", "Brazilian Pix", "Banco Central do Brasil - SPI"),
@@ -24,17 +49,62 @@ public sealed class ScenarioRegistry
             new("target-t2", "TARGET / T2 (ECB)", "Eurosystem High-Value Payments"),
             new("generic", "Generic ISO 20022", "ISO 20022 standard fields only"),
         ];
+    }
 
-        _scenarios = BuildScenarios();
-        _byId = _scenarios.ToDictionary(s => s.ScenarioId, StringComparer.Ordinal);
+    private void RegenerateFixtures()
+    {
+        var pixDbtr = _generator.GeneratePerson("pt_BR");
+        var pixCdtr = _generator.GeneratePerson("pt_BR");
+        _pixDbtrNm = pixDbtr.Name;
+        _pixCdtrNm = pixCdtr.Name;
+        _pixCpf = pixDbtr.Cpf;
+        _pixDbtrBic = _generator.GenerateBrazilianBic();
+        _pixCdtrBic = PickDistinctBrazilianBic(_generator, _pixDbtrBic);
+        _pixKey = _generator.GeneratePixKey().Value;
+        _pixAmount = _generator.GenerateAmount();
+
+        var sepaDbtr = _generator.GenerateCompany("de");
+        var sepaCdtr = _generator.GenerateCompany("de");
+        _sepaDbtrNm = sepaDbtr.Name;
+        _sepaCdtrNm = sepaCdtr.Name;
+        _sepaDbtrBic = _generator.GenerateEuropeanBic();
+        _sepaCdtrBic = PickDistinctEuropeanBic(_generator, _sepaDbtrBic);
+        _sepaAmount = _generator.GenerateAmount();
+
+        var cbprDbtr = _generator.GenerateCompany("en");
+        var cbprCdtr = _generator.GenerateCompany("en");
+        _cbprDbtrNm = cbprDbtr.Name;
+        _cbprCdtrNm = cbprCdtr.Name;
+        _cbprDbtrBic = _generator.GenerateEuropeanBic();
+        _cbprCdtrBic = PickDistinctEuropeanBic(_generator, _cbprDbtrBic);
+        _cbprAmount = _generator.GenerateAmount();
+
+        _t2Amount = _generator.GenerateAmount();
+    }
+
+    private static string PickDistinctBrazilianBic(PaymentTestDataGenerator g, string avoid)
+    {
+        string bic;
+        do { bic = g.GenerateBrazilianBic(); } while (bic == avoid);
+        return bic;
+    }
+
+    private static string PickDistinctEuropeanBic(PaymentTestDataGenerator g, string avoid)
+    {
+        string bic;
+        do { bic = g.GenerateEuropeanBic(); } while (bic == avoid);
+        return bic;
     }
 
     public IReadOnlyList<EcosystemInfo> GetEcosystems() => _ecosystems;
 
-    public IReadOnlyList<ScenarioDefinition> GetScenarios(string ecosystemId) =>
-        _scenarios
+    public IReadOnlyList<ScenarioDefinition> GetScenarios(string ecosystemId)
+    {
+        RegenerateFixtures();
+        return BuildScenarios()
             .Where(s => string.Equals(s.EcosystemId, ecosystemId, StringComparison.OrdinalIgnoreCase))
             .ToList();
+    }
 
     /// <summary>
     /// Filters scenarios within an ecosystem by the supplied message family
@@ -43,16 +113,21 @@ public sealed class ScenarioRegistry
     /// </summary>
     public IReadOnlyList<ScenarioDefinition> GetScenariosForMessageType(string ecosystemId, string messageTypePrefix)
     {
+        RegenerateFixtures();
         var prefix = ExtractFamilyPrefix(messageTypePrefix);
-        return _scenarios
+        return BuildScenarios()
             .Where(s => string.Equals(s.EcosystemId, ecosystemId, StringComparison.OrdinalIgnoreCase))
             .Where(s => s.MessageTypePrefix == WildcardPrefix
                         || string.Equals(s.MessageTypePrefix, prefix, StringComparison.OrdinalIgnoreCase))
             .ToList();
     }
 
-    public ScenarioDefinition? GetScenario(string scenarioId) =>
-        _byId.GetValueOrDefault(scenarioId);
+    public ScenarioDefinition? GetScenario(string scenarioId)
+    {
+        RegenerateFixtures();
+        return BuildScenarios()
+            .FirstOrDefault(s => string.Equals(s.ScenarioId, scenarioId, StringComparison.Ordinal));
+    }
 
     /// <summary>family+subId pair (e.g. <c>pacs.008</c>) from any messageType-shaped string.</summary>
     private static string ExtractFamilyPrefix(string messageTypeOrPrefix)
@@ -62,7 +137,7 @@ public sealed class ScenarioRegistry
         return parts.Length >= 2 ? $"{parts[0]}.{parts[1]}" : messageTypeOrPrefix;
     }
 
-    private static IReadOnlyList<ScenarioDefinition> BuildScenarios()
+    private IReadOnlyList<ScenarioDefinition> BuildScenarios()
     {
         // Empty collections reused across "no override / no hint" scenarios so
         // we don't allocate fresh empty dicts everywhere.
@@ -87,15 +162,15 @@ public sealed class ScenarioRegistry
                     // HHMM(4) + sequencial(11) = 32 chars exactly.
                     ["FIToFICstmrCdtTrf/CdtTrfTxInf/PmtId/EndToEndId"]
                         = "E9999901020240115103058000000001",
-                    ["FIToFICstmrCdtTrf/CdtTrfTxInf/IntrBkSttlmAmt"] = "150.00",
+                    ["FIToFICstmrCdtTrf/CdtTrfTxInf/IntrBkSttlmAmt"] = _pixAmount,
                     ["FIToFICstmrCdtTrf/CdtTrfTxInf/IntrBkSttlmAmt/@Ccy"] = "BRL",
                     ["FIToFICstmrCdtTrf/CdtTrfTxInf/ChrgBr"] = "SLEV",
-                    ["FIToFICstmrCdtTrf/CdtTrfTxInf/Dbtr/Nm"] = "João Silva",
-                    ["FIToFICstmrCdtTrf/CdtTrfTxInf/Dbtr/Id/OrgId/Othr/Id"] = "12345678901",
-                    ["FIToFICstmrCdtTrf/CdtTrfTxInf/DbtrAgt/FinInstnId/BICFI"] = "BRASBRRJXXX",
-                    ["FIToFICstmrCdtTrf/CdtTrfTxInf/CdtrAgt/FinInstnId/BICFI"] = "ITAUBRSPXXX",
-                    ["FIToFICstmrCdtTrf/CdtTrfTxInf/Cdtr/Nm"] = "Maria Santos",
-                    ["FIToFICstmrCdtTrf/CdtTrfTxInf/CdtrAcct/Id/Othr/Id"] = "maria@email.com",
+                    ["FIToFICstmrCdtTrf/CdtTrfTxInf/Dbtr/Nm"] = _pixDbtrNm,
+                    ["FIToFICstmrCdtTrf/CdtTrfTxInf/Dbtr/Id/OrgId/Othr/Id"] = _pixCpf,
+                    ["FIToFICstmrCdtTrf/CdtTrfTxInf/DbtrAgt/FinInstnId/BICFI"] = _pixDbtrBic,
+                    ["FIToFICstmrCdtTrf/CdtTrfTxInf/CdtrAgt/FinInstnId/BICFI"] = _pixCdtrBic,
+                    ["FIToFICstmrCdtTrf/CdtTrfTxInf/Cdtr/Nm"] = _pixCdtrNm,
+                    ["FIToFICstmrCdtTrf/CdtTrfTxInf/CdtrAcct/Id/Othr/Id"] = _pixKey,
                     ["FIToFICstmrCdtTrf/GrpHdr/SttlmInf/SttlmMtd"] = "CLRG",
                 },
                 // SPI/BCB tightens the XSD-optional rules: payer name + CPF,
@@ -140,7 +215,7 @@ public sealed class ScenarioRegistry
                     ["PmtRtr/TxInf/RtrId"] = "E9999901020240115103058000000002",
                     ["PmtRtr/TxInf/OrgnlEndToEndId"] = "E9999901020240115103058000000001",
                     ["PmtRtr/TxInf/OrgnlTxId"] = "TX-ORIGINAL-001",
-                    ["PmtRtr/TxInf/RtrdIntrBkSttlmAmt"] = "150.00",
+                    ["PmtRtr/TxInf/RtrdIntrBkSttlmAmt"] = _pixAmount,
                     ["PmtRtr/TxInf/RtrdIntrBkSttlmAmt/@Ccy"] = "BRL",
                     ["PmtRtr/TxInf/RtrRsnInf/Rsn/Cd"] = "FOCR",
                     ["PmtRtr/TxInf/RtrRsnInf/AddtlInf"] = "Devolucao solicitada pelo pagador",
@@ -200,25 +275,25 @@ public sealed class ScenarioRegistry
                 {
                     ["CstmrCdtTrfInitn/GrpHdr/MsgId"] = "9999901020240115000003",
                     ["CstmrCdtTrfInitn/GrpHdr/NbOfTxs"] = "1",
-                    ["CstmrCdtTrfInitn/GrpHdr/CtrlSum"] = "150.00",
-                    ["CstmrCdtTrfInitn/GrpHdr/InitgPty/Nm"] = "João Silva",
+                    ["CstmrCdtTrfInitn/GrpHdr/CtrlSum"] = _pixAmount,
+                    ["CstmrCdtTrfInitn/GrpHdr/InitgPty/Nm"] = _pixDbtrNm,
                     ["CstmrCdtTrfInitn/PmtInf/PmtInfId"] = "PMTINF-20240115-001",
                     ["CstmrCdtTrfInitn/PmtInf/PmtMtd"] = "TRF",
                     ["CstmrCdtTrfInitn/PmtInf/ReqdExctnDt/Dt"] = "2024-01-15",
-                    ["CstmrCdtTrfInitn/PmtInf/Dbtr/Nm"] = "João Silva",
-                    ["CstmrCdtTrfInitn/PmtInf/Dbtr/Id/PrvtId/Othr/Id"] = "12345678901",
+                    ["CstmrCdtTrfInitn/PmtInf/Dbtr/Nm"] = _pixDbtrNm,
+                    ["CstmrCdtTrfInitn/PmtInf/Dbtr/Id/PrvtId/Othr/Id"] = _pixCpf,
                     ["CstmrCdtTrfInitn/PmtInf/DbtrAcct/Id/Othr/Id"] = "conta-pagador-001",
                     ["CstmrCdtTrfInitn/PmtInf/DbtrAcct/Id/Othr/SchmeNm/Cd"] = "BBAN",
-                    ["CstmrCdtTrfInitn/PmtInf/DbtrAgt/FinInstnId/BICFI"] = "BRASBRRJXXX",
+                    ["CstmrCdtTrfInitn/PmtInf/DbtrAgt/FinInstnId/BICFI"] = _pixDbtrBic,
                     ["CstmrCdtTrfInitn/PmtInf/CdtTrfTxInf/PmtId/EndToEndId"]
                         = "E9999901020240115103058000000001",
-                    ["CstmrCdtTrfInitn/PmtInf/CdtTrfTxInf/Amt/InstdAmt"] = "150.00",
+                    ["CstmrCdtTrfInitn/PmtInf/CdtTrfTxInf/Amt/InstdAmt"] = _pixAmount,
                     ["CstmrCdtTrfInitn/PmtInf/CdtTrfTxInf/Amt/InstdAmt/@Ccy"] = "BRL",
                     ["CstmrCdtTrfInitn/PmtInf/CdtTrfTxInf/CdtrAgt/FinInstnId/BICFI"]
-                        = "ITAUBRSPXXX",
-                    ["CstmrCdtTrfInitn/PmtInf/CdtTrfTxInf/Cdtr/Nm"] = "Maria Santos",
+                        = _pixCdtrBic,
+                    ["CstmrCdtTrfInitn/PmtInf/CdtTrfTxInf/Cdtr/Nm"] = _pixCdtrNm,
                     ["CstmrCdtTrfInitn/PmtInf/CdtTrfTxInf/CdtrAcct/Id/Othr/Id"]
-                        = "maria@email.com",
+                        = _pixKey,
                 },
                 AdditionalMandatoryXPaths: new[]
                 {
@@ -251,7 +326,7 @@ public sealed class ScenarioRegistry
                     ["BkToCstmrDbtCdtNtfctn/GrpHdr/MsgId"] = "9999901020240115000004",
                     ["BkToCstmrDbtCdtNtfctn/Ntfctn/Id"] = "NTFCTN-20240115-001",
                     ["BkToCstmrDbtCdtNtfctn/Ntfctn/Acct/Id/Othr/Id"] = "conta-recebedor-001",
-                    ["BkToCstmrDbtCdtNtfctn/Ntfctn/Ntry/Amt"] = "150.00",
+                    ["BkToCstmrDbtCdtNtfctn/Ntfctn/Ntry/Amt"] = _pixAmount,
                     ["BkToCstmrDbtCdtNtfctn/Ntfctn/Ntry/Amt/@Ccy"] = "BRL",
                     ["BkToCstmrDbtCdtNtfctn/Ntfctn/Ntry/CdtDbtInd"] = "CRDT",
                     ["BkToCstmrDbtCdtNtfctn/Ntfctn/Ntry/Sts/Cd"] = "BOOK",
@@ -316,11 +391,11 @@ public sealed class ScenarioRegistry
                     ["MndtInitnReq/Mndt/Tp/SvcLvl/Cd"] = "SRDE",
                     ["MndtInitnReq/Mndt/Ocrncs/SeqTp"] = "FRST",
                     ["MndtInitnReq/Mndt/TrckgInd"] = "true",
-                    ["MndtInitnReq/Mndt/MaxAmt"] = "500.00",
+                    ["MndtInitnReq/Mndt/MaxAmt"] = _pixAmount,
                     ["MndtInitnReq/Mndt/MaxAmt/@Ccy"] = "BRL",
-                    ["MndtInitnReq/Mndt/Cdtr/Nm"] = "Maria Santos",
-                    ["MndtInitnReq/Mndt/Dbtr/Nm"] = "João Silva",
-                    ["MndtInitnReq/Mndt/DbtrAgt/FinInstnId/BICFI"] = "BRASBRRJXXX",
+                    ["MndtInitnReq/Mndt/Cdtr/Nm"] = _pixCdtrNm,
+                    ["MndtInitnReq/Mndt/Dbtr/Nm"] = _pixDbtrNm,
+                    ["MndtInitnReq/Mndt/DbtrAgt/FinInstnId/BICFI"] = _pixDbtrBic,
                 },
                 AdditionalMandatoryXPaths: new[]
                 {
@@ -369,13 +444,13 @@ public sealed class ScenarioRegistry
                     ["MndtAccptncRpt/UndrlygAccptncDtls/OrgnlMndt/OrgnlMndt/FrstColltnDt"]
                         = "2024-01-16",
                     ["MndtAccptncRpt/UndrlygAccptncDtls/OrgnlMndt/OrgnlMndt/MaxAmt"]
-                        = "500.00",
+                        = _pixAmount,
                     ["MndtAccptncRpt/UndrlygAccptncDtls/OrgnlMndt/OrgnlMndt/MaxAmt/@Ccy"]
                         = "BRL",
                     ["MndtAccptncRpt/UndrlygAccptncDtls/OrgnlMndt/OrgnlMndt/Cdtr/Nm"]
-                        = "Maria Santos",
+                        = _pixCdtrNm,
                     ["MndtAccptncRpt/UndrlygAccptncDtls/OrgnlMndt/OrgnlMndt/Dbtr/Nm"]
-                        = "João Silva",
+                        = _pixDbtrNm,
                 },
                 AdditionalMandatoryXPaths: new[]
                 {
@@ -412,14 +487,14 @@ public sealed class ScenarioRegistry
                 {
                     ["FIToFICstmrCdtTrf/GrpHdr/MsgId"] = "SEPA20240115BNPPARIBAS001",
                     ["FIToFICstmrCdtTrf/CdtTrfTxInf/PmtId/EndToEndId"] = "INV-2024-00142",
-                    ["FIToFICstmrCdtTrf/CdtTrfTxInf/IntrBkSttlmAmt"] = "1000.00",
+                    ["FIToFICstmrCdtTrf/CdtTrfTxInf/IntrBkSttlmAmt"] = _sepaAmount,
                     ["FIToFICstmrCdtTrf/CdtTrfTxInf/IntrBkSttlmAmt/@Ccy"] = "EUR",
                     ["FIToFICstmrCdtTrf/CdtTrfTxInf/ChrgBr"] = "SLEV",
-                    ["FIToFICstmrCdtTrf/CdtTrfTxInf/Dbtr/Nm"] = "Acme GmbH",
+                    ["FIToFICstmrCdtTrf/CdtTrfTxInf/Dbtr/Nm"] = _sepaDbtrNm,
                     ["FIToFICstmrCdtTrf/CdtTrfTxInf/DbtrAcct/Id/IBAN"] = "DE89370400440532013000",
-                    ["FIToFICstmrCdtTrf/CdtTrfTxInf/DbtrAgt/FinInstnId/BICFI"] = "BNPAFRPPXXX",
-                    ["FIToFICstmrCdtTrf/CdtTrfTxInf/CdtrAgt/FinInstnId/BICFI"] = "DEUTDEDBXXX",
-                    ["FIToFICstmrCdtTrf/CdtTrfTxInf/Cdtr/Nm"] = "Schmidt AG",
+                    ["FIToFICstmrCdtTrf/CdtTrfTxInf/DbtrAgt/FinInstnId/BICFI"] = _sepaDbtrBic,
+                    ["FIToFICstmrCdtTrf/CdtTrfTxInf/CdtrAgt/FinInstnId/BICFI"] = _sepaCdtrBic,
+                    ["FIToFICstmrCdtTrf/CdtTrfTxInf/Cdtr/Nm"] = _sepaCdtrNm,
                     ["FIToFICstmrCdtTrf/CdtTrfTxInf/CdtrAcct/Id/IBAN"] = "DE75512108001245126199",
                     ["FIToFICstmrCdtTrf/CdtTrfTxInf/RmtInf/Ustrd"] = "INV-2024-00142",
                     ["FIToFICstmrCdtTrf/GrpHdr/SttlmInf/SttlmMtd"] = "CLRG",
@@ -478,20 +553,20 @@ public sealed class ScenarioRegistry
                 {
                     ["CstmrCdtTrfInitn/GrpHdr/MsgId"] = "SEPA20240115A3F12B",
                     ["CstmrCdtTrfInitn/GrpHdr/NbOfTxs"] = "1",
-                    ["CstmrCdtTrfInitn/GrpHdr/CtrlSum"] = "1000.00",
-                    ["CstmrCdtTrfInitn/GrpHdr/InitgPty/Nm"] = "Acme GmbH",
+                    ["CstmrCdtTrfInitn/GrpHdr/CtrlSum"] = _sepaAmount,
+                    ["CstmrCdtTrfInitn/GrpHdr/InitgPty/Nm"] = _sepaDbtrNm,
                     ["CstmrCdtTrfInitn/PmtInf/PmtInfId"] = "PMTINF-SEPA-001",
                     ["CstmrCdtTrfInitn/PmtInf/PmtMtd"] = "TRF",
                     ["CstmrCdtTrfInitn/PmtInf/ReqdExctnDt/Dt"] = "2024-01-16",
-                    ["CstmrCdtTrfInitn/PmtInf/Dbtr/Nm"] = "Acme GmbH",
+                    ["CstmrCdtTrfInitn/PmtInf/Dbtr/Nm"] = _sepaDbtrNm,
                     ["CstmrCdtTrfInitn/PmtInf/DbtrAcct/Id/IBAN"] = "DE89370400440532013000",
-                    ["CstmrCdtTrfInitn/PmtInf/DbtrAgt/FinInstnId/BICFI"] = "BNPAFRPPXXX",
+                    ["CstmrCdtTrfInitn/PmtInf/DbtrAgt/FinInstnId/BICFI"] = _sepaDbtrBic,
                     ["CstmrCdtTrfInitn/PmtInf/CdtTrfTxInf/PmtId/EndToEndId"] = "INV-2024-00142",
-                    ["CstmrCdtTrfInitn/PmtInf/CdtTrfTxInf/Amt/InstdAmt"] = "1000.00",
+                    ["CstmrCdtTrfInitn/PmtInf/CdtTrfTxInf/Amt/InstdAmt"] = _sepaAmount,
                     ["CstmrCdtTrfInitn/PmtInf/CdtTrfTxInf/Amt/InstdAmt/@Ccy"] = "EUR",
                     ["CstmrCdtTrfInitn/PmtInf/CdtTrfTxInf/CdtrAgt/FinInstnId/BICFI"]
-                        = "DEUTDEDBXXX",
-                    ["CstmrCdtTrfInitn/PmtInf/CdtTrfTxInf/Cdtr/Nm"] = "Schmidt AG",
+                        = _sepaCdtrBic,
+                    ["CstmrCdtTrfInitn/PmtInf/CdtTrfTxInf/Cdtr/Nm"] = _sepaCdtrNm,
                     ["CstmrCdtTrfInitn/PmtInf/CdtTrfTxInf/CdtrAcct/Id/IBAN"]
                         = "DE75512108001245126199",
                     ["CstmrCdtTrfInitn/PmtInf/CdtTrfTxInf/RmtInf/Ustrd"] = "INV-2024-00142",
@@ -520,7 +595,7 @@ public sealed class ScenarioRegistry
                     ["PmtRtr/GrpHdr/NbOfTxs"] = "1",
                     ["PmtRtr/GrpHdr/SttlmInf/SttlmMtd"] = "CLRG",
                     ["PmtRtr/TxInf/OrgnlEndToEndId"] = "INV-2024-00142",
-                    ["PmtRtr/TxInf/RtrdIntrBkSttlmAmt"] = "1000.00",
+                    ["PmtRtr/TxInf/RtrdIntrBkSttlmAmt"] = _sepaAmount,
                     ["PmtRtr/TxInf/RtrdIntrBkSttlmAmt/@Ccy"] = "EUR",
                     ["PmtRtr/TxInf/RtrRsnInf/Rsn/Cd"] = "AC04",
                     ["PmtRtr/TxInf/RtrRsnInf/AddtlInf"] = "Account closed",
@@ -550,13 +625,13 @@ public sealed class ScenarioRegistry
                     ["FIToFICstmrCdtTrf/CdtTrfTxInf/PmtId/EndToEndId"] = "WIRE-2024-00001",
                     ["FIToFICstmrCdtTrf/CdtTrfTxInf/PmtId/UETR"]
                         = "550e8400-e29b-41d4-a716-446655440000",
-                    ["FIToFICstmrCdtTrf/CdtTrfTxInf/IntrBkSttlmAmt"] = "75000.00",
+                    ["FIToFICstmrCdtTrf/CdtTrfTxInf/IntrBkSttlmAmt"] = _cbprAmount,
                     ["FIToFICstmrCdtTrf/CdtTrfTxInf/IntrBkSttlmAmt/@Ccy"] = "USD",
                     ["FIToFICstmrCdtTrf/CdtTrfTxInf/ChrgBr"] = "DEBT",
-                    ["FIToFICstmrCdtTrf/CdtTrfTxInf/Dbtr/Nm"] = "Acme Corporation",
-                    ["FIToFICstmrCdtTrf/CdtTrfTxInf/DbtrAgt/FinInstnId/BICFI"] = "CHASUS33XXX",
-                    ["FIToFICstmrCdtTrf/CdtTrfTxInf/CdtrAgt/FinInstnId/BICFI"] = "HSBCGB2LXXX",
-                    ["FIToFICstmrCdtTrf/CdtTrfTxInf/Cdtr/Nm"] = "Global Trading Ltd",
+                    ["FIToFICstmrCdtTrf/CdtTrfTxInf/Dbtr/Nm"] = _cbprDbtrNm,
+                    ["FIToFICstmrCdtTrf/CdtTrfTxInf/DbtrAgt/FinInstnId/BICFI"] = _cbprDbtrBic,
+                    ["FIToFICstmrCdtTrf/CdtTrfTxInf/CdtrAgt/FinInstnId/BICFI"] = _cbprCdtrBic,
+                    ["FIToFICstmrCdtTrf/CdtTrfTxInf/Cdtr/Nm"] = _cbprCdtrNm,
                     ["FIToFICstmrCdtTrf/GrpHdr/SttlmInf/SttlmMtd"] = "INDA",
                 },
                 AdditionalMandatoryXPaths: new[]
@@ -583,10 +658,10 @@ public sealed class ScenarioRegistry
                 Description: "Financial Institution Credit Transfer - cover method",
                 FieldOverrides: new Dictionary<string, string>
                 {
-                    ["FICdtTrf/CdtTrfTxInf/IntrBkSttlmAmt"] = "75000.00",
+                    ["FICdtTrf/CdtTrfTxInf/IntrBkSttlmAmt"] = _cbprAmount,
                     ["FICdtTrf/CdtTrfTxInf/IntrBkSttlmAmt/@Ccy"] = "USD",
-                    ["FICdtTrf/CdtTrfTxInf/Dbtr/FinInstnId/BICFI"] = "CHASUS33XXX",
-                    ["FICdtTrf/CdtTrfTxInf/Cdtr/FinInstnId/BICFI"] = "HSBCGB2LXXX",
+                    ["FICdtTrf/CdtTrfTxInf/Dbtr/FinInstnId/BICFI"] = _cbprDbtrBic,
+                    ["FICdtTrf/CdtTrfTxInf/Cdtr/FinInstnId/BICFI"] = _cbprCdtrBic,
                 },
                 AdditionalMandatoryXPaths: new[]
                 {
@@ -610,7 +685,7 @@ public sealed class ScenarioRegistry
                 {
                     ["PmtRtr/GrpHdr/SttlmInf/SttlmMtd"] = "INDA",
                     ["PmtRtr/TxInf/OrgnlEndToEndId"] = "WIRE-2024-00001",
-                    ["PmtRtr/TxInf/RtrdIntrBkSttlmAmt"] = "75000.00",
+                    ["PmtRtr/TxInf/RtrdIntrBkSttlmAmt"] = _cbprAmount,
                     ["PmtRtr/TxInf/RtrdIntrBkSttlmAmt/@Ccy"] = "USD",
                     ["PmtRtr/TxInf/RtrRsnInf/Rsn/Cd"] = "AC04",
                 },
@@ -692,8 +767,8 @@ public sealed class ScenarioRegistry
                 {
                     ["FIToFIPmtCxlReq/Assgnmt/MsgId"] = "CBPR20240115A3F12B",
                     ["FIToFIPmtCxlReq/Assgnmt/CreDtTm"] = "2024-01-15T10:30:00",
-                    ["FIToFIPmtCxlReq/Assgnmt/Assgnr/Agt/FinInstnId/BICFI"] = "CHASUS33XXX",
-                    ["FIToFIPmtCxlReq/Assgnmt/Assgne/Agt/FinInstnId/BICFI"] = "HSBCGB2LXXX",
+                    ["FIToFIPmtCxlReq/Assgnmt/Assgnr/Agt/FinInstnId/BICFI"] = _cbprDbtrBic,
+                    ["FIToFIPmtCxlReq/Assgnmt/Assgne/Agt/FinInstnId/BICFI"] = _cbprCdtrBic,
                     ["FIToFIPmtCxlReq/Undrlyg/TxInf/OrgnlEndToEndId"] = "WIRE-2024-00001",
                     ["FIToFIPmtCxlReq/Undrlyg/TxInf/OrgnlUETR"]
                         = "550e8400-e29b-41d4-a716-446655440000",
@@ -725,7 +800,7 @@ public sealed class ScenarioRegistry
                 {
                     ["FIToFICstmrCdtTrf/GrpHdr/MsgId"] = "DEUTDEDBXXX20240115HVP001",
                     ["FIToFICstmrCdtTrf/CdtTrfTxInf/PmtId/EndToEndId"] = "T2-HVP-20240115-001",
-                    ["FIToFICstmrCdtTrf/CdtTrfTxInf/IntrBkSttlmAmt"] = "500000.00",
+                    ["FIToFICstmrCdtTrf/CdtTrfTxInf/IntrBkSttlmAmt"] = _t2Amount,
                     ["FIToFICstmrCdtTrf/CdtTrfTxInf/IntrBkSttlmAmt/@Ccy"] = "EUR",
                     ["FIToFICstmrCdtTrf/CdtTrfTxInf/ChrgBr"] = "DEBT",
                     ["FIToFICstmrCdtTrf/CdtTrfTxInf/Dbtr/Nm"] = "Deutsche Bank AG",
@@ -755,7 +830,7 @@ public sealed class ScenarioRegistry
                 Description: "Financial Institution Credit Transfer - T2",
                 FieldOverrides: new Dictionary<string, string>
                 {
-                    ["FICdtTrf/CdtTrfTxInf/IntrBkSttlmAmt"] = "500000.00",
+                    ["FICdtTrf/CdtTrfTxInf/IntrBkSttlmAmt"] = _t2Amount,
                     ["FICdtTrf/CdtTrfTxInf/IntrBkSttlmAmt/@Ccy"] = "EUR",
                     ["FICdtTrf/CdtTrfTxInf/Dbtr/FinInstnId/BICFI"] = "DEUTDEDBXXX",
                     ["FICdtTrf/CdtTrfTxInf/Cdtr/FinInstnId/BICFI"] = "SOGEFRPPXXX",

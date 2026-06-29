@@ -153,22 +153,28 @@ public class BuilderServiceTests
     [Fact]
     public void Build_Pacs008_PixCreditTransfer_AppliesOverrideOnDbtrName()
     {
+        // Sprint 8.1: the scenario now sources Dbtr/Nm from
+        // PaymentTestDataGenerator (Bogus pt_BR) so the value changes
+        // per agent run — we only assert the override was applied
+        // (non-empty + ecosystem-mandatory).
         var result = Builder.Build("pacs.008.001.09", "pix-credit-transfer");
         var dbtrNm = FindField(result.Sections, "FIToFICstmrCdtTrf/CdtTrfTxInf/Dbtr/Nm");
         dbtrNm.Should().NotBeNull();
-        dbtrNm!.Value.Should().Be("João Silva");
+        dbtrNm!.Value.Should().NotBeNullOrEmpty();
         dbtrNm.IsEcosystemMandatory.Should().BeTrue();
     }
 
     [Fact]
     public void Build_Pacs008_PixCreditTransfer_AppliesOverrideOnDbtrAgtBicfi()
     {
+        // Sprint 8.1: BIC is drawn from the curated Brazilian list — assert
+        // BIC11 format (8 ISO + 3 branch) rather than a specific institution.
         var result = Builder.Build("pacs.008.001.09", "pix-credit-transfer");
         var bicfi = FindField(
             result.Sections,
             "FIToFICstmrCdtTrf/CdtTrfTxInf/DbtrAgt/FinInstnId/BICFI");
         bicfi.Should().NotBeNull();
-        bicfi!.Value.Should().Be("BRASBRRJXXX");
+        bicfi!.Value.Should().MatchRegex(@"^[A-Z0-9]{8}([A-Z0-9]{3})?$");
         bicfi.IsEcosystemMandatory.Should().BeTrue();
     }
 
@@ -215,9 +221,12 @@ public class BuilderServiceTests
     [Fact]
     public void Build_Pacs008_PixCreditTransfer_XmlContainsPixKeyUnderOthr()
     {
+        // Sprint 8.1: the Pix key now comes from GeneratePixKey() so we
+        // assert the structure (Othr/Id pair with a non-empty value)
+        // instead of a fixed email address.
         var result = Builder.Build("pacs.008.001.09", "pix-credit-transfer");
         result.Xml.Should().Contain("<Othr>");
-        result.Xml.Should().Contain("maria@email.com");
+        result.Xml.Should().MatchRegex(@"<CdtrAcct>\s*<Id>\s*<Othr>\s*<Id>[^<]+</Id>");
     }
 
     [Fact]
