@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Linq;
 using System.Text;
 using Bogus;
 
@@ -180,10 +181,9 @@ public sealed class PaymentTestDataGenerator
     {
         var normalized = input.Normalize(NormalizationForm.FormD);
         var sb = new StringBuilder(normalized.Length);
-        foreach (var ch in normalized)
+        foreach (var ch in normalized.Where(ch => CharUnicodeInfo.GetUnicodeCategory(ch) != UnicodeCategory.NonSpacingMark))
         {
-            if (CharUnicodeInfo.GetUnicodeCategory(ch) != UnicodeCategory.NonSpacingMark)
-                sb.Append(ch);
+            sb.Append(ch);
         }
         return sb.ToString().Normalize(NormalizationForm.FormC);
     }
