@@ -5,6 +5,9 @@ namespace Iso8583Toolkit.Iso20022.Pix.Flow;
 /// <paramref name="ViaActor"/> renders the SPI hop for interbank messages
 /// (pacs.008/pacs.002/pacs.004) so the diagram shows the BCB in the middle
 /// even though the wire-level message logically goes end-to-end.
+/// <paramref name="IsRelay"/> marks a "repasse" segment — the SPI handing
+/// a previously-delivered message to the next PSP — so the diagram can
+/// draw the arrow with a dashed stroke.
 /// </summary>
 public sealed record PixFlowStep(
     int StepId,
@@ -13,7 +16,8 @@ public sealed record PixFlowStep(
     string FromActor,
     string ToActor,
     string Xml,
-    string? ViaActor = null);
+    string? ViaActor = null,
+    bool IsRelay = false);
 
 /// <summary>
 /// Cross-reference inconsistency between two steps. <paramref name="Severity"/>
@@ -48,4 +52,27 @@ internal sealed record AnchorIds(
     string? Ccy,
     string? DbtrNm,
     string? CdtrNm,
-    string? CdtrAcctId);
+    string? CdtrAcctId,
+    /// <summary>
+    /// Mandate id (pain.012 — Pix Automático). Propagates across every
+    /// step of the mandate flow so a user-provided MndtId in step 1
+    /// ripples to the remaining 5 hops.
+    /// </summary>
+    string? MndtId,
+    /// <summary>
+    /// Mandate request id (pain.009 — Pix Automático). The PSP
+    /// Recebedor mints this once when it asks for authorisation; the
+    /// pain.012 acceptance echoes it back under <c>OrgnlMndt</c>.
+    /// </summary>
+    string? MndtReqId,
+    /// <summary>
+    /// Occurrences/Frequency sequence type (pain.009 / pain.012). Most
+    /// Pix Automático mandates use <c>RCUR</c>; the value must match
+    /// across the request and the acceptance.
+    /// </summary>
+    string? SeqTp,
+    /// <summary>
+    /// Service level code (e.g. <c>SRDE</c> for Pix Automático). Lives
+    /// under <c>SvcLvl/Cd</c> and must agree between pain.009 and pain.012.
+    /// </summary>
+    string? SvcLvlCd);

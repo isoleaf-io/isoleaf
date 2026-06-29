@@ -400,6 +400,72 @@ public class SummaryServiceTests
     }
 
     [Fact]
+    public void Summarize_Pain009PixAutomatico_ExtractsMandateIdAndOperationName()
+    {
+        // pain.009 = MandateInitiationRequest (initiation leg).
+        const string xml = """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <Document xmlns="urn:iso:std:iso:20022:tech:xsd:pain.009.001.07">
+              <MndtInitnReq>
+                <GrpHdr><MsgId>MND-009-001</MsgId><CreDtTm>2024-01-15T10:30:00</CreDtTm></GrpHdr>
+                <Mndt>
+                  <MndtId>MNDT-PIXAUT-20240115-0001</MndtId>
+                  <MndtReqId>MNDREQ-001</MndtReqId>
+                  <TrckgInd>true</TrckgInd>
+                  <Tp><SvcLvl><Cd>SRDE</Cd></SvcLvl></Tp>
+                  <Cdtr><Nm>Maria Santos</Nm></Cdtr>
+                  <Dbtr><Nm>João Silva</Nm></Dbtr>
+                  <DbtrAgt><FinInstnId><BICFI>BRASBRRJXXX</BICFI></FinInstnId></DbtrAgt>
+                </Mndt>
+              </MndtInitnReq>
+            </Document>
+            """;
+        var (doc, ns) = Load(xml);
+        var result = new SummaryService().Summarize("pain.009.001.07", doc, ns);
+
+        result.Operation.Should().Be("Mandate Initiation Request (Pix Automático)");
+        result.Fields.Single(f => f.Label == "Mandate ID").Value
+            .Should().Be("MNDT-PIXAUT-20240115-0001");
+        result.Fields.Single(f => f.Label == "Mandate Req ID").Value.Should().Be("MNDREQ-001");
+        result.Fields.Single(f => f.Label == "Credor").Value.Should().Be("Maria Santos");
+    }
+
+    [Fact]
+    public void Summarize_Pain012PixAutomatico_ExtractsMandateIdAndCreditor()
+    {
+        const string xml = """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <Document xmlns="urn:iso:std:iso:20022:tech:xsd:pain.012.001.07">
+              <MndtAccptncRpt>
+                <GrpHdr><MsgId>MND-001</MsgId><CreDtTm>2024-01-15T10:30:00</CreDtTm></GrpHdr>
+                <UndrlygAccptncDtls>
+                  <AccptncRslt><Accptd>true</Accptd></AccptncRslt>
+                  <OrgnlMndt>
+                    <OrgnlMndt>
+                      <MndtId>MNDT-PIXAUT-20240115-0001</MndtId>
+                      <Tp><SvcLvl><Cd>SRDE</Cd></SvcLvl></Tp>
+                      <Ocrncs><SeqTp>FRST</SeqTp></Ocrncs>
+                      <FrstColltnDt>2024-01-16</FrstColltnDt>
+                      <Cdtr><Nm>Maria Santos</Nm></Cdtr>
+                      <Dbtr><Nm>João Silva</Nm></Dbtr>
+                    </OrgnlMndt>
+                  </OrgnlMndt>
+                </UndrlygAccptncDtls>
+              </MndtAccptncRpt>
+            </Document>
+            """;
+        var (doc, ns) = Load(xml);
+        var result = new SummaryService().Summarize("pain.012.001.07", doc, ns);
+
+        result.Operation.Should().Be("Mandate Acceptance Report (Pix Automático)");
+        result.Fields.Single(f => f.Label == "Mandate ID").Value
+            .Should().Be("MNDT-PIXAUT-20240115-0001");
+        result.Fields.Single(f => f.Label == "Credor").Value.Should().Be("Maria Santos");
+        result.Fields.Single(f => f.Label == "Service Level").Value.Should().Be("SRDE");
+        result.Fields.Single(f => f.Label == "Aceito").Value.Should().Be("true");
+    }
+
+    [Fact]
     public void Summarize_PrefixExtraction_VariantAndVersionStillRouteToPacs008()
     {
         // A different pacs.008 variant must still find the Pacs008Extractor.
