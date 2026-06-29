@@ -17,6 +17,7 @@ import {
   type PixField,
   type PixKeyAnalysis,
 } from "@/api/pix";
+import { fetchTestCity, fetchTestPerson, fetchTestPixKey } from "@/api/testData";
 
 type Tab = "decode" | "generate";
 
@@ -383,6 +384,26 @@ function GeneratePane({ onDecodeRequested }: { onDecodeRequested: (payload: stri
     }
   }
 
+  const [testDataLoading, setTestDataLoading] = useState(false);
+  async function handleLoadTestData() {
+    setTestDataLoading(true);
+    try {
+      const [keyData, payee, city] = await Promise.all([
+        fetchTestPixKey(),
+        fetchTestPerson("pt_BR"),
+        fetchTestCity("pt_BR"),
+      ]);
+      setPixKey(keyData.value);
+      setMerchantName(payee.name);
+      setMerchantCity(city);
+      setKeyAnalysis(null);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setTestDataLoading(false);
+    }
+  }
+
   async function handleCopy() {
     try {
       await navigator.clipboard.writeText(payload);
@@ -404,13 +425,25 @@ function GeneratePane({ onDecodeRequested }: { onDecodeRequested: (payload: stri
         </CardHeader>
         <CardBody className="space-y-3 text-xs">
           <Field label={t("pix.qrcode.fields.pixKey")}>
-            <input
-              value={pixKey}
-              onChange={(e) => setPixKey(e.target.value)}
-              onBlur={analyseKey}
-              className={inputCls}
-              data-testid="pix-generate-key"
-            />
+            <div className="flex gap-2">
+              <input
+                value={pixKey}
+                onChange={(e) => setPixKey(e.target.value)}
+                onBlur={analyseKey}
+                className={`${inputCls} flex-1`}
+                data-testid="pix-generate-key"
+              />
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleLoadTestData}
+                disabled={testDataLoading}
+                data-testid="pix-generate-test-data"
+                title="Preencher chave Pix, nome e cidade com dados gerados"
+              >
+                {testDataLoading ? "..." : "↺ Dados de teste"}
+              </Button>
+            </div>
             {/* The backend's analyser only recognises phones with the
                 +55 prefix and CPF/CNPJ as digits-only. Tell the user up
                 front so the live badge below doesn't surprise them. */}

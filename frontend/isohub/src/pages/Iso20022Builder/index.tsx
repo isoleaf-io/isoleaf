@@ -31,6 +31,19 @@ import {
   generateFieldValue,
   isGeneratableField,
 } from "@/utils/iso20022Generators";
+import { fetchTestPerson } from "@/api/testData";
+
+// Sprint 8.1 — locale per ecosystem, drives PaymentTestDataGenerator
+// when the user clicks "↺ Dados de teste". Maps to the Faker locale
+// list registered server-side; brazilian-pix → pt_BR (CPF + +55 phone),
+// SEPA/T2 → de, CBPR+ → en.
+const ECOSYSTEM_LOCALES: Record<string, string> = {
+  "brazilian-pix": "pt_BR",
+  sepa: "de",
+  "swift-cbpr": "en",
+  "target-t2": "de",
+  generic: "en",
+};
 
 const WILDCARD_PREFIX = "*";
 
@@ -142,6 +155,39 @@ export default function Iso20022BuilderPage() {
   const handleFieldChange = useCallback((xpath: string, value: string) => {
     setFieldValues((prev) => ({ ...prev, [xpath]: value }));
   }, []);
+
+  const [testDataLoading, setTestDataLoading] = useState(false);
+  const handleLoadTestData = useCallback(async () => {
+    if (!ecosystemId) return;
+    const locale = ECOSYSTEM_LOCALES[ecosystemId] ?? "pt_BR";
+    setTestDataLoading(true);
+    try {
+      // Pagador + recebedor são personas independentes; faz 2 chamadas
+      // pra evitar que ambos saiam com o mesmo nome.
+      const [payer, payee] = await Promise.all([
+        fetchTestPerson(locale),
+        fetchTestPerson(locale),
+      ]);
+      setFieldValues((prev) => {
+        const next = { ...prev };
+        // Atualiza qualquer XPath cujo último segmento seja "Dbtr/Nm",
+        // "Cdtr/Nm" ou "InitgPty/Nm" — cobre pacs.008, pain.001, pain.009
+        // e pain.012 sem precisar saber qual é o messageType.
+        for (const xp of Object.keys(next)) {
+          if (/(^|\/)Dbtr\/Nm$/.test(xp) || /(^|\/)InitgPty\/Nm$/.test(xp)) {
+            next[xp] = payer.name;
+          } else if (/(^|\/)Cdtr\/Nm$/.test(xp)) {
+            next[xp] = payee.name;
+          }
+        }
+        return next;
+      });
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setTestDataLoading(false);
+    }
+  }, [ecosystemId]);
 
   const handleAddOptional = useCallback((xpath: string) => {
     setAddedOptionalXPaths((prev) => {
@@ -381,6 +427,15 @@ export default function Iso20022BuilderPage() {
                 data-testid="builder-generate"
               >
                 {loading ? "Gerando..." : "Gerar →"}
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={handleLoadTestData}
+                disabled={testDataLoading || !result || !ecosystemId}
+                data-testid="builder-test-data"
+                title="Substituir nomes Dbtr/Cdtr por dados gerados via Bogus"
+              >
+                {testDataLoading ? "Gerando..." : "↺ Dados de teste"}
               </Button>
             </div>
 
