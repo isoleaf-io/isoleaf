@@ -313,7 +313,9 @@ public class PixFlowServiceTests
                 .FirstOrDefault(e => e.Name.LocalName == "Cd"
                                   && !e.HasElements
                                   && e.Parent?.Name.LocalName == "SvcLvl")?.Value;
-            svcLvlCd.Should().Be("SRDE",
+            svcLvlCd.Should().NotBeNull(
+                $"step {step.StepId} should carry SvcLvl/Cd");
+            svcLvlCd!.Should().Be("SRDE",
                 $"step {step.StepId} should adopt the anchor's SvcLvl/Cd");
 
             var maxAmt = doc.Descendants()
@@ -325,16 +327,20 @@ public class PixFlowServiceTests
                 .FirstOrDefault(a => a.Name.LocalName == "Ccy")?.Value
                 .Should().Be("BRL");
 
-            var cdtrNm = doc.Descendants()
+            var cdtrNmElement = doc.Descendants()
                 .FirstOrDefault(e => e.Name.LocalName == "Nm"
-                                  && e.Parent?.Name.LocalName == "Cdtr")?.Value;
-            cdtrNm.Should().Be("Padaria Esquina LTDA",
+                                  && e.Parent?.Name.LocalName == "Cdtr");
+            cdtrNmElement.Should().NotBeNull(
+                $"step {step.StepId} should include Cdtr/Nm");
+            cdtrNmElement!.Value.Should().Be("Padaria Esquina LTDA",
                 $"step {step.StepId} should adopt the anchor's Cdtr/Nm");
 
             var dbtrNm = doc.Descendants()
                 .FirstOrDefault(e => e.Name.LocalName == "Nm"
                                   && e.Parent?.Name.LocalName == "Dbtr")?.Value;
-            dbtrNm.Should().Be("Carlos Andrade",
+            dbtrNm.Should().NotBeNull(
+                $"step {step.StepId} ({step.MessageType}) must carry Dbtr/Nm");
+            dbtrNm!.Should().Be("Carlos Andrade",
                 $"step {step.StepId} should adopt the anchor's Dbtr/Nm");
         }
     }
