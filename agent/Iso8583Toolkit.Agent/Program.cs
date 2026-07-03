@@ -97,6 +97,8 @@ builder.Services.AddSingleton<BuilderService>();
 builder.Services.AddSingleton<Iso8583Toolkit.Iso20022.Pix.PixQrCodeService>();
 // Sprint 7.3 — Pix Flow Visualizer (multi-message orchestrator).
 builder.Services.AddSingleton<Iso8583Toolkit.Iso20022.Pix.Flow.PixFlowService>();
+// Sprint 9.1 — SWIFT MT parser (MT103/MT202/MT202COV → typed model).
+builder.Services.AddSingleton<Iso8583Toolkit.Iso20022.Swift.Mt.MtParserService>();
 
 // ── OpenAPI ────────────────────────────────────────────────────────────
 // Single document ("v1") covers the whole API surface. Every action is

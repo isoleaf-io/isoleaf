@@ -14,6 +14,7 @@ import Iso20022ComparatorPage from "./pages/Iso20022Comparator";
 import Iso20022BuilderPage from "./pages/Iso20022Builder";
 import PixQrCodePage from "./pages/PixQrCode";
 import PixFlowVisualizerPage from "./pages/PixFlow";
+import MtParserPage from "./pages/MtParser";
 
 export default function App() {
   return (
@@ -31,6 +32,7 @@ export default function App() {
       <Route path="/iso20022/builder" element={<Iso20022BuilderPage />} />
       <Route path="/pix/qrcode" element={<PixQrCodePage />} />
       <Route path="/pix/flow" element={<PixFlowVisualizerPage />} />
+      <Route path="/swift/mt-parser" element={<MtParserPage />} />
       <Route path="/docs" element={<DocsPage />} />
       <Route path="/docs/api" element={<ApiDocsPage />} />
       <Route path="/workspace" element={<WorkspacePage />} />
