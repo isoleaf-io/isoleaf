@@ -7,6 +7,7 @@ import {
   CreditCard,
   ExternalLink,
   FileText,
+  Globe,
   LayoutGrid,
   Lock,
   QrCode,
@@ -86,6 +87,14 @@ const sections: NavSection[] = [
     items: [
       { to: "/pix/qrcode", labelKey: "common.nav.pixQrCode", icon: QrCode, feature: "pixQrCode" },
       { to: "/pix/flow",   labelKey: "common.nav.pixFlowVisualizer", icon: Workflow, feature: "pixFlowVisualizer" },
+    ],
+  },
+  {
+    // SWIFT CBPR+ — Sprint 9. Same dev-gated pattern as Pix: one item
+    // today (MT parser), more to follow as the MT→MX track expands.
+    titleKey: "common.nav.swift",
+    items: [
+      { to: "/swift/mt-parser", labelKey: "common.nav.swiftMtParser", icon: Globe, feature: "swiftMtParser" },
     ],
   },
   {

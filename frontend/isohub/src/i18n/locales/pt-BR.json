@@ -56,7 +56,9 @@
       "iso20022MtMx": "MT → MX",
       "pix": "Brazilian Pix",
       "pixQrCode": "QR Code",
-      "pixFlowVisualizer": "Flow Visualizer"
+      "pixFlowVisualizer": "Flow Visualizer",
+      "swift": "SWIFT CBPR+",
+      "swiftMtParser": "Parser MT"
     }
   },
   "pix": {
