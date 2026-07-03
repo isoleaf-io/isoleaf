@@ -164,7 +164,7 @@ public sealed class MtParserService
             "3" => BuildBlock3Fields(content),
             "4" => BuildBlock4Fields(content, warnings),
             "5" => BuildHeaderField("Block5", content),
-            _ => [(MtField)new("?", id, "Bloco desconhecido", "—", content,
+            _ => [new("?", id, "Bloco desconhecido", "—", content,
                     MtFieldConfidence.NoMapping, [], null, [])],
         };
         return new MtBlock(id, BlockName(id), content, fields);
