@@ -28,6 +28,7 @@ const FLAGS = {
   iso20022Txid: false,        // 6.6 TXID + Chaves DICT
   iso20022MtMx: false,        // 6.7 MT → MX Comparador
   swiftMtParser: isDev,       // 9.1 SWIFT MT103/MT202/MT202COV parser (dev-only)
+  swiftMtComparator: isDev,   // 9.2 SWIFT MT↔MX comparator/converter (dev-only)
 };
 
 export const FEATURES: Readonly<typeof FLAGS> = FLAGS;

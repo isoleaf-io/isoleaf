@@ -99,6 +99,8 @@ builder.Services.AddSingleton<Iso8583Toolkit.Iso20022.Pix.PixQrCodeService>();
 builder.Services.AddSingleton<Iso8583Toolkit.Iso20022.Pix.Flow.PixFlowService>();
 // Sprint 9.1 — SWIFT MT parser (MT103/MT202/MT202COV → typed model).
 builder.Services.AddSingleton<Iso8583Toolkit.Iso20022.Swift.Mt.MtParserService>();
+// Sprint 9.2 — MT ↔ MX mapping/convert/compare (pacs.008/pacs.009).
+builder.Services.AddSingleton<Iso8583Toolkit.Iso20022.Swift.Mt.MtMxMapperService>();
 
 // ── OpenAPI ────────────────────────────────────────────────────────────
 // Single document ("v1") covers the whole API surface. Every action is
