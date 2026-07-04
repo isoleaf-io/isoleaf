@@ -391,21 +391,15 @@ public sealed class SwiftFlowService
         var raw = new List<PixFlowStep>(steps.Count);
         foreach (var sd in steps)
         {
-            string body;
-            if (overrides.TryGetValue(sd.StepId, out var ovr) && !string.IsNullOrWhiteSpace(ovr))
-            {
-                body = ovr.Trim();
-            }
-            else
-            {
-                body = sd.MessageType switch
+            var body = overrides.TryGetValue(sd.StepId, out var ovr) && !string.IsNullOrWhiteSpace(ovr)
+                ? ovr.Trim()
+                : sd.MessageType switch
                 {
                     "MT103" => BuildMt103(env),
                     "MT202COV" => BuildMt202Cov(env),
                     "MT910" => BuildMt910(env),
                     _ => $"{{4:\n:20:{env.MsgId}\n-}}",
                 };
-            }
             raw.Add(new PixFlowStep(
                 sd.StepId, sd.MessageType, sd.Label, sd.FromActor, sd.ToActor, body,
                 IsRelay: sd.IsRelay,
