@@ -516,9 +516,8 @@ public sealed class MtMxMapperService
     private static void FlattenMxValues(XElement? root, Dictionary<string, string> map)
     {
         if (root is null) return;
-        foreach (var child in root.Descendants())
+        foreach (var child in root.Descendants().Where(child => !child.HasElements))
         {
-            if (child.HasElements) continue;
             var path = BuildPath(child);
             if (!map.ContainsKey(path))
                 map[path] = child.Value.Trim();
