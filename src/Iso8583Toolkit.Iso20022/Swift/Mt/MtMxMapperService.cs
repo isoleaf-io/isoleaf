@@ -434,10 +434,10 @@ public sealed class MtMxMapperService
 
         // Surface MX-only fields the MT didn't cover (Match on OrgId,
         // MsgId etc. are noise — filter to the interesting leaves).
-        foreach (var kv in mxValues)
+        foreach (var kv in mxValues.Where(kv =>
+                     !consumedMxPaths.Contains(kv.Key) &&
+                     IsInterestingMxLeaf(kv.Key)))
         {
-            if (consumedMxPaths.Contains(kv.Key)) continue;
-            if (!IsInterestingMxLeaf(kv.Key)) continue;
             rows.Add(new MtMxCompareRow(
                 MtTag: "—",
                 MtSubId: null,
