@@ -86,7 +86,14 @@ const sections: NavSection[] = [
     titleKey: "common.nav.pix",
     items: [
       { to: "/pix/qrcode", labelKey: "common.nav.pixQrCode", icon: QrCode, feature: "pixQrCode" },
-      { to: "/pix/flow",   labelKey: "common.nav.pixFlowVisualizer", icon: Workflow, feature: "pixFlowVisualizer" },
+    ],
+  },
+  {
+    // Sprint 9.3 — Flow Visualizer promoted to its own section since it
+    // now covers Pix + CBPR+ MX + CBPR+ MT tabs on the same page.
+    titleKey: "common.nav.flow",
+    items: [
+      { to: "/flow", labelKey: "common.nav.flowVisualizer", icon: Workflow, feature: "pixFlowVisualizer" },
     ],
   },
   {

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
 import { AlertTriangle, Copy, Edit3, Loader2, Workflow, X } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
@@ -13,39 +14,77 @@ import {
   type PixFlowResult,
   type PixFlowStep,
 } from "@/api/pixFlow";
+import { generateSwiftFlow } from "@/api/swiftFlow";
 
-// Canonical SPI arrangement — columns render in this order regardless of
-// flow type; absent actors are filtered out for shorter flows.
-const ACTOR_ORDER: string[] = [
-  "Pagador",
-  "PSP Pagador",
-  "SPI/BCB",
-  "PSP Recebedor",
-  "Recebedor",
-];
+// Sprint 9.3 — unified visualizer for three protocol families. Each tab
+// swaps the actor column layout, the available flows and the backend
+// endpoint. MT payloads are rendered as raw text (no XSD → no MessageSummaryCard).
+type FlowProtocol = "pix" | "cbpr-mx" | "cbpr-mt";
 
-// Pinned set — matches the FlowDefinition keys in PixFlowService. Kept
-// inline so we don't gate the page rendering on a /types round-trip.
-const FLOW_TYPES = [
-  { id: "pix-transfer",             labelKey: "pix.flow.types.transfer" },
-  { id: "pix-transfer-with-return", labelKey: "pix.flow.types.transferReturn" },
-  { id: "pix-open-finance",         labelKey: "pix.flow.types.openFinance" },
-  { id: "pix-rejected",             labelKey: "pix.flow.types.rejected" },
-  { id: "pix-automatico",           labelKey: "pix.flow.types.automatico" },
-] as const;
+// Column order per protocol. Absent actors are filtered out at render.
+const ACTOR_ORDER_BY_PROTOCOL: Record<FlowProtocol, string[]> = {
+  pix: [
+    "Pagador",
+    "PSP Pagador",
+    "SPI/BCB",
+    "PSP Recebedor",
+    "Recebedor",
+  ],
+  "cbpr-mx": [
+    "Banco Originador",
+    "SWIFT/Correspondente",
+    "Banco Intermediário",
+    "Banco Beneficiário",
+  ],
+  "cbpr-mt": [
+    "Banco Originador",
+    "SWIFT/Correspondente",
+    "Banco Beneficiário",
+  ],
+};
 
-// Distinct hues per ISO 20022 family so the diagram reads as colour-coded
-// at a glance (pacs blue, pain green, camt orange).
-function familyColor(messageType: string): string {
+const FLOW_TYPES_BY_PROTOCOL: Record<
+  FlowProtocol,
+  ReadonlyArray<{ id: string; labelKey: string }>
+> = {
+  pix: [
+    { id: "pix-transfer",             labelKey: "pix.flow.types.transfer" },
+    { id: "pix-transfer-with-return", labelKey: "pix.flow.types.transferReturn" },
+    { id: "pix-open-finance",         labelKey: "pix.flow.types.openFinance" },
+    { id: "pix-rejected",             labelKey: "pix.flow.types.rejected" },
+    { id: "pix-automatico",           labelKey: "pix.flow.types.automatico" },
+  ],
+  "cbpr-mx": [
+    { id: "cbpr-direct-payment", labelKey: "flow.cbpr.direct" },
+    { id: "cbpr-cover-payment",  labelKey: "flow.cbpr.cover" },
+    { id: "cbpr-return",         labelKey: "flow.cbpr.return" },
+    { id: "cbpr-cancellation",   labelKey: "flow.cbpr.cancellation" },
+    { id: "cbpr-status-inquiry", labelKey: "flow.cbpr.statusInquiry" },
+  ],
+  "cbpr-mt": [
+    { id: "cbpr-mt-direct", labelKey: "flow.cbprMt.direct" },
+    { id: "cbpr-mt-cover",  labelKey: "flow.cbprMt.cover" },
+  ],
+};
+
+// Distinct hues per protocol family. Sprint 9.3 adds MT in purple so the
+// legacy track is visually distinct from the MX one — pacs blue, pain
+// green, camt orange, MT roxo.
+function familyColor(step: PixFlowStep): string {
+  if (step.contentType === "mt") return "#8b5cf6";
+  const messageType = step.messageType;
   if (messageType.startsWith("pacs.")) return "#3b82f6";
   if (messageType.startsWith("pain.")) return "#22c55e";
   if (messageType.startsWith("camt.")) return "#f97316";
   return "#94a3b8";
 }
 
-export default function PixFlowVisualizerPage() {
+export default function FlowVisualizerPage() {
   const { t } = useTranslation();
-  const [flowType, setFlowType] = useState<string>(FLOW_TYPES[0].id);
+  const [protocol, setProtocol] = useState<FlowProtocol>("pix");
+  const availableFlows = FLOW_TYPES_BY_PROTOCOL[protocol];
+  const actorOrder = ACTOR_ORDER_BY_PROTOCOL[protocol];
+  const [flowType, setFlowType] = useState<string>(availableFlows[0].id);
   const [result, setResult] = useState<PixFlowResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -53,12 +92,24 @@ export default function PixFlowVisualizerPage() {
   const [overrides, setOverrides] = useState<Record<number, string>>({});
   const [overrideTarget, setOverrideTarget] = useState<PixFlowStep | null>(null);
 
+  // Reset flow selection + result when the protocol tab changes so the
+  // dropdown doesn't hold a stale "pix-transfer" while the backend
+  // switches to /api/swift/flow.
+  useEffect(() => {
+    setFlowType(availableFlows[0].id);
+    setResult(null);
+    setSelectedStepId(null);
+    setOverrides({});
+    setError(null);
+  }, [protocol, availableFlows]);
+
   const generate = useCallback(
     async (nextOverrides: Record<number, string>) => {
       setLoading(true);
       setError(null);
       try {
-        const r = await generatePixFlow(
+        const fetcher = protocol === "pix" ? generatePixFlow : generateSwiftFlow;
+        const r = await fetcher(
           flowType,
           Object.keys(nextOverrides).length > 0 ? nextOverrides : undefined,
         );
@@ -74,7 +125,7 @@ export default function PixFlowVisualizerPage() {
         setLoading(false);
       }
     },
-    [flowType, selectedStepId],
+    [flowType, protocol, selectedStepId],
   );
 
   function handleGenerate() {
@@ -110,8 +161,18 @@ export default function PixFlowVisualizerPage() {
   );
 
   return (
-    <AppShell title={t("pix.flow.title")} subtitle={t("pix.flow.subtitle")}>
+    <AppShell title={t("flow.title")} subtitle={t("flow.subtitle")}>
       <div className="space-y-4">
+        {/* Protocol tabs — Sprint 9.3. Each tab reloads the flow catalogue
+            and swaps the backend endpoint (Pix vs SWIFT CBPR+). */}
+        <div className="flex gap-2 flex-wrap">
+          <ProtocolTab active={protocol === "pix"} onClick={() => setProtocol("pix")}
+            label={`🇧🇷 ${t("flow.tabs.pix")}`} />
+          <ProtocolTab active={protocol === "cbpr-mx"} onClick={() => setProtocol("cbpr-mx")}
+            label={`⚡ ${t("flow.tabs.cbprMx")}`} />
+          <ProtocolTab active={protocol === "cbpr-mt"} onClick={() => setProtocol("cbpr-mt")}
+            label={`📄 ${t("flow.tabs.cbprMt")}`} />
+        </div>
         <Card>
           <CardBody>
             <div className="flex items-end gap-2 flex-wrap">
@@ -122,10 +183,10 @@ export default function PixFlowVisualizerPage() {
                 <select
                   value={flowType}
                   onChange={(e) => setFlowType(e.target.value)}
-                  data-testid="pix-flow-type"
+                  data-testid="flow-type"
                   className="bg-bg-input border border-[var(--border)] rounded-md px-2 py-1 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent"
                 >
-                  {FLOW_TYPES.map((ft) => (
+                  {availableFlows.map((ft) => (
                     <option key={ft.id} value={ft.id}>{t(ft.labelKey)}</option>
                   ))}
                 </select>
@@ -182,6 +243,7 @@ export default function PixFlowVisualizerPage() {
             <CardBody>
               <SequenceDiagram
                 steps={result.steps}
+                actorOrder={actorOrder}
                 selectedStepId={selectedStepId}
                 onSelect={(s) => setSelectedStepId(s.stepId)}
               />
@@ -189,8 +251,9 @@ export default function PixFlowVisualizerPage() {
           </Card>
         )}
 
-        {/* Row 2 — XML + parse summary 50/50. `key` forces a remount on
-            step switch so the fade-in animation replays without scroll. */}
+        {/* Row 2 — payload + parse summary. Parse summary is XML-only;
+            MT steps show the raw block text alongside an "Abrir no Parser
+            MT" button so the user can jump to the dedicated MT parser. */}
         {result && selectedStep && (
           <div
             key={selectedStep.stepId}
@@ -203,7 +266,9 @@ export default function PixFlowVisualizerPage() {
               onReplace={() => setOverrideTarget(selectedStep)}
               onClearOverride={() => handleOverrideClear(selectedStep.stepId)}
             />
-            <ParsePanel step={selectedStep} />
+            {selectedStep.contentType === "mt"
+              ? <MtActionsPanel step={selectedStep} />
+              : <ParsePanel step={selectedStep} />}
           </div>
         )}
       </div>
@@ -224,17 +289,19 @@ export default function PixFlowVisualizerPage() {
 
 function SequenceDiagram({
   steps,
+  actorOrder,
   selectedStepId,
   onSelect,
 }: {
   steps: PixFlowStep[];
+  actorOrder: string[];
   selectedStepId: number | null;
   onSelect: (s: PixFlowStep) => void;
 }) {
-  // Pinned column order from ACTOR_ORDER — keeps the SPI layout (Pagador
-  // on the left, Recebedor on the right) even when a given flow omits
-  // some intermediate actor. ViaActor is also considered so interbank
-  // hops show up even if no step has SPI as a direct endpoint.
+  // Pinned column order via prop — keeps the layout stable per protocol
+  // (SPI, SWIFT correspondent, etc.) even when a given flow omits some
+  // intermediate actor. ViaActor is also considered so interbank hops
+  // show up even if no step has the intermediary as a direct endpoint.
   const actors = useMemo(() => {
     const present = new Set<string>();
     for (const s of steps) {
@@ -242,8 +309,8 @@ function SequenceDiagram({
       present.add(s.toActor);
       if (s.viaActor) present.add(s.viaActor);
     }
-    return ACTOR_ORDER.filter((a) => present.has(a));
-  }, [steps]);
+    return actorOrder.filter((a) => present.has(a));
+  }, [steps, actorOrder]);
 
   // Rows-per-step: 2 when there's a via-hop (one row per arrow), 1 otherwise.
   const rowsPerStep = (s: PixFlowStep) => (s.viaActor ? 2 : 1);
@@ -322,7 +389,7 @@ function SequenceDiagram({
           for (const s of steps) {
             const fromI = actors.indexOf(s.fromActor);
             const toI = actors.indexOf(s.toActor);
-            const color = familyColor(s.messageType);
+            const color = familyColor(s);
             const isSelected = s.stepId === selectedStepId;
             const baseY = padding + headerHeight + rowCursor * rowHeight + rowHeight / 2;
 
@@ -663,4 +730,63 @@ function formatErr(err: unknown): string {
     return String((err as { message: unknown }).message ?? "Erro ao gerar fluxo");
   }
   return "Erro ao gerar fluxo";
+}
+
+// ---- Sprint 9.3 additions --------------------------------------------------
+
+function ProtocolTab({
+  active,
+  onClick,
+  label,
+}: {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`px-3 py-1.5 text-xs rounded-md border transition-colors ${
+        active
+          ? "bg-accent text-white border-accent"
+          : "bg-bg-input border-[var(--border)] text-text-secondary hover:bg-bg-tertiary"
+      }`}
+    >
+      {label}
+    </button>
+  );
+}
+
+/**
+ * Panel that replaces ParsePanel for MT steps. The Parser ISO 20022 can't
+ * ingest raw SWIFT MT blocks, so we route the user to the dedicated MT
+ * Parser page via sessionStorage instead. Payload rendering happens in
+ * XmlPanel — this side just owns the CTA.
+ */
+function MtActionsPanel({ step }: { step: PixFlowStep }) {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+  const openInMtParser = () => {
+    try {
+      sessionStorage.setItem("swift-mt-parser:payload", step.xml);
+    } catch { /* private mode / quota — silent */ }
+    navigate("/swift/mt-parser");
+  };
+  return (
+    <Card>
+      <CardHeader>
+        <span className="text-sm font-semibold">
+          {t("flow.mt.actionsTitle")}
+        </span>
+      </CardHeader>
+      <CardBody className="space-y-2 text-xs">
+        <p className="text-text-tertiary">
+          {t("flow.mt.parserHint")}
+        </p>
+        <Button variant="secondary" onClick={openInMtParser}>
+          → {t("flow.mt.openInParser")}
+        </Button>
+      </CardBody>
+    </Card>
+  );
 }

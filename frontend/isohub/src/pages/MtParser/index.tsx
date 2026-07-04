@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useLocation } from "react-router";
 import { AppShell } from "@/components/layout/AppShell";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -13,6 +14,8 @@ import {
 } from "@/api/swiftMt";
 import { MappingWorkflow } from "@/components/SwiftMt/MappingWorkflow";
 
+const SESSION_KEY = "swift-mt-parser:payload";
+
 type PageMode = "parse" | "convert";
 
 export default function MtParserPage() {
@@ -20,6 +23,25 @@ export default function MtParserPage() {
   const [result, setResult] = useState<MtParseResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const location = useLocation();
+
+  // FlowVisualizer ("Abrir no Parser MT") stashes the payload in
+  // sessionStorage before navigating here. Reading it in a useState
+  // initializer only worked on the first mount — if the user opened
+  // MtParser via the sidebar, then navigated to /flow and clicked
+  // "Abrir no Parser MT", the component was still mounted and the
+  // initializer never ran a second time. Reacting to `location`
+  // re-runs on every navigation into this route (or search-string
+  // change), regardless of whether the component was already mounted.
+  useEffect(() => {
+    try {
+      const payload = sessionStorage.getItem(SESSION_KEY);
+      if (payload) {
+        setRaw(payload);
+        sessionStorage.removeItem(SESSION_KEY);
+      }
+    } catch { /* private mode / quota — silent */ }
+  }, [location]);
   // The Parser view has two modes: showing the parsed blocks (default),
   // or showing the MT→MX mapping workflow triggered by the CTA that
   // now lives right next to the "Parsear →" button. Switching back

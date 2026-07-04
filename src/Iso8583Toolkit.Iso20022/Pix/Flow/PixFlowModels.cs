@@ -1,13 +1,18 @@
 namespace Iso8583Toolkit.Iso20022.Pix.Flow;
 
 /// <summary>
-/// One message in a Pix message flow — origin actor, target actor, full XML.
-/// <paramref name="ViaActor"/> renders the SPI hop for interbank messages
-/// (pacs.008/pacs.002/pacs.004) so the diagram shows the BCB in the middle
-/// even though the wire-level message logically goes end-to-end.
-/// <paramref name="IsRelay"/> marks a "repasse" segment — the SPI handing
-/// a previously-delivered message to the next PSP — so the diagram can
-/// draw the arrow with a dashed stroke.
+/// One message in a message flow — origin actor, target actor, and the
+/// full payload as text. Reused across the Pix (Sprint 7.3) and the
+/// SWIFT CBPR+ (Sprint 9.3) visualizers.
+/// <para><paramref name="ViaActor"/> renders the SPI/correspondent hop
+/// for interbank messages so the diagram shows the intermediary in the
+/// middle even though the wire-level message logically goes end-to-end.
+/// <paramref name="IsRelay"/> marks a "repasse" segment — the SPI or
+/// correspondent handing a previously-delivered message to the next
+/// participant — so the diagram can draw the arrow with a dashed stroke.
+/// <paramref name="ContentType"/> is <c>"xml"</c> for ISO 20022 MX
+/// steps and <c>"mt"</c> for legacy SWIFT MT (blocks 1..5 raw text) so
+/// the frontend can pick the right renderer and downstream Parser link.</para>
 /// </summary>
 public sealed record PixFlowStep(
     int StepId,
@@ -17,7 +22,8 @@ public sealed record PixFlowStep(
     string ToActor,
     string Xml,
     string? ViaActor = null,
-    bool IsRelay = false);
+    bool IsRelay = false,
+    string ContentType = "xml");
 
 /// <summary>
 /// Cross-reference inconsistency between two steps. <paramref name="Severity"/>

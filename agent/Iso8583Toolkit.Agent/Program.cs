@@ -97,6 +97,8 @@ builder.Services.AddSingleton<BuilderService>();
 builder.Services.AddSingleton<Iso8583Toolkit.Iso20022.Pix.PixQrCodeService>();
 // Sprint 7.3 — Pix Flow Visualizer (multi-message orchestrator).
 builder.Services.AddSingleton<Iso8583Toolkit.Iso20022.Pix.Flow.PixFlowService>();
+// Sprint 9.3 — SWIFT CBPR+ (MX/MT) flow visualizer, same shape as Pix.
+builder.Services.AddSingleton<Iso8583Toolkit.Iso20022.Swift.Flow.SwiftFlowService>();
 // Sprint 9.1 — SWIFT MT parser (MT103/MT202/MT202COV → typed model).
 builder.Services.AddSingleton<Iso8583Toolkit.Iso20022.Swift.Mt.MtParserService>();
 // Sprint 9.2 — MT ↔ MX mapping/convert/compare (pacs.008/pacs.009).

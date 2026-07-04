@@ -32,7 +32,11 @@ export default function App() {
       <Route path="/iso20022/compare" element={<Iso20022ComparatorPage />} />
       <Route path="/iso20022/builder" element={<Iso20022BuilderPage />} />
       <Route path="/pix/qrcode" element={<PixQrCodePage />} />
-      <Route path="/pix/flow" element={<PixFlowVisualizerPage />} />
+      {/* Sprint 9.3 — Flow Visualizer became protocol-agnostic; new URL
+          is /flow. The old /pix/flow entry point stays as a redirect for
+          bookmarks / external links. */}
+      <Route path="/flow" element={<PixFlowVisualizerPage />} />
+      <Route path="/pix/flow" element={<Navigate to="/flow" replace />} />
       <Route path="/swift/mt-parser" element={<MtParserPage />} />
       <Route path="/swift/mt-comparator" element={<MtComparatorPage />} />
       <Route path="/docs" element={<DocsPage />} />
