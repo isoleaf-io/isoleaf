@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Linq;
 using System.Xml.Linq;
 using Iso8583Toolkit.Iso20022.Schema;
 using Iso8583Toolkit.Iso20022.Services;
@@ -163,20 +164,14 @@ public sealed class MtMxMapperService
             throw new InvalidOperationException(
                 $"No XSD found for {prefix}");
 
-        SchemaInfo target;
-        if (string.IsNullOrEmpty(request.TargetVersion))
-        {
-            target = available[0];
-        }
-        else
-        {
-            target = available.FirstOrDefault(t =>
+        var target = string.IsNullOrEmpty(request.TargetVersion)
+            ? available[0]
+            : available.FirstOrDefault(t =>
                 t.MessageType.Equals(request.TargetVersion, StringComparison.OrdinalIgnoreCase)
                 || t.MessageType.EndsWith("." + request.TargetVersion, StringComparison.OrdinalIgnoreCase)
                 || t.Version.Equals(request.TargetVersion, StringComparison.OrdinalIgnoreCase))
                 ?? throw new ArgumentException(
                     $"Version {request.TargetVersion} not available for {prefix}");
-        }
 
         var fields = _referenceService.GetFields(target.MessageType)
             ?? throw new InvalidOperationException(
@@ -418,11 +413,8 @@ public sealed class MtMxMapperService
         var rows = new List<MtMxCompareRow>();
         var consumedMxPaths = new HashSet<string>(StringComparer.Ordinal);
 
-        foreach (var mr in mapping.Rows)
+        foreach (var mr in mapping.Rows.Where(mr => !string.IsNullOrEmpty(mr.SuggestedMxPath)))
         {
-            if (string.IsNullOrEmpty(mr.SuggestedMxPath))
-                continue; // NoMapping — nothing to compare against.
-
             var mxValue = FindMxValue(mxValues, mr.SuggestedMxPath);
             if (mxValue is not null)
                 consumedMxPaths.Add(mr.SuggestedMxPath);
