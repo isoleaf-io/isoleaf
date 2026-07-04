@@ -564,9 +564,9 @@ public sealed class MtMxMapperService
         foreach (var candidate in ExpandPath(mtPath))
         {
             if (mxValues.TryGetValue(candidate, out var direct)) return direct;
-            foreach (var kv in mxValues)
+            foreach (var kv in mxValues.Where(kv => PathsMatch(candidate, kv.Key)))
             {
-                if (PathsMatch(candidate, kv.Key)) return kv.Value;
+                return kv.Value;
             }
         }
         return null;
