@@ -95,6 +95,7 @@ const sections: NavSection[] = [
     titleKey: "common.nav.swift",
     items: [
       { to: "/swift/mt-parser", labelKey: "common.nav.swiftMtParser", icon: Globe, feature: "swiftMtParser" },
+      { to: "/swift/mt-comparator", labelKey: "common.nav.swiftMtComparator", icon: LayoutGrid, feature: "swiftMtComparator" },
     ],
   },
   {

@@ -11,16 +11,25 @@ import {
   type MtFieldConfidence,
   type MtParseResult,
 } from "@/api/swiftMt";
+import { MappingWorkflow } from "@/components/SwiftMt/MappingWorkflow";
+
+type PageMode = "parse" | "convert";
 
 export default function MtParserPage() {
   const [raw, setRaw] = useState("");
   const [result, setResult] = useState<MtParseResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  // The Parser view has two modes: showing the parsed blocks (default),
+  // or showing the MT→MX mapping workflow triggered by the CTA that
+  // now lives right next to the "Parsear →" button. Switching back
+  // preserves the parsed blocks so the user doesn't lose their work.
+  const [mode, setMode] = useState<PageMode>("parse");
 
   async function handleParse() {
     setError(null);
     setLoading(true);
+    setMode("parse");
     try {
       setResult(await parseMtMessage(raw));
     } catch (e) {
@@ -48,19 +57,46 @@ export default function MtParserPage() {
               className="w-full px-2 py-1.5 rounded-md bg-bg-input border border-[var(--border)] font-mono text-[11px] focus:outline-none focus:ring-1 focus:ring-accent/50 focus:border-accent"
               data-testid="mt-parser-input"
             />
-            <div className="flex gap-2">
+            <div className="flex items-center gap-2">
               <Button onClick={handleParse} disabled={loading || !raw.trim()} data-testid="mt-parser-submit">
                 {loading ? "Parseando..." : "Parsear →"}
               </Button>
-              <Button variant="ghost" onClick={() => { setRaw(""); setResult(null); }}>
+              <Button
+                variant="ghost"
+                onClick={() => { setRaw(""); setResult(null); setMode("parse"); }}
+              >
                 Limpar
               </Button>
+              {/* Sprint 9.2 — CTA promoted next to "Parsear" so the
+                  user sees the follow-up flow without scrolling past
+                  the parsed blocks. In "convert" mode the same slot
+                  hosts the "back to parse" action. */}
+              {result && mode === "parse" && (
+                <Button
+                  variant="secondary"
+                  className="ml-auto"
+                  onClick={() => setMode("convert")}
+                  data-testid="mt-parser-convert"
+                >
+                  → Converter para MX
+                </Button>
+              )}
+              {result && mode === "convert" && (
+                <Button
+                  variant="ghost"
+                  className="ml-auto"
+                  onClick={() => setMode("parse")}
+                  data-testid="mt-parser-back"
+                >
+                  ← Voltar ao parse
+                </Button>
+              )}
             </div>
             {error && <ErrorBanner message={error} />}
           </CardBody>
         </Card>
 
-        {result && (
+        {result && mode === "parse" && (
           <>
             <SummaryCard result={result} />
             {result.warnings.length > 0 && <WarningsCard warnings={result.warnings} />}
@@ -68,6 +104,12 @@ export default function MtParserPage() {
               <BlockCard key={b.blockId} block={b} />
             ))}
           </>
+        )}
+
+        {result && mode === "convert" && (
+          // autoStart=true skips the widget's own CTA — the user already
+          // committed to converting by clicking the header button.
+          <MappingWorkflow rawMessage={raw} autoStart />
         )}
       </div>
     </AppShell>

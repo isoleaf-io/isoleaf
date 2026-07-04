@@ -58,7 +58,8 @@
       "pixQrCode": "QR Code",
       "pixFlowVisualizer": "Flow Visualizer",
       "swift": "SWIFT CBPR+",
-      "swiftMtParser": "Parser MT"
+      "swiftMtParser": "Parser MT",
+      "swiftMtComparator": "Comparador MT↔MX"
     }
   },
   "pix": {

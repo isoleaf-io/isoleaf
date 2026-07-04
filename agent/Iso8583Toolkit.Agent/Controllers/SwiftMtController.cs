@@ -10,9 +10,13 @@ namespace Iso8583Toolkit.Agent.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/swift/mt")]
-public sealed class SwiftMtController(MtParserService parser) : ControllerBase
+public sealed class SwiftMtController(
+    MtParserService parser,
+    MtMxMapperService mapper) : ControllerBase
 {
     public sealed record ParseRequest(string RawMessage);
+    public sealed record MappingRequest(string RawMessage);
+    public sealed record CompareRequest(string RawMt, string RawMx);
 
     [HttpPost("parse")]
     [EndpointSummary("Parse a SWIFT MT103 / MT202 / MT202COV message")]
@@ -46,5 +50,66 @@ public sealed class SwiftMtController(MtParserService parser) : ControllerBase
         }
 
         return Ok(result);
+    }
+
+    // ── Sprint 9.2 — MT ↔ MX endpoints ────────────────────────────────
+
+    [HttpPost("mapping")]
+    [EndpointSummary("Mode A step 1 — MT→MX mapping preview")]
+    [ProducesResponseType<MtMxMappingTable>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public ActionResult<MtMxMappingTable> Mapping([FromBody] MappingRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request?.RawMessage))
+            return BadRequest(new { error = "Payload vazio: forneça rawMessage." });
+        try { return Ok(mapper.BuildMappingTable(request.RawMessage)); }
+        catch (ArgumentException ex) { return BadRequest(new { error = ex.Message }); }
+    }
+
+    [HttpPost("convert")]
+    [EndpointSummary("Mode A step 2 — convert MT into pacs.008 or pacs.009 XML")]
+    [ProducesResponseType<MtMxConvertResult>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public ActionResult<MtMxConvertResult> Convert([FromBody] MtMxConvertRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request?.RawMessage))
+            return BadRequest(new { error = "Payload vazio: forneça rawMessage." });
+        try { return Ok(mapper.Convert(request)); }
+        catch (ArgumentException ex) { return BadRequest(new { error = ex.Message }); }
+        catch (InvalidOperationException ex)
+        {
+            return UnprocessableEntity(new { error = ex.Message });
+        }
+    }
+
+    [HttpPost("compare")]
+    [EndpointSummary("Mode B — compare an MT message against an MX XML document")]
+    [ProducesResponseType<MtMxCompareResult>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public ActionResult<MtMxCompareResult> Compare([FromBody] CompareRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request?.RawMt) || string.IsNullOrWhiteSpace(request.RawMx))
+            return BadRequest(new { error = "Forneça rawMt e rawMx." });
+        try { return Ok(mapper.Compare(request.RawMt, request.RawMx)); }
+        catch (ArgumentException ex) { return BadRequest(new { error = ex.Message }); }
+    }
+
+    /// <summary>
+    /// Lists every embedded pacs.008 / pacs.009 version (or any prefix
+    /// the caller supplies), most recent first. Feeds the Modo A
+    /// version selector in the frontend.
+    /// </summary>
+    [HttpGet("versions")]
+    [EndpointSummary("List embedded pacs.008 / pacs.009 versions available for conversion")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public IActionResult GetAvailableVersions([FromQuery] string messageType)
+    {
+        if (string.IsNullOrWhiteSpace(messageType))
+            return BadRequest(new { error = "Forneça messageType (ex: pacs.008)." });
+        var versions = mapper.ListAvailableVersions(messageType)
+            .Select(t => new { messageType = t.MessageType, version = t.Version })
+            .ToList();
+        return Ok(new { versions });
     }
 }
