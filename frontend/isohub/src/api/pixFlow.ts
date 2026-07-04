@@ -13,6 +13,9 @@ export interface PixFlowStep {
   /** True when this step is the SPI-to-PSP relay leg of a message — the
    *  diagram renders such arrows with a dashed stroke. */
   isRelay?: boolean;
+  /** "xml" (ISO 20022 MX) or "mt" (legacy SWIFT MT). Drives the panel
+   *  renderer + colour code in the sequence diagram. */
+  contentType?: "xml" | "mt";
 }
 
 export interface PixFlowAlert {

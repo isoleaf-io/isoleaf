@@ -11,10 +11,12 @@ on:
   schedule:
     - cron: '0 6 * * 1'  # Mondays 06:00 UTC
 
-# Cancel superseded runs on the same ref — saves CI minutes on PR pushes.
+# Cancel superseded runs on the same ref — saves CI minutes on every
+# rapid push (previous run gets terminated the moment a new commit
+# lands, not only for PRs).
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 # Minimum-privilege default; jobs that need more declare it locally.
 permissions:
@@ -25,6 +27,7 @@ jobs:
   backend:
     name: Backend (build + test)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
 
@@ -32,10 +35,16 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '9.0.x'
-          cache: true
-          # No packages.lock.json in the repo — fall back to hashing every
-          # csproj so any version bump busts the cache.
-          cache-dependency-path: '**/*.csproj'
+
+      # Explicit NuGet cache — no packages.lock.json in the repo, so we
+      # hash every csproj and any version bump busts the cache.
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
 
       - name: Restore
         run: dotnet restore Iso8583Toolkit.sln
@@ -58,6 +67,7 @@ jobs:
   frontend:
     name: Frontend (build + test)
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     defaults:
       run:
         working-directory: frontend/isohub
@@ -68,10 +78,21 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: frontend/isohub/package-lock.json
+
+      # Cache the full node_modules keyed on package-lock.json so a warm
+      # run skips `npm ci` entirely. `id:` is required so the Install
+      # step below can read cache-hit output.
+      - name: Cache npm packages
+        id: cache-npm
+        uses: actions/cache@v4
+        with:
+          path: frontend/isohub/node_modules
+          key: ${{ runner.os }}-npm-${{ hashFiles('frontend/isohub/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-
 
       - name: Install
+        if: steps.cache-npm.outputs.cache-hit != 'true'
         run: npm ci
 
       - name: Test
@@ -84,7 +105,12 @@ jobs:
   gitleaks:
     name: Secret scan (Trufflehog)
     needs: [backend, frontend]
+    # Skip on tag pushes — the tag is created on top of a main commit
+    # that has already been scanned, so re-running here just burns
+    # minutes and delays the release build.
+    if: github.ref_type != 'tag'
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
         with:
@@ -111,7 +137,16 @@ jobs:
   codeql:
     name: CodeQL (${{ matrix.language }})
     needs: [backend, frontend]
+    # Only run on PRs (any branch → main) and on pushes to main; feature
+    # branch pushes skip CodeQL to save ~8min per run. Branch protection
+    # for merges into main must accept "skipped" for these checks.
+    if: |
+      github.event_name == 'pull_request' ||
+      github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    # Two ceilings via matrix expression: csharp needs the manual dotnet
+    # build (~5min more) so gets a longer leash than the JS analyser.
+    timeout-minutes: ${{ matrix.language == 'csharp' && 20 || 15 }}
     permissions:
       contents: read
       security-events: write
@@ -129,8 +164,15 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '9.0.x'
-          cache: true
-          cache-dependency-path: '**/*.csproj'
+
+      - name: Cache NuGet packages
+        if: matrix.language == 'csharp'
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
 
       - name: Restore
         if: matrix.language == 'csharp'
@@ -157,8 +199,22 @@ jobs:
   # ── Stages 5 + 6 (merged: build-push-action is atomic) ─────────────────────
   docker:
     name: Docker build & push (GHCR)
-    needs: [gitleaks, codeql]
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+    needs: [backend, frontend, gitleaks, codeql]
+    # `always()` forces evaluation even when a `needs` job is skipped —
+    # without it, GitHub short-circuits to the implicit `success()` gate
+    # and marks docker as skipped whenever gitleaks/codeql are (e.g. on
+    # tag pushes). backend/frontend must strictly succeed; gitleaks and
+    # codeql may be skipped (they gate themselves off tags / feature
+    # branches). The trailing branch filter keeps docker out of feature
+    # branch pushes even when all the above are green.
+    if: |
+      always() &&
+      needs.backend.result == 'success' &&
+      needs.frontend.result == 'success' &&
+      (needs.gitleaks.result == 'success' || needs.gitleaks.result == 'skipped') &&
+      (needs.codeql.result == 'success' || needs.codeql.result == 'skipped') &&
+      github.event_name == 'push' &&
+      (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
     runs-on: ubuntu-latest
     permissions:
       contents: read

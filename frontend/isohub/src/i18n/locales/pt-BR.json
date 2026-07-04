@@ -57,6 +57,8 @@
       "pix": "Brazilian Pix",
       "pixQrCode": "QR Code",
       "pixFlowVisualizer": "Flow Visualizer",
+      "flow": "Flow Visualizer",
+      "flowVisualizer": "⚡ Flows",
       "swift": "SWIFT CBPR+",
       "swiftMtParser": "Parser MT",
       "swiftMtComparator": "Comparador MT↔MX"
@@ -121,6 +123,31 @@
         "rejected": "Com Rejeição",
         "automatico": "Pix Automático (Mandato)"
       }
+    }
+  },
+  "flow": {
+    "title": "Flow Visualizer",
+    "subtitle": "Fluxos multi-mensagem cross-protocolo — Brazilian Pix e SWIFT CBPR+ (MX e MT legado).",
+    "tabs": {
+      "pix": "Brazilian Pix",
+      "cbprMx": "CBPR+ (MX)",
+      "cbprMt": "CBPR+ (MT legado)"
+    },
+    "cbpr": {
+      "direct": "Direct Payment",
+      "cover": "Cover Payment",
+      "return": "Payment Return",
+      "cancellation": "Cancellation Request",
+      "statusInquiry": "Status Inquiry"
+    },
+    "cbprMt": {
+      "direct": "Direct (MT103 + MT910)",
+      "cover": "Cover (MT103 + MT202COV + MT910)"
+    },
+    "mt": {
+      "actionsTitle": "Passo MT legado",
+      "parserHint": "O Parser ISO 20022 não decodifica SWIFT MT. Abra o payload no Parser MT dedicado.",
+      "openInParser": "Abrir no Parser MT"
     }
   },
   "parser": {
