@@ -621,11 +621,10 @@ public sealed class MtMxMapperService
             "FICdtTrf/GrpHdr/",
             "FICdtTrf/",
         ];
-        foreach (var prefix in prefixes)
-        {
-            if (path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
-                return path[prefix.Length..];
-        }
+        var matchingPrefix = prefixes.FirstOrDefault(prefix =>
+            path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
+        if (matchingPrefix is not null)
+            return path[matchingPrefix.Length..];
         return path;
     }
 
