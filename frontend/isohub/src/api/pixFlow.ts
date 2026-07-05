@@ -13,9 +13,17 @@ export interface PixFlowStep {
   /** True when this step is the SPI-to-PSP relay leg of a message — the
    *  diagram renders such arrows with a dashed stroke. */
   isRelay?: boolean;
-  /** "xml" (ISO 20022 MX) or "mt" (legacy SWIFT MT). Drives the panel
-   *  renderer + colour code in the sequence diagram. */
-  contentType?: "xml" | "mt";
+  /** "xml" (ISO 20022 MX), "mt" (legacy SWIFT MT), "iso8583" (raw
+   *  card-payment wire), or "timeout" (issuer went silent — rendered
+   *  as a dashed red arrow, no payload). Drives the panel renderer +
+   *  colour code in the sequence diagram. */
+  contentType?: "xml" | "mt" | "iso8583" | "timeout";
+  /** ISO 8583 hops that carry the 5-byte TPDU routing header. The
+   *  sequence diagram renders a "TPDU" badge over the arrow. */
+  isRelayWithTpdu?: boolean;
+  /** Optional one-liner surfaced under the step label — used by the
+   *  stand-in flow to explain the stand-in approval + advice hops. */
+  note?: string | null;
 }
 
 export interface PixFlowAlert {

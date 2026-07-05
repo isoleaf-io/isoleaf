@@ -15,4 +15,11 @@
     <PackageReference Include="Bogus" Version="35.6.5" />
   </ItemGroup>
 
+  <!-- Sprint 9.4 — Iso8583FlowService lives here (needs PixFlowStep and
+       PaymentTestDataGenerator) but reuses IsoCore's IsoMessageBuilder /
+       IsoParser / MtiParser to render the raw ISO 8583 wire strings. -->
+  <ItemGroup>
+    <ProjectReference Include="..\Iso8583Toolkit.IsoCore\Iso8583Toolkit.IsoCore.csproj" />
+  </ItemGroup>
+
 </Project>

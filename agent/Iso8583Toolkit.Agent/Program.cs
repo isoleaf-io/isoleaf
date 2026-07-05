@@ -99,6 +99,8 @@ builder.Services.AddSingleton<Iso8583Toolkit.Iso20022.Pix.PixQrCodeService>();
 builder.Services.AddSingleton<Iso8583Toolkit.Iso20022.Pix.Flow.PixFlowService>();
 // Sprint 9.3 — SWIFT CBPR+ (MX/MT) flow visualizer, same shape as Pix.
 builder.Services.AddSingleton<Iso8583Toolkit.Iso20022.Swift.Flow.SwiftFlowService>();
+// Sprint 9.4 — ISO 8583 card-payment flow visualizer.
+builder.Services.AddSingleton<Iso8583Toolkit.Iso20022.Iso8583.Flow.Iso8583FlowService>();
 // Sprint 9.1 — SWIFT MT parser (MT103/MT202/MT202COV → typed model).
 builder.Services.AddSingleton<Iso8583Toolkit.Iso20022.Swift.Mt.MtParserService>();
 // Sprint 9.2 — MT ↔ MX mapping/convert/compare (pacs.008/pacs.009).

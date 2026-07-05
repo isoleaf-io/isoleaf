@@ -15,11 +15,14 @@ import {
   type PixFlowStep,
 } from "@/api/pixFlow";
 import { generateSwiftFlow } from "@/api/swiftFlow";
+import { generateIso8583Flow } from "@/api/iso8583Flow";
+import { FEATURES } from "@/config/features";
 
-// Sprint 9.3 — unified visualizer for three protocol families. Each tab
-// swaps the actor column layout, the available flows and the backend
-// endpoint. MT payloads are rendered as raw text (no XSD → no MessageSummaryCard).
-type FlowProtocol = "pix" | "cbpr-mx" | "cbpr-mt";
+// Sprint 9.3+9.4 — unified visualizer for four protocol families. Each
+// tab swaps the actor column layout, the available flows and the
+// backend endpoint. MT/ISO 8583 payloads are rendered as raw text
+// (no XSD → no MessageSummaryCard).
+type FlowProtocol = "pix" | "cbpr-mx" | "cbpr-mt" | "iso8583";
 
 // Column order per protocol. Absent actors are filtered out at render.
 const ACTOR_ORDER_BY_PROTOCOL: Record<FlowProtocol, string[]> = {
@@ -40,6 +43,12 @@ const ACTOR_ORDER_BY_PROTOCOL: Record<FlowProtocol, string[]> = {
     "Banco Originador",
     "SWIFT/Correspondente",
     "Banco Beneficiário",
+  ],
+  iso8583: [
+    "Terminal/POS",
+    "Acquirer",
+    "Card Network",
+    "Issuer",
   ],
 };
 
@@ -65,18 +74,49 @@ const FLOW_TYPES_BY_PROTOCOL: Record<
     { id: "cbpr-mt-direct", labelKey: "flow.cbprMt.direct" },
     { id: "cbpr-mt-cover",  labelKey: "flow.cbprMt.cover" },
   ],
+  iso8583: [
+    { id: "iso8583-credit-purchase",  labelKey: "flow.iso8583.creditPurchase" },
+    { id: "iso8583-debit-purchase",   labelKey: "flow.iso8583.debitPurchase" },
+    { id: "iso8583-withdrawal",       labelKey: "flow.iso8583.withdrawal" },
+    { id: "iso8583-reversal",         labelKey: "flow.iso8583.reversal" },
+    { id: "iso8583-stand-in",         labelKey: "flow.iso8583.standIn" },
+    { id: "iso8583-balance-inquiry",  labelKey: "flow.iso8583.balanceInquiry" },
+  ],
 };
 
-// Distinct hues per protocol family. Sprint 9.3 adds MT in purple so the
-// legacy track is visually distinct from the MX one — pacs blue, pain
-// green, camt orange, MT roxo.
+// Distinct hues per protocol family. Sprint 9.3 adds MT (purple),
+// Sprint 9.4 adds ISO 8583 (dark green) so the card-payment track is
+// visually distinct from the ISO 20022 messages — pacs blue, pain
+// green, camt orange, MT roxo, ISO 8583 verde-escuro.
 function familyColor(step: PixFlowStep): string {
+  // Sprint 9.4-revision — stand-in timeouts render in red so the
+  // "issuer stopped responding" segment jumps out visually.
+  if (step.contentType === "timeout") return "#ef4444";
+  if (step.contentType === "iso8583") return "#16a34a";
   if (step.contentType === "mt") return "#8b5cf6";
   const messageType = step.messageType;
   if (messageType.startsWith("pacs.")) return "#3b82f6";
   if (messageType.startsWith("pain.")) return "#22c55e";
   if (messageType.startsWith("camt.")) return "#f97316";
   return "#94a3b8";
+}
+
+// ISO 8583 actor names are English-only on the wire (backend contract)
+// so the frontend translates them at render time. Non-ISO 8583 actors
+// (Pix / SWIFT) fall through the map and render as-is.
+const ISO8583_ACTOR_LABELS: Record<string, Record<string, string>> = {
+  "Terminal/POS":  { pt: "Terminal/PDV", en: "Terminal/POS" },
+  Acquirer:        { pt: "Adquirente",   en: "Acquirer" },
+  "Card Network":  { pt: "Bandeira",     en: "Card Network" },
+  Issuer:          { pt: "Emissor",      en: "Issuer" },
+};
+
+function useActorLabel() {
+  const { i18n } = useTranslation();
+  // i18n.language may be "pt-BR" / "en-US"; take just the language head.
+  const lang = i18n.language?.split("-")[0] ?? "en";
+  return (actor: string) =>
+    ISO8583_ACTOR_LABELS[actor]?.[lang] ?? actor;
 }
 
 export default function FlowVisualizerPage() {
@@ -108,7 +148,10 @@ export default function FlowVisualizerPage() {
       setLoading(true);
       setError(null);
       try {
-        const fetcher = protocol === "pix" ? generatePixFlow : generateSwiftFlow;
+        const fetcher =
+          protocol === "pix" ? generatePixFlow
+          : protocol === "iso8583" ? generateIso8583Flow
+          : generateSwiftFlow;
         const r = await fetcher(
           flowType,
           Object.keys(nextOverrides).length > 0 ? nextOverrides : undefined,
@@ -163,6 +206,14 @@ export default function FlowVisualizerPage() {
   return (
     <AppShell title={t("flow.title")} subtitle={t("flow.subtitle")}>
       <div className="space-y-4">
+        {/* Persistent disclaimer — reminds analysts across every protocol
+            tab that the payloads shown here are illustrative fixtures
+            from the fake-data generator, not captures from a real network. */}
+        <div className="flex items-start gap-2 px-4 py-3 rounded-lg text-xs bg-warning-bg/40 border border-warning-text/40 text-warning-text">
+          <AlertTriangle size={14} className="shrink-0 mt-0.5" />
+          <span>{t("flow.exampleDisclaimer")}</span>
+        </div>
+
         {/* Protocol tabs — Sprint 9.3. Each tab reloads the flow catalogue
             and swaps the backend endpoint (Pix vs SWIFT CBPR+). */}
         <div className="flex gap-2 flex-wrap">
@@ -172,6 +223,12 @@ export default function FlowVisualizerPage() {
             label={`⚡ ${t("flow.tabs.cbprMx")}`} />
           <ProtocolTab active={protocol === "cbpr-mt"} onClick={() => setProtocol("cbpr-mt")}
             label={`📄 ${t("flow.tabs.cbprMt")}`} />
+          {/* Sprint 9.4 — ISO 8583 tab hidden behind its own flag so
+              it stays off in production until it ships. */}
+          {FEATURES.iso8583FlowVisualizer && (
+            <ProtocolTab active={protocol === "iso8583"} onClick={() => setProtocol("iso8583")}
+              label={`💳 ${t("flow.tabs.iso8583")}`} />
+          )}
         </div>
         <Card>
           <CardBody>
@@ -259,16 +316,30 @@ export default function FlowVisualizerPage() {
             key={selectedStep.stepId}
             className="pix-flow-fade-in grid grid-cols-1 lg:grid-cols-2 gap-4"
           >
-            <XmlPanel
-              step={selectedStep}
-              alerts={stepAlerts}
-              hasOverride={overrides[selectedStep.stepId] != null}
-              onReplace={() => setOverrideTarget(selectedStep)}
-              onClearOverride={() => handleOverrideClear(selectedStep.stepId)}
-            />
-            {selectedStep.contentType === "mt"
-              ? <MtActionsPanel step={selectedStep} />
-              : <ParsePanel step={selectedStep} />}
+            {selectedStep.contentType === "timeout" ? (
+              // Timeout step has no wire payload — the left column
+              // hosts the stand-in explanation and the right column
+              // just carries the "Stand-in ativado" callout badge.
+              <>
+                <TimeoutExplainPanel step={selectedStep} />
+                <TimeoutSidePanel />
+              </>
+            ) : (
+              <>
+                <XmlPanel
+                  step={selectedStep}
+                  alerts={stepAlerts}
+                  hasOverride={overrides[selectedStep.stepId] != null}
+                  onReplace={() => setOverrideTarget(selectedStep)}
+                  onClearOverride={() => handleOverrideClear(selectedStep.stepId)}
+                />
+                {selectedStep.contentType === "mt"
+                  ? <MtActionsPanel step={selectedStep} />
+                  : selectedStep.contentType === "iso8583"
+                  ? <Iso8583SummaryPanel step={selectedStep} />
+                  : <ParsePanel step={selectedStep} />}
+              </>
+            )}
           </div>
         )}
       </div>
@@ -298,6 +369,7 @@ function SequenceDiagram({
   selectedStepId: number | null;
   onSelect: (s: PixFlowStep) => void;
 }) {
+  const actorLabel = useActorLabel();
   // Pinned column order via prop — keeps the layout stable per protocol
   // (SPI, SWIFT correspondent, etc.) even when a given flow omits some
   // intermediate actor. ViaActor is also considered so interbank hops
@@ -365,7 +437,7 @@ function SequenceDiagram({
               fontSize={11}
               fontWeight={600}
             >
-              {actor}
+              {actorLabel(actor)}
             </text>
             <line
               x1={colX(i)}
@@ -413,14 +485,22 @@ function SequenceDiagram({
               const x2 = colX(toI);
               // SPI "repasse" legs (steps marked IsRelay) render dashed
               // even when modelled as standalone steps (no ViaActor).
-              const dashed = s.isRelay === true;
+              // Timeout hops also render dashed regardless of relay flag.
+              const isTimeout = s.contentType === "timeout";
+              const dashed = s.isRelay === true || isTimeout;
+              const arrowNode = x1 === x2
+                ? renderSelfArrow(x1, baseY, color, isSelected, s.messageType)
+                : renderArrow(x1, baseY, x2, baseY,
+                    color, isSelected, isTimeout ? "⚠ Timeout" : s.messageType,
+                    s.label, dashed,
+                    s.isRelayWithTpdu === true);
+              // Timeout hops are still clickable — the panel below
+              // shows the stand-in explanation instead of the empty
+              // wire, so the analyst can drill into why the issuer
+              // dropped out of the flow.
               arrows.push(
-                <g key={s.stepId} onClick={() => onSelect(s)} style={{ cursor: "pointer" }}>
-                  {x1 === x2
-                    ? renderSelfArrow(x1, baseY, color, isSelected, s.messageType)
-                    : renderArrow(x1, baseY, x2, baseY,
-                        color, isSelected, s.messageType, s.label, dashed)}
-                </g>,
+                <g key={s.stepId} onClick={() => onSelect(s)}
+                  style={{ cursor: "pointer" }}>{arrowNode}</g>,
               );
               rowCursor += 1;
             }
@@ -443,6 +523,7 @@ function renderArrow(
   topLabel: string,
   bottomLabel: string,
   dashed: boolean,
+  hasTpdu: boolean = false,
 ): React.ReactNode {
   const midX = (x1 + x2) / 2;
   const midY = (y1 + y2) / 2;
@@ -486,6 +567,32 @@ function renderArrow(
       >
         {bottomLabel}
       </text>
+      {hasTpdu && (
+        // Sprint 9.4 — pill above the top label marks ISO 8583 hops
+        // that carry the TPDU routing header (5-byte prefix).
+        <>
+          <rect
+            x={midX - 20}
+            y={midY - 34}
+            width={40}
+            height={12}
+            rx={6}
+            fill="var(--bg-input)"
+            stroke={color}
+            strokeWidth={0.5}
+          />
+          <text
+            x={midX}
+            y={midY - 25}
+            textAnchor="middle"
+            fontSize={8}
+            fontWeight={600}
+            fill={color}
+          >
+            TPDU
+          </text>
+        </>
+      )}
     </>
   );
 }
@@ -533,6 +640,7 @@ function XmlPanel({
   onClearOverride: () => void;
 }) {
   const { t } = useTranslation();
+  const actorLabel = useActorLabel();
   const [copied, setCopied] = useState(false);
 
   async function handleCopy() {
@@ -559,12 +667,19 @@ function XmlPanel({
         <div className="flex items-center gap-2 flex-wrap text-xs text-text-tertiary">
           {hasOverride && <Badge tone="warning">{t("pix.flow.overrideBadge")}</Badge>}
           <span>
-            {step.fromActor}
-            {step.viaActor ? ` → ${step.viaActor}` : ""}
-            {" "}→ {step.toActor}
+            {actorLabel(step.fromActor)}
+            {step.viaActor ? ` → ${actorLabel(step.viaActor)}` : ""}
+            {" "}→ {actorLabel(step.toActor)}
           </span>
         </div>
         <p className="text-xs text-text-secondary">{step.label}</p>
+        {step.note && (
+          // Sprint 9.4-revision — one-liner context (stand-in approval,
+          // cash-dispensed reminder, advice-notification, …) surfaced
+          // right under the label so the analyst sees it without having
+          // to expand the raw wire.
+          <p className="text-[11px] text-warning-text">💡 {step.note}</p>
+        )}
 
         {alerts.length > 0 && (
           <div className="rounded-md border border-warning-text/40 bg-warning-bg/30 p-2 text-[10px] space-y-1">
@@ -585,7 +700,10 @@ function XmlPanel({
             <Copy size={13} /> {copied ? t("common.copied") : t("common.copy")}
           </Button>
           <Button variant="secondary" onClick={onReplace} data-testid="pix-flow-replace">
-            <Edit3 size={13} /> {t("pix.flow.replace")}
+            <Edit3 size={13} />{" "}
+            {step.contentType === "iso8583"
+              ? t("flow.iso8583.replaceMessage")
+              : t("pix.flow.replace")}
           </Button>
           {hasOverride && (
             <Button variant="secondary" onClick={onClearOverride}>
@@ -789,4 +907,234 @@ function MtActionsPanel({ step }: { step: PixFlowStep }) {
       </CardBody>
     </Card>
   );
+}
+
+/**
+ * Sprint 9.4 — right-hand panel for ISO 8583 steps. Quick summary of
+ * the fields analysts care about (MTI, PAN masked, amount, STAN,
+ * POS-entry-mode, terminal id) plus a jump to the dedicated ISO 8583
+ * Parser. Raw wire is rendered on the left by XmlPanel; here we own
+ * only the summary + the "Abrir no Parser ISO 8583" action.
+ */
+function Iso8583SummaryPanel({ step }: { step: PixFlowStep }) {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+  const summary = useMemo(() => summariseIso8583(step.xml), [step.xml]);
+  const openInParser = () => {
+    try {
+      sessionStorage.setItem("iso8583-parser:payload", step.xml);
+    } catch { /* private mode / quota — silent */ }
+    navigate("/parser");
+  };
+  // Stand-in hop (0110 approved by the brand instead of the issuer) or
+  // the advice-back leg (0120/0130) — both carry the Note from the
+  // service. Surface an orange badge next to the MTI so the analyst
+  // notices the atypical origin at a glance.
+  const isStandIn = step.note?.toLowerCase().includes("stand-in") === true;
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-semibold">
+            {t("flow.iso8583.summaryTitle")}
+          </span>
+          {isStandIn && (
+            <Badge tone="warning" title={step.note ?? ""}>Stand-in</Badge>
+          )}
+          {step.isRelayWithTpdu && (
+            <Badge tone="warning" title={t("flow.iso8583.tpduHint")}>TPDU</Badge>
+          )}
+        </div>
+      </CardHeader>
+      <CardBody className="space-y-2 text-xs">
+        {step.isRelayWithTpdu && (
+          <p className="text-warning-text">⚠ {t("flow.iso8583.tpduHint")}</p>
+        )}
+        <dl className="grid grid-cols-[80px_1fr] gap-x-3 gap-y-0.5 font-mono">
+          {summary.entries.map(([label, value]) => (
+            <div key={label} className="contents">
+              <dt className="text-text-tertiary">{label}</dt>
+              <dd>{value}</dd>
+            </div>
+          ))}
+        </dl>
+        <Button variant="secondary" onClick={openInParser}>
+          → {t("flow.iso8583.openInParser")}
+        </Button>
+      </CardBody>
+    </Card>
+  );
+}
+
+/**
+ * Sprint 9.4-revision — dedicated left-hand panel for the stand-in
+ * "issuer timed out" hop. Explains why the diagram jumps straight from
+ * the request into a stand-in-approved response without an issuer
+ * message in between, so the analyst reading the flow for the first
+ * time doesn't wonder if there's a missing step.
+ */
+function TimeoutExplainPanel({ step }: { step: PixFlowStep }) {
+  const { t } = useTranslation();
+  const actorLabel = useActorLabel();
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-semibold text-warning-text">
+            ⚠ {t("flow.iso8583.timeout.title")}
+          </span>
+        </div>
+      </CardHeader>
+      <CardBody className="space-y-2 text-xs">
+        <p className="font-mono text-text-tertiary">
+          {actorLabel(step.fromActor)} → {actorLabel(step.toActor)}
+        </p>
+        <p>{t("flow.iso8583.timeout.body1")}</p>
+        <p>{t("flow.iso8583.timeout.body2")}</p>
+        <p>{t("flow.iso8583.timeout.body3")}</p>
+      </CardBody>
+    </Card>
+  );
+}
+
+function TimeoutSidePanel() {
+  const { t } = useTranslation();
+  return (
+    <Card>
+      <CardBody className="flex items-center justify-center h-full text-xs">
+        <Badge tone="warning">⚡ {t("flow.iso8583.timeout.badge")}</Badge>
+      </CardBody>
+    </Card>
+  );
+}
+
+/**
+ * Quick-and-dirty ISO 8583 field extractor for the visualizer summary.
+ * Skips an optional 10-hex-char TPDU header, reads the 4-char MTI +
+ * primary bitmap, then walks the bits we care about (2, 3, 4, 7, 11,
+ * 22, 41, 42). Not a full parser — that's what the dedicated
+ * IsoParserService does — but it's enough to render a legible summary
+ * without a round-trip to the backend for every step selection.
+ */
+function summariseIso8583(wire: string): { entries: [string, string][] } {
+  const entries: [string, string][] = [];
+  const trimmed = wire.trim();
+  let offset = 0;
+  const looksLikeTpdu =
+    trimmed.length >= 14
+    && /^[0-9A-Fa-f]{10}/.test(trimmed)
+    && /^60/.test(trimmed);
+  if (looksLikeTpdu) offset = 10;
+  if (trimmed.length < offset + 4) return { entries };
+
+  const mti = trimmed.substring(offset, offset + 4);
+  entries.push(["MTI:", mti]);
+  offset += 4;
+
+  const bitmap = trimmed.substring(offset, offset + 16);
+  if (bitmap.length < 16) return { entries };
+  const bits = hexToBinary(bitmap);
+  offset += 16;
+  const secondaryPresent = bits[0] === "1";
+  let secondaryBits = "";
+  if (secondaryPresent) {
+    secondaryBits = hexToBinary(trimmed.substring(offset, offset + 16));
+    offset += 16;
+  }
+
+  // Bit-set walker with per-bit reader closures so we can just skip
+  // bits we don't render (still moves `offset` forward correctly).
+  const readers: Record<number, (raw: string) => string> = {
+    2: fromLLVar((v) => maskPan(v)),
+    3: fromFixed(6, (v) => `${v} (${processingCodeLabel(v)})`),
+    4: fromFixed(12, (v) => formatCents(v)),
+    7: fromFixed(10, (v) => `${v.substring(0, 4)} ${v.substring(4)}`),
+    11: fromFixed(6, (v) => v),
+    22: fromFixed(3, (v) => `${v} (${posEntryLabel(v)})`),
+    37: fromFixed(12, (v) => v),
+    41: fromFixed(8, (v) => v),
+    42: fromFixed(15, (v) => v),
+    49: fromFixed(3, (v) => v),
+  };
+  const displayBits = new Set([2, 3, 4, 7, 11, 22, 41, 42]);
+
+  for (let bit = 1; bit <= 128; bit++) {
+    const isSet =
+      bit <= 64
+        ? bits[bit - 1] === "1"
+        : secondaryBits[bit - 65] === "1";
+    if (!isSet) continue;
+    if (bit === 1) continue; // presence-of-secondary flag, not a field
+
+    const reader = readers[bit];
+    if (reader === undefined) {
+      // Unknown bit — stop parsing (we'd need the full layout to walk
+      // past it safely). The rendered summary still has what mattered.
+      break;
+    }
+    const consumed = readerLength(reader, trimmed, offset);
+    if (offset + consumed > trimmed.length) break;
+    const raw = trimmed.substring(offset, offset + consumed);
+    offset += consumed;
+    if (displayBits.has(bit)) {
+      const value = reader(raw);
+      entries.push([`Campo ${bit}:`, value]);
+    }
+  }
+  return { entries };
+}
+
+function fromFixed(length: number, format: (raw: string) => string) {
+  const fn = (raw: string) => format(raw);
+  (fn as any).__length = length;
+  return fn;
+}
+function fromLLVar(format: (raw: string) => string) {
+  const fn = (raw: string) => format(raw.substring(2));
+  (fn as any).__isLLVar = true;
+  return fn;
+}
+function readerLength(fn: (raw: string) => string, wire: string, offset: number): number {
+  const anyFn = fn as any;
+  if (anyFn.__length !== undefined) return anyFn.__length;
+  if (anyFn.__isLLVar) {
+    const len = parseInt(wire.substring(offset, offset + 2), 10);
+    return isNaN(len) ? 0 : 2 + len;
+  }
+  return 0;
+}
+function hexToBinary(hex: string): string {
+  let bin = "";
+  for (const ch of hex) {
+    const n = parseInt(ch, 16);
+    if (isNaN(n)) return bin;
+    bin += n.toString(2).padStart(4, "0");
+  }
+  return bin;
+}
+function maskPan(pan: string): string {
+  if (pan.length <= 10) return pan;
+  return pan.substring(0, 6) + "*".repeat(pan.length - 10) + pan.substring(pan.length - 4);
+}
+function formatCents(raw: string): string {
+  const digits = raw.replace(/^0+/, "") || "0";
+  const cents = digits.padStart(3, "0");
+  const int = cents.slice(0, -2);
+  const dec = cents.slice(-2);
+  const intGrouped = int.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  return `R$ ${intGrouped},${dec}`;
+}
+function processingCodeLabel(pc: string): string {
+  if (pc.startsWith("31")) return "Consulta de saldo";
+  if (pc.startsWith("00")) return "Compra";
+  if (pc.startsWith("20")) return "Devolução";
+  return "Outro";
+}
+function posEntryLabel(mode: string): string {
+  if (mode === "051") return "Chip EMV";
+  if (mode === "021") return "Senha (teclado PIN)";
+  if (mode === "022") return "Chip + PIN";
+  if (mode === "011") return "Tarja magnética";
+  if (mode === "901") return "NFC/Contactless";
+  return "—";
 }

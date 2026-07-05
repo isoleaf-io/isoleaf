@@ -23,7 +23,18 @@ public sealed record PixFlowStep(
     string Xml,
     string? ViaActor = null,
     bool IsRelay = false,
-    string ContentType = "xml");
+    string ContentType = "xml",
+    // Sprint 9.4 — ISO 8583 hops carry a TPDU header (5-byte destination
+    // + source address) up to the point where the card brand strips it
+    // before forwarding to the issuer. When true, the frontend renders
+    // a "TPDU" badge over the arrow so the analyst can spot the routing
+    // header at a glance.
+    bool IsRelayWithTpdu = false,
+    // Sprint 9.4-revision — extra one-liner context surfaced under the
+    // label, e.g. "Cash dispensed after positive response" on the last
+    // withdrawal leg or "Card Network approved via stand-in rules"
+    // on the stand-in approval hop.
+    string? Note = null);
 
 /// <summary>
 /// Cross-reference inconsistency between two steps. <paramref name="Severity"/>

@@ -30,6 +30,7 @@ const FLAGS = {
   swiftMtParser: isDev,       // 9.1 SWIFT MT103/MT202/MT202COV parser (dev-only)
   swiftMtComparator: isDev,   // 9.2 SWIFT MT↔MX comparator/converter (dev-only)
   swiftFlowVisualizer: isDev, // 9.3 CBPR+ MX + MT tabs inside FlowVisualizer
+  iso8583FlowVisualizer: isDev, // 9.4 ISO 8583 card-payment flows tab
 };
 
 export const FEATURES: Readonly<typeof FLAGS> = FLAGS;
