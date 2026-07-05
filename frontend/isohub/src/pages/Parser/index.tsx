@@ -48,6 +48,25 @@ export default function ParserPage() {
     }
   }, [location.state, mutation]);
 
+  // Sprint 9.4 — Flow Visualizer ("Abrir no Parser ISO 8583") stashes
+  // the raw wire in sessionStorage before navigating here. Reacting to
+  // `location` re-runs on every navigation into this route regardless
+  // of whether the component was already mounted (the react-router
+  // caches instances by path).
+  useEffect(() => {
+    try {
+      const payload = sessionStorage.getItem("iso8583-parser:payload");
+      if (payload) {
+        sessionStorage.removeItem("iso8583-parser:payload");
+        setInput(payload);
+        const { cleaned, removed } = stripCommonSeparators(payload);
+        setSeparatorsStripped(removed);
+        mutation.mutate(cleaned);
+      }
+    } catch { /* private mode / quota — silent */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location]);
+
   const onClear = () => {
     setInput("");
     setResult(null);

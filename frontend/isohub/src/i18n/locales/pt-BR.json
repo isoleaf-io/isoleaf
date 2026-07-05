@@ -127,11 +127,13 @@
   },
   "flow": {
     "title": "Flow Visualizer",
-    "subtitle": "Fluxos multi-mensagem cross-protocolo — Brazilian Pix e SWIFT CBPR+ (MX e MT legado).",
+    "subtitle": "Fluxos multi-mensagem — Brazilian Pix, SWIFT CBPR+ (MX e MT legado) e ISO 8583.",
+    "exampleDisclaimer": "Os fluxos exibidos são exemplos ilustrativos gerados a partir de dados fictícios e podem não refletir todos os campos e comportamentos de uma transação real. Consulte a documentação oficial do respectivo protocolo ou substitua as mensagens por capturas válidas do seu ambiente para uma análise fiel.",
     "tabs": {
       "pix": "Brazilian Pix",
       "cbprMx": "CBPR+ (MX)",
-      "cbprMt": "CBPR+ (MT legado)"
+      "cbprMt": "CBPR+ (MT legado)",
+      "iso8583": "ISO 8583"
     },
     "cbpr": {
       "direct": "Direct Payment",
@@ -148,6 +150,25 @@
       "actionsTitle": "Passo MT legado",
       "parserHint": "O Parser ISO 20022 não decodifica SWIFT MT. Abra o payload no Parser MT dedicado.",
       "openInParser": "Abrir no Parser MT"
+    },
+    "iso8583": {
+      "creditPurchase": "Compra Crédito",
+      "debitPurchase": "Compra Débito (PIN)",
+      "withdrawal": "Saque",
+      "reversal": "Reversão",
+      "standIn": "Stand-in (Advice)",
+      "balanceInquiry": "Consulta de Saldo",
+      "summaryTitle": "Resumo da mensagem",
+      "openInParser": "Abrir no Parser ISO 8583",
+      "replaceMessage": "Substituir mensagem",
+      "tpduHint": "Esta mensagem contém TPDU (header de roteamento removido antes do repasse ao emissor)",
+      "timeout": {
+        "title": "Timeout",
+        "body1": "Nenhuma resposta foi recebida do emissor dentro do tempo limite configurado.",
+        "body2": "A bandeira ativou o processamento por stand-in: aprovou a transação com base em regras próprias (limite de valor, histórico do cartão, score de risco).",
+        "body3": "O terminal recebeu o 0110 normalmente e não percebeu o timeout — a aprovação por stand-in é transparente para o portador do cartão.",
+        "badge": "Stand-in ativado"
+      }
     }
   },
   "parser": {
