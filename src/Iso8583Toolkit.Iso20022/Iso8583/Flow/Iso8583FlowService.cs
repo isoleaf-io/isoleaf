@@ -365,5 +365,5 @@ public sealed class Iso8583FlowService
     }
 
     private static bool IsHex(char c) =>
-        (c >= '0' && c <= '9') || (c >= 'A' && c <= 'F') || (c >= 'a' && c <= 'f');
+        Uri.IsHexDigit(c);
 }
