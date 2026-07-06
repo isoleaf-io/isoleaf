@@ -28,7 +28,7 @@ public sealed class SchemaUploadReloadE2ETests : IDisposable
 
     public SchemaUploadReloadE2ETests()
     {
-        _tempDir = Path.Combine(Path.GetTempPath(),
+        _tempDir = Path.Join(Path.GetTempPath(),
             "isoleaf-e2e-schema-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(_tempDir);
     }
@@ -150,7 +150,7 @@ public sealed class SchemaUploadReloadE2ETests : IDisposable
         var xsd = MakePacs008ShapedXsd(
             "urn:iso:std:iso:20022:tech:xsd:" + messageType, bodyName);
         File.WriteAllText(
-            Path.Combine(_tempDir, messageType + ".xsd"),
+            Path.Join(_tempDir, messageType + ".xsd"),
             xsd);
     }
 

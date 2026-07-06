@@ -231,6 +231,6 @@ public sealed class SchemaRegistry
         var env = Environment.GetEnvironmentVariable("ISOHUB_SCHEMAS_PATH");
         return !string.IsNullOrWhiteSpace(env)
             ? env
-            : Path.Combine(AppContext.BaseDirectory, "Schemas");
+            : Path.Join(AppContext.BaseDirectory, "Schemas");
     }
 }

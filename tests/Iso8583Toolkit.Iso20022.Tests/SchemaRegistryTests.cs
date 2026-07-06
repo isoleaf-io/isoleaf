@@ -102,7 +102,7 @@ public class SchemaRegistryTests
         // consulted anymore) — and populating that directory then
         // calling Reload must surface the new file within the same
         // process.
-        var dir = Path.Combine(Path.GetTempPath(),
+        var dir = Path.Join(Path.GetTempPath(),
             "isoleaf-registry-tests-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(dir);
         try
@@ -118,7 +118,7 @@ public class SchemaRegistryTests
                   <xs:element name="Root" type="xs:string"/>
                 </xs:schema>
                 """;
-            File.WriteAllText(Path.Combine(dir, "sample.xsd"), xsd);
+            File.WriteAllText(Path.Join(dir, "sample.xsd"), xsd);
             registry.Reload();
             registry.ListSupportedTypes().Should().ContainSingle();
             registry.GetSchema("urn:isoleaf:sprint-9-5:reload-test").Should().NotBeNull();

@@ -121,7 +121,7 @@ public sealed class SchemaUploadService
         var subDir = ResolveFamilyDirectory(mxType);
         var targetDir = subDir is null
             ? _registry.SchemasPath
-            : Path.Combine(_registry.SchemasPath, subDir);
+            : Path.Join(_registry.SchemasPath, subDir);
 
         // Overwrite policy — delete any pre-existing entry with the
         // same namespace so a re-upload with a different filename
@@ -129,7 +129,7 @@ public sealed class SchemaUploadService
         Directory.CreateDirectory(targetDir);
         RemoveExistingWithNamespace(schema.TargetNamespace);
 
-        var targetPath = Path.Combine(targetDir, safeName);
+        var targetPath = Path.Join(targetDir, safeName);
         // Atomic write: write to .tmp then move over — avoids the
         // registry seeing a half-written file if Reload races with us.
         var tmpPath = targetPath + ".tmp";

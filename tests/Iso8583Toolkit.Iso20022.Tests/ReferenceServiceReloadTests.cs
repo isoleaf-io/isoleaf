@@ -16,7 +16,7 @@ public sealed class ReferenceServiceReloadTests : IDisposable
 
     public ReferenceServiceReloadTests()
     {
-        _tempDir = Path.Combine(Path.GetTempPath(),
+        _tempDir = Path.Join(Path.GetTempPath(),
             "isoleaf-reference-tests-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(_tempDir);
     }
@@ -73,7 +73,7 @@ public sealed class ReferenceServiceReloadTests : IDisposable
         // digest (SchemaRegistry.Reload throws before Reference sees
         // it — we simulate the pre-registry failure by writing an XSD
         // that parses but explodes inside XsdFieldExtractor).
-        var brokenPath = Path.Combine(_tempDir, "pacs.008.001.13.xsd");
+        var brokenPath = Path.Join(_tempDir, "pacs.008.001.13.xsd");
         // A schema that compiles under XmlSchemaSet but has no
         // <Document> global element still passes SchemaRegistry.Reload
         // and just yields zero fields — not a hard failure. Instead we
@@ -142,7 +142,7 @@ public sealed class ReferenceServiceReloadTests : IDisposable
             </xs:schema>
             """;
         File.WriteAllBytes(
-            Path.Combine(_tempDir, messageType + ".xsd"),
+            Path.Join(_tempDir, messageType + ".xsd"),
             Encoding.UTF8.GetBytes(xsd));
     }
 

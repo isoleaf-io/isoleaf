@@ -18,7 +18,7 @@ public sealed class SchemaUploadServiceTests : IDisposable
 
     public SchemaUploadServiceTests()
     {
-        _tempDir = Path.Combine(Path.GetTempPath(),
+        _tempDir = Path.Join(Path.GetTempPath(),
             "isoleaf-schema-tests-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(_tempDir);
         _registry = new SchemaRegistry(_tempDir);
@@ -157,7 +157,7 @@ public sealed class SchemaUploadServiceTests : IDisposable
 
         result.Success.Should().BeTrue();
         result.MessageType.Should().Be("pacs.999.001.01");
-        var expected = Path.Combine(_tempDir, "pacs", "pacs.999.001.01.xsd");
+        var expected = Path.Join(_tempDir, "pacs", "pacs.999.001.01.xsd");
         File.Exists(expected).Should().BeTrue();
     }
 
