@@ -74,6 +74,19 @@ RUN groupadd --system --gid 1001 isoleaf \
 
 # Copy published artifacts and prepare data dir for future workspace persistence.
 COPY --from=dotnet-build --chown=isoleaf:isoleaf /app/publish ./
+# Sprint 9.5 — ISO 20022 schemas live outside the assembly. The 44 XSDs
+# shipped in this image seed /app/data/schemas so a fresh container can
+# validate against every default variant. Mounting a volume at this
+# path preserves any user-uploaded XSD across container recreations:
+#
+#     docker run -v isoleaf-schemas:/app/data/schemas ...
+#
+# Docker auto-populates an *empty* named volume with the image's
+# content on the first run — the defaults land inside the volume, and
+# subsequent uploads via POST /api/workspace/schemas/upload persist
+# alongside them. Without the mount, uploads live only for the
+# lifetime of the container instance (the seed set is still there).
+COPY --from=dotnet-build --chown=isoleaf:isoleaf /app/publish/Schemas /app/data/schemas
 RUN mkdir -p /app/data && chown -R isoleaf:isoleaf /app/data
 
 USER isoleaf
@@ -82,7 +95,8 @@ EXPOSE 8080
 
 ENV ASPNETCORE_URLS=http://+:8080 \
     ASPNETCORE_ENVIRONMENT=Production \
-    ISOHUB_DATA_PATH=/app/data
+    ISOHUB_DATA_PATH=/app/data \
+    ISOHUB_SCHEMAS_PATH=/app/data/schemas
 
 # Container-level liveness — hits the /api/health endpoint added to Program.cs.
 HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \

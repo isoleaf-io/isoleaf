@@ -7,8 +7,16 @@
     <Version>1.0.0</Version>
   </PropertyGroup>
 
+  <!-- Sprint 9.5 — schemas ship as regular files copied to the build
+       output instead of embedded resources. In dev the SchemaRegistry
+       reads from <output>/Schemas; in Docker the same layout ships
+       under /app/data/schemas (see Dockerfile) and can be swapped out
+       via a volume mount without rebuilding the image. -->
   <ItemGroup>
-    <EmbeddedResource Include="Schemas/**/*.xsd" />
+    <Content Include="Schemas\**\*.xsd">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
   </ItemGroup>
 
   <ItemGroup>

@@ -1,5 +1,6 @@
 using Iso8583Toolkit.Agent.Models;
 using Iso8583Toolkit.Agent.Services;
+using Iso8583Toolkit.Iso20022.Validation;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
@@ -10,8 +11,18 @@ namespace Iso8583Toolkit.Agent.Controllers;
 public sealed class WorkspaceController : ControllerBase
 {
     private readonly LocalSessionStore _store;
+    private readonly SchemaRegistry _schemaRegistry;
+    private readonly SchemaUploadService _schemaUpload;
 
-    public WorkspaceController(LocalSessionStore store) => _store = store;
+    public WorkspaceController(
+        LocalSessionStore store,
+        SchemaRegistry schemaRegistry,
+        SchemaUploadService schemaUpload)
+    {
+        _store = store;
+        _schemaRegistry = schemaRegistry;
+        _schemaUpload = schemaUpload;
+    }
 
     [HttpGet]
     [EndpointSummary("Read the workspace configuration (terminal IDs, NIIs, MCC, IMK, ZPK…)")]
@@ -69,4 +80,60 @@ public sealed class WorkspaceController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public IActionResult DeleteTemplate(string id) =>
         _store.DeleteTemplate(id) ? NoContent() : NotFound();
+
+    // ── Sprint 9.5 — ISO 20022 schemas storage ────────────────────────
+
+    /// <summary>Wire shape returned by <c>GET /api/workspace/schemas</c>.</summary>
+    public sealed record SchemaEntryDto(
+        string MessageType,
+        string Family,
+        string Version,
+        string Namespace,
+        string FileName);
+
+    /// <summary>Wire shape returned by <c>POST /api/workspace/schemas/upload</c>.</summary>
+    public sealed record SchemaUploadDto(
+        string MessageType,
+        string Namespace,
+        string FileName);
+
+    [HttpGet("schemas")]
+    [EndpointSummary("List every ISO 20022 schema currently loaded on the agent")]
+    [EndpointDescription("Feeds the Workspace \"Schemas ISO 20022\" section with the fields shown in the table: message type, family, version, target namespace, and the source filename on disk.")]
+    [ProducesResponseType<IReadOnlyList<SchemaEntryDto>>(StatusCodes.Status200OK)]
+    public IActionResult GetSchemas() =>
+        Ok(_schemaRegistry.ListSupportedTypes()
+            .Select(s => new SchemaEntryDto(
+                s.MessageType, s.Family, s.Version, s.Namespace, s.FileName))
+            .ToList());
+
+    [HttpPost("schemas/upload")]
+    [EndpointSummary("Upload a new ISO 20022 XSD (replaces existing by namespace)")]
+    [EndpointDescription("Validates the multipart file as an xs:schema, writes it under the schemas directory (grouped by family), removes any pre-existing entry with the same target namespace, and reloads the registry synchronously so subsequent requests see the new schema without a restart.")]
+    [ProducesResponseType<SchemaUploadDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [RequestSizeLimit(10 * 1024 * 1024)] // 10 MB is generous for an XSD.
+    public async Task<IActionResult> UploadSchema(IFormFile file)
+    {
+        if (file is null || file.Length == 0)
+            return BadRequest(new { error = "Envie um arquivo .xsd via multipart/form-data." });
+
+        using var ms = new MemoryStream();
+        await file.CopyToAsync(ms);
+        var result = _schemaUpload.UploadSchema(file.FileName, ms.ToArray());
+        if (!result.Success)
+        {
+            return BadRequest(new
+            {
+                error = result.Error,
+                lineNumber = result.LineNumber,
+                linePosition = result.LinePosition,
+            });
+        }
+
+        return Ok(new SchemaUploadDto(
+            result.MessageType ?? string.Empty,
+            result.Namespace ?? string.Empty,
+            result.FileName ?? string.Empty));
+    }
 }

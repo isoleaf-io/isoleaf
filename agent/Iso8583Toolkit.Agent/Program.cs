@@ -75,11 +75,31 @@ builder.Services.AddSingleton<SmartIsoBuilder>();
 builder.Services.AddSingleton<CardGenerator>();
 builder.Services.AddSingleton<EmvCryptoService>();
 
-// ISO 20022 — SchemaRegistry is heavy (reads 32 embedded XSDs once); ParserService,
-// ValidatorService, SummaryService and the VersionCompareService are stateless
-// after construction, so everything stays singleton. ReferenceService runs
-// XsdFieldExtractor over every XSD at startup and caches the result.
-builder.Services.AddSingleton<SchemaRegistry>();
+// ISO 20022 — SchemaRegistry scans the on-disk schemas directory once
+// at startup and again whenever Workspace uploads a new XSD (via
+// SchemaRegistry.Reload()). Path resolution: ISOHUB_SCHEMAS_PATH env
+// var → SchemaRegistry:SchemasPath config → <bin>/Schemas fallback.
+// ParserService, ValidatorService, SummaryService and VersionCompareService
+// are stateless after construction, so everything stays singleton.
+// ReferenceService runs XsdFieldExtractor over every XSD at startup
+// and caches the result.
+builder.Services.AddSingleton<SchemaRegistry>(sp =>
+{
+    var cfg = sp.GetRequiredService<IConfiguration>();
+    var configured = cfg["SchemaRegistry:SchemasPath"];
+    return string.IsNullOrWhiteSpace(configured)
+        ? new SchemaRegistry()
+        : new SchemaRegistry(configured);
+});
+// Sprint 9.5 — schema upload endpoint on the Workspace controller.
+// Sprint 9.6 — explicitly wire the 2-arg constructor so the reference
+// snapshot rebuilds after each upload; without this the container
+// picks the shorter constructor and downstream screens (Version
+// Comparator, Field Reference, Builder) miss the new XSD.
+builder.Services.AddSingleton<SchemaUploadService>(sp =>
+    new SchemaUploadService(
+        sp.GetRequiredService<SchemaRegistry>(),
+        sp.GetRequiredService<ReferenceService>()));
 builder.Services.AddSingleton<SummaryService>();
 builder.Services.AddSingleton<Iso20022ParserService>();
 builder.Services.AddSingleton<Iso20022ValidatorService>();
