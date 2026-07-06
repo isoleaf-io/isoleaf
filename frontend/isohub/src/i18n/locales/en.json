@@ -604,6 +604,20 @@
     "subtitle": "Default values applied to Builder and Simulator",
     "configuration": "Configuration",
     "templates": "Templates",
+    "schemas": {
+      "tab": "ISO 20022 Schemas",
+      "title": "ISO 20022 Schemas",
+      "addButton": "Add XSD",
+      "uploading": "Uploading…",
+      "loading": "Loading schemas…",
+      "empty": "No schemas loaded.",
+      "col": {
+        "messageType": "Message Type",
+        "version": "Version",
+        "namespace": "Namespace",
+        "file": "File"
+      }
+    },
     "identity": "Identity",
     "tpdu": "TPDU",
     "processingCodes": "Processing codes",

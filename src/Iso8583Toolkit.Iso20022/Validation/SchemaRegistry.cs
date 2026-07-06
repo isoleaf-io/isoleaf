@@ -1,5 +1,4 @@
 using System.Collections.ObjectModel;
-using System.Reflection;
 using System.Xml;
 using System.Xml.Schema;
 
@@ -16,12 +15,28 @@ public record SchemaInfo(
     string MessageType,
     string Family,
     string Version,
-    string Namespace);
+    string Namespace)
+{
+    /// <summary>
+    /// Basename (no path) of the file that produced this entry.
+    /// Populated when the registry reads XSDs from disk (Sprint 9.5).
+    /// Empty for entries loaded from unknown / synthetic sources.
+    /// </summary>
+    public string FileName { get; init; } = string.Empty;
+}
 
 /// <summary>
-/// Catalog of the embedded ISO 20022 schemas. Eagerly reads every <c>*.xsd</c>
-/// resource shipped in this assembly and indexes it by target namespace.
-/// Construction is the only I/O — every lookup is an in-memory dictionary hit.
+/// Catalogue of ISO 20022 schemas — reads every <c>*.xsd</c> under the
+/// configured schemas directory and indexes it by target namespace.
+///
+/// <para>Sprint 9.5 replaced the previous "read from embedded resources"
+/// implementation with a directory-based one so operators can drop
+/// custom or updated schemas into a persistable path (via the Workspace
+/// UI upload). Construction eagerly scans the folder; <see cref="Reload"/>
+/// re-scans on demand and swaps the internal state atomically.</para>
+///
+/// <para>Lookup remains an in-memory dictionary hit — the on-disk read
+/// only happens on construction and on <see cref="Reload"/>.</para>
 /// </summary>
 public sealed class SchemaRegistry
 {
@@ -29,51 +44,38 @@ public sealed class SchemaRegistry
     // exactly the message type, so we can pivot in both directions.
     private const string NamespacePrefix = "urn:iso:std:iso:20022:tech:xsd:";
 
-    private readonly Dictionary<string, XmlSchema> _byNamespace;
-    private readonly ReadOnlyCollection<SchemaInfo> _supportedTypes;
+    private readonly string _schemasPath;
+    private readonly object _stateLock = new();
+    private Dictionary<string, XmlSchema> _byNamespace = new(StringComparer.Ordinal);
+    private ReadOnlyCollection<SchemaInfo> _supportedTypes =
+        new List<SchemaInfo>().AsReadOnly();
 
-    public SchemaRegistry() : this(typeof(SchemaRegistry).Assembly) { }
+    /// <summary>
+    /// Default constructor — resolves the schemas path from the
+    /// <c>ISOHUB_SCHEMAS_PATH</c> environment variable, or falls back
+    /// to <c>&lt;bin&gt;/Schemas</c> which is populated by the csproj
+    /// Content Include (Sprint 9.5).
+    /// </summary>
+    public SchemaRegistry() : this(ResolveDefaultPath()) { }
 
-    public SchemaRegistry(Assembly schemaAssembly)
+    public SchemaRegistry(string schemasPath)
     {
-        ArgumentNullException.ThrowIfNull(schemaAssembly);
-
-        _byNamespace = new Dictionary<string, XmlSchema>(StringComparer.Ordinal);
-        var infos = new List<SchemaInfo>();
-
-        foreach (var resourceName in schemaAssembly.GetManifestResourceNames())
-        {
-            if (!resourceName.EndsWith(".xsd", StringComparison.OrdinalIgnoreCase))
-                continue;
-
-            using var stream = schemaAssembly.GetManifestResourceStream(resourceName)
-                ?? throw new InvalidOperationException($"Embedded resource stream missing: {resourceName}");
-
-            // Validation callback is intentionally a no-op: imports/includes are
-            // not resolved at this stage (we never call XmlSchemaSet.Compile),
-            // so the only "errors" surfaced here would be self-inflicted noise.
-            var schema = XmlSchema.Read(stream, static (_, _) => { })
-                ?? throw new InvalidOperationException($"Failed to parse XSD: {resourceName}");
-
-            if (string.IsNullOrEmpty(schema.TargetNamespace))
-                throw new InvalidOperationException($"XSD has empty targetNamespace: {resourceName}");
-
-            _byNamespace[schema.TargetNamespace] = schema;
-            infos.Add(BuildInfo(schema.TargetNamespace));
-        }
-
-        _supportedTypes = infos
-            .OrderBy(i => i.Family, StringComparer.Ordinal)
-            .ThenBy(i => i.MessageType, StringComparer.Ordinal)
-            .ToList()
-            .AsReadOnly();
+        ArgumentException.ThrowIfNullOrWhiteSpace(schemasPath);
+        _schemasPath = schemasPath;
+        Reload();
     }
+
+    /// <summary>Absolute path currently being read for XSDs.</summary>
+    public string SchemasPath => _schemasPath;
 
     /// <summary>Returns the parsed <see cref="XmlSchema"/> for the given namespace, or <c>null</c>.</summary>
     public XmlSchema? GetSchema(string xmlNamespace)
     {
         ArgumentNullException.ThrowIfNull(xmlNamespace);
-        return _byNamespace.TryGetValue(xmlNamespace, out var schema) ? schema : null;
+        lock (_stateLock)
+        {
+            return _byNamespace.TryGetValue(xmlNamespace, out var schema) ? schema : null;
+        }
     }
 
     /// <summary>
@@ -89,10 +91,13 @@ public sealed class SchemaRegistry
         var prefix = ExtractFamilyPrefix(xmlNamespace);
         if (prefix == null) return [];
 
-        return _byNamespace.Keys
-            .Where(ns => ExtractFamilyPrefix(ns) == prefix)
-            .Order(StringComparer.Ordinal)
-            .ToList();
+        lock (_stateLock)
+        {
+            return _byNamespace.Keys
+                .Where(ns => ExtractFamilyPrefix(ns) == prefix)
+                .Order(StringComparer.Ordinal)
+                .ToList();
+        }
     }
 
     private static string? ExtractFamilyPrefix(string xmlNamespace)
@@ -133,18 +138,69 @@ public sealed class SchemaRegistry
     }
 
     /// <summary>Lists every schema currently loaded in the registry.</summary>
-    public IEnumerable<SchemaInfo> ListSupportedTypes() => _supportedTypes;
+    public IEnumerable<SchemaInfo> ListSupportedTypes()
+    {
+        lock (_stateLock)
+        {
+            return _supportedTypes;
+        }
+    }
+
+    /// <summary>
+    /// Re-scans the configured directory and atomically swaps the
+    /// in-memory maps. Invoked from the Workspace upload endpoint so a
+    /// newly-added XSD is queryable within the same HTTP request.
+    /// </summary>
+    public void Reload()
+    {
+        var byNs = new Dictionary<string, XmlSchema>(StringComparer.Ordinal);
+        var infos = new List<SchemaInfo>();
+
+        if (Directory.Exists(_schemasPath))
+        {
+            foreach (var file in Directory.EnumerateFiles(_schemasPath, "*.xsd", SearchOption.AllDirectories))
+            {
+                using var stream = File.OpenRead(file);
+                // The validation callback is intentionally a no-op — imports
+                // and includes aren't resolved here (we never call Compile()
+                // at load-time), so any surfaced "errors" would be noise.
+                var schema = XmlSchema.Read(stream, static (_, _) => { })
+                    ?? throw new InvalidOperationException($"Failed to parse XSD: {file}");
+
+                if (string.IsNullOrEmpty(schema.TargetNamespace))
+                    throw new InvalidOperationException($"XSD has empty targetNamespace: {file}");
+
+                byNs[schema.TargetNamespace] = schema;
+                infos.Add(BuildInfo(schema.TargetNamespace, Path.GetFileName(file)));
+            }
+        }
+
+        var ordered = infos
+            .OrderBy(i => i.Family, StringComparer.Ordinal)
+            .ThenBy(i => i.MessageType, StringComparer.Ordinal)
+            .ToList()
+            .AsReadOnly();
+
+        lock (_stateLock)
+        {
+            _byNamespace = byNs;
+            _supportedTypes = ordered;
+        }
+    }
 
     private string? ResolveMessageType(string? xmlNamespace)
     {
         if (string.IsNullOrEmpty(xmlNamespace)) return null;
-        if (!_byNamespace.ContainsKey(xmlNamespace)) return null;
+        lock (_stateLock)
+        {
+            if (!_byNamespace.ContainsKey(xmlNamespace)) return null;
+        }
         return xmlNamespace.StartsWith(NamespacePrefix, StringComparison.Ordinal)
             ? xmlNamespace[NamespacePrefix.Length..]
             : null;
     }
 
-    private static SchemaInfo BuildInfo(string targetNamespace)
+    private static SchemaInfo BuildInfo(string targetNamespace, string fileName)
     {
         var messageType = targetNamespace.StartsWith(NamespacePrefix, StringComparison.Ordinal)
             ? targetNamespace[NamespacePrefix.Length..]
@@ -158,6 +214,23 @@ public sealed class SchemaRegistry
             ? string.Join('.', parts[2..])
             : (parts.Length > 1 ? parts[^1] : string.Empty);
 
-        return new SchemaInfo(messageType, family, version, targetNamespace);
+        return new SchemaInfo(messageType, family, version, targetNamespace)
+        {
+            FileName = fileName,
+        };
+    }
+
+    /// <summary>
+    /// Resolves the default XSD directory: the <c>ISOHUB_SCHEMAS_PATH</c>
+    /// environment variable when set (Docker mounts a volume here); the
+    /// <c>Schemas</c> subdirectory of <see cref="AppContext.BaseDirectory"/>
+    /// otherwise (dev — populated by the csproj Content Include).
+    /// </summary>
+    private static string ResolveDefaultPath()
+    {
+        var env = Environment.GetEnvironmentVariable("ISOHUB_SCHEMAS_PATH");
+        return !string.IsNullOrWhiteSpace(env)
+            ? env
+            : Path.Combine(AppContext.BaseDirectory, "Schemas");
     }
 }

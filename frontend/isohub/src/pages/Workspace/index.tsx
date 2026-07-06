@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/Button";
 import { Input, Label } from "@/components/ui/Field";
 import { Badge } from "@/components/ui/Badge";
 import { getWorkspace, updateWorkspace } from "@/api/workspace";
+import { SchemasSection } from "./SchemasSection";
 import { useTemplatesStore, type SavedTemplate } from "@/store/templates";
 import type { WorkspaceConfig } from "@/types";
 
@@ -95,6 +96,12 @@ export default function WorkspacePage() {
             className="px-4 py-2 text-sm text-text-secondary border-b-2 border-transparent data-[state=active]:border-accent data-[state=active]:text-text-primary"
           >
             {t("workspace.templates")}
+          </Tabs.Trigger>
+          <Tabs.Trigger
+            value="schemas"
+            className="px-4 py-2 text-sm text-text-secondary border-b-2 border-transparent data-[state=active]:border-accent data-[state=active]:text-text-primary"
+          >
+            {t("workspace.schemas.tab")}
           </Tabs.Trigger>
         </Tabs.List>
 
@@ -285,6 +292,10 @@ export default function WorkspacePage() {
               )}
             </CardBody>
           </Card>
+        </Tabs.Content>
+
+        <Tabs.Content value="schemas">
+          <SchemasSection />
         </Tabs.Content>
       </Tabs.Root>
     </AppShell>

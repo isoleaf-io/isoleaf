@@ -28,16 +28,19 @@ public sealed class ReferenceController(
 
     [HttpGet]
     [EndpointSummary("List supported message types")]
-    // Catalogue is built from embedded XSDs — never changes within a run.
-    // Cache aggressively on the proxy/client to keep production snappy.
-    [ResponseCache(Duration = 3600)]
+    // Sprint 9.6 — ResponseCache removed. The catalogue is now mutable
+    // at runtime (Workspace XSD uploads reload ReferenceService), and
+    // ReferenceService.GetMessageTypes() is already a lock-guarded
+    // dictionary read with no per-request recomputation. Leaving the
+    // Cache-Control:max-age=3600 in place masked upload results for up
+    // to an hour and gave no measurable perf benefit.
     [ProducesResponseType<MessageTypeListResponse>(StatusCodes.Status200OK)]
     public IActionResult GetMessageTypes()
         => Ok(new MessageTypeListResponse(referenceService.GetMessageTypes()));
 
     [HttpGet("{messageType}")]
     [EndpointSummary("Get the field tree for one message type")]
-    [ResponseCache(Duration = 3600, VaryByQueryKeys = ["messageType"])]
+    // Sprint 9.6 — see GetMessageTypes above; same rationale applies.
     [ProducesResponseType<MessageReferenceResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
     public IActionResult GetReference(string messageType)

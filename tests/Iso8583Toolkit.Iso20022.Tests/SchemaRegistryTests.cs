@@ -94,6 +94,42 @@ public class SchemaRegistryTests
     }
 
     [Fact]
+    public void SchemaRegistry_ReadsFromFilesystem_NotEmbeddedResources()
+    {
+        // Sprint 9.5 — the registry now scans a directory instead of
+        // reading embedded resources. Pointing it at an empty temp dir
+        // must yield zero schemas (proving no assembly resource is
+        // consulted anymore) — and populating that directory then
+        // calling Reload must surface the new file within the same
+        // process.
+        var dir = Path.Combine(Path.GetTempPath(),
+            "isoleaf-registry-tests-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        try
+        {
+            var registry = new SchemaRegistry(dir);
+            registry.ListSupportedTypes().Should().BeEmpty(
+                "an empty schemas directory must produce an empty registry — proves the embedded-resource fallback is gone");
+
+            var xsd = """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+                           targetNamespace="urn:isoleaf:sprint-9-5:reload-test">
+                  <xs:element name="Root" type="xs:string"/>
+                </xs:schema>
+                """;
+            File.WriteAllText(Path.Combine(dir, "sample.xsd"), xsd);
+            registry.Reload();
+            registry.ListSupportedTypes().Should().ContainSingle();
+            registry.GetSchema("urn:isoleaf:sprint-9-5:reload-test").Should().NotBeNull();
+        }
+        finally
+        {
+            try { Directory.Delete(dir, recursive: true); } catch { /* best-effort */ }
+        }
+    }
+
+    [Fact]
     public void SchemaRegistry_FamilyGrouping_IsCorrect()
     {
         var registry = new SchemaRegistry();
