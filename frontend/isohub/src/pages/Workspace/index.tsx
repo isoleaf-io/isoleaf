@@ -222,43 +222,113 @@ export default function WorkspacePage() {
                   {t("workspace.noTemplates")}
                 </div>
               ) : (
-                <table className="w-full">
-                  <thead>
-                    <tr className="bg-bg-tertiary text-left text-[11px] uppercase tracking-wider text-text-tertiary">
-                      <th className="py-2 px-4">Nome</th>
-                      <th className="py-2 px-4">MTI</th>
-                      <th className="py-2 px-4">Salvo em</th>
-                      <th className="py-2 px-4">Tags</th>
-                      <th className="py-2 px-4 w-44"></th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[var(--border)]">
-                    {templates
-                      .slice()
-                      .sort((a, b) => b.savedAt.localeCompare(a.savedAt))
-                      .map((tpl) => (
-                        <tr key={tpl.id}>
-                          <td className="py-2 px-4 text-sm font-medium">
-                            {tpl.name}
-                            {tpl.description && (
-                              <div className="text-[11px] text-text-tertiary truncate max-w-[260px]">
-                                {tpl.description}
+                (() => {
+                  // Shared sort — most-recently-saved first — reused by
+                  // both the desktop table and the mobile card list so
+                  // the two renderings stay in the same order.
+                  const sorted = templates
+                    .slice()
+                    .sort((a, b) => b.savedAt.localeCompare(a.savedAt));
+                  return (
+                    <>
+                      {/* Desktop: 5-column table. Sprint 9.7 — hidden
+                          below md so the mobile card list below can
+                          take over on 390–414px viewports. */}
+                      <table className="w-full hidden md:table" data-testid="workspace-templates-table">
+                        <thead>
+                          <tr className="bg-bg-tertiary text-left text-[11px] uppercase tracking-wider text-text-tertiary">
+                            <th className="py-2 px-4">Nome</th>
+                            <th className="py-2 px-4">MTI</th>
+                            <th className="py-2 px-4">Salvo em</th>
+                            <th className="py-2 px-4">Tags</th>
+                            <th className="py-2 px-4 w-44"></th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-[var(--border)]">
+                          {sorted.map((tpl) => (
+                            <tr key={tpl.id}>
+                              <td className="py-2 px-4 text-sm font-medium">
+                                {tpl.name}
+                                {tpl.description && (
+                                  <div className="text-[11px] text-text-tertiary truncate max-w-[260px]">
+                                    {tpl.description}
+                                  </div>
+                                )}
+                              </td>
+                              <td className="py-2 px-4">
+                                <Badge tone="accent" className="font-mono">{tpl.mti}</Badge>
+                              </td>
+                              <td className="py-2 px-4 text-xs text-text-tertiary">
+                                {new Date(tpl.savedAt).toLocaleString()}
+                              </td>
+                              <td className="py-2 px-4 text-xs text-text-tertiary truncate max-w-[180px]">
+                                {tpl.tags ?? "—"}
+                              </td>
+                              <td className="py-2 px-4">
+                                <div className="flex justify-end gap-1">
+                                  <Button
+                                    size="sm"
+                                    onClick={() => {
+                                      loadTemplate(tpl.id);
+                                      navigate("/builder");
+                                    }}
+                                  >
+                                    Carregar no Builder
+                                  </Button>
+                                  <button
+                                    onClick={() => exportTemplate(tpl)}
+                                    className="p-1 text-text-tertiary hover:text-text-primary"
+                                    title="Exportar JSON"
+                                  >
+                                    <Download size={14} />
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      if (confirm(`Remover template "${tpl.name}"?`))
+                                        deleteTemplateLocal(tpl.id);
+                                    }}
+                                    className="p-1 text-text-tertiary hover:text-danger"
+                                    title="Remover"
+                                  >
+                                    <Trash2 size={14} />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      {/* Mobile: card list. One template per card with
+                          the same info the table shows plus the actions
+                          row stacked at the bottom so nothing overflows
+                          past the viewport. */}
+                      <ul
+                        className="md:hidden divide-y divide-[var(--border)]"
+                        data-testid="workspace-templates-cards"
+                      >
+                        {sorted.map((tpl) => (
+                          <li key={tpl.id} className="px-4 py-3 space-y-2">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0">
+                                <div className="text-sm font-medium text-text-primary break-words">
+                                  {tpl.name}
+                                </div>
+                                {tpl.description && (
+                                  <div className="text-[11px] text-text-tertiary break-words">
+                                    {tpl.description}
+                                  </div>
+                                )}
                               </div>
-                            )}
-                          </td>
-                          <td className="py-2 px-4">
-                            <Badge tone="accent" className="font-mono">{tpl.mti}</Badge>
-                          </td>
-                          <td className="py-2 px-4 text-xs text-text-tertiary">
-                            {new Date(tpl.savedAt).toLocaleString()}
-                          </td>
-                          <td className="py-2 px-4 text-xs text-text-tertiary truncate max-w-[180px]">
-                            {tpl.tags ?? "—"}
-                          </td>
-                          <td className="py-2 px-4">
-                            <div className="flex justify-end gap-1">
+                              <Badge tone="accent" className="font-mono shrink-0">{tpl.mti}</Badge>
+                            </div>
+                            <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-text-tertiary">
+                              <span>{new Date(tpl.savedAt).toLocaleString()}</span>
+                              {tpl.tags && <span>· {tpl.tags}</span>}
+                            </div>
+                            <div className="flex items-center gap-1 pt-1">
                               <Button
                                 size="sm"
+                                className="flex-1"
                                 onClick={() => {
                                   loadTemplate(tpl.id);
                                   navigate("/builder");
@@ -268,7 +338,7 @@ export default function WorkspacePage() {
                               </Button>
                               <button
                                 onClick={() => exportTemplate(tpl)}
-                                className="p-1 text-text-tertiary hover:text-text-primary"
+                                className="p-2 text-text-tertiary hover:text-text-primary"
                                 title="Exportar JSON"
                               >
                                 <Download size={14} />
@@ -278,17 +348,18 @@ export default function WorkspacePage() {
                                   if (confirm(`Remover template "${tpl.name}"?`))
                                     deleteTemplateLocal(tpl.id);
                                 }}
-                                className="p-1 text-text-tertiary hover:text-danger"
+                                className="p-2 text-text-tertiary hover:text-danger"
                                 title="Remover"
                               >
                                 <Trash2 size={14} />
                               </button>
                             </div>
-                          </td>
-                        </tr>
-                      ))}
-                  </tbody>
-                </table>
+                          </li>
+                        ))}
+                      </ul>
+                    </>
+                  );
+                })()
               )}
             </CardBody>
           </Card>

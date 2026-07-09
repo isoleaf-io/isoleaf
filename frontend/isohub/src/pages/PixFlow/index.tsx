@@ -401,8 +401,18 @@ function SequenceDiagram({
   const colX = (idx: number) => padding + idx * colWidth + colWidth / 2;
 
   return (
-    <div className="flex justify-center overflow-x-auto">
-      <svg width={width} height={height} className="block">
+    // Sprint 9.7 — SVG scales to available width via viewBox. On mobile
+    // (390–414px) the diagram (up to 5 actors × 180px = 940px + padding)
+    // is zoomed out to fit instead of forcing horizontal scroll; on
+    // desktop it renders at natural size up to the max width of the
+    // container.
+    <div className="w-full" data-testid="pix-flow-diagram-container">
+      <svg
+        viewBox={`0 0 ${width} ${height}`}
+        preserveAspectRatio="xMidYMin meet"
+        className="block w-full h-auto"
+        data-testid="pix-flow-diagram-svg"
+      >
         <defs>
           <marker
             id="pix-arrow"

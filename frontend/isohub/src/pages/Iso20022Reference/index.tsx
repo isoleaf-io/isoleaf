@@ -176,10 +176,13 @@ export default function Iso20022ReferencePage() {
         className="flex gap-0 overflow-hidden"
         style={{ height: "calc(100vh - 120px)" }}
       >
+        {/* Sprint 9.7 — on mobile the tree hides while a field detail is
+            open (viewport too narrow for a useful split); onClose in the
+            detail panel brings it back. Above md both panes coexist. */}
         <div
           className={clsx(
-            "flex flex-col gap-4 overflow-y-auto pr-4",
-            selectedField ? "w-1/2" : "w-full",
+            "flex flex-col gap-4 overflow-y-auto pr-0 md:pr-4",
+            selectedField ? "hidden md:flex md:w-1/2" : "w-full",
           )}
         >
         {/* Mode tabs */}
@@ -318,7 +321,7 @@ export default function Iso20022ReferencePage() {
         </div>
 
         {selectedField && (
-          <div className="w-1/2 overflow-hidden border-l border-[var(--border)] flex flex-col">
+          <div className="w-full md:w-1/2 overflow-hidden md:border-l border-[var(--border)] flex flex-col">
             <ErrorBoundary area="Field detail">
               <FieldDetailPanel
                 messageType={selectedFieldMessageType || selectedType}
