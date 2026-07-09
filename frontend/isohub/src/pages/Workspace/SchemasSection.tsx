@@ -254,28 +254,48 @@ function FamilyGroup({
         </span>
       </button>
       {expanded && (
-        <table className="w-full">
-          <thead>
-            <tr className="text-left text-[11px] uppercase tracking-wider text-text-tertiary">
-              <th className="py-2 pl-10 pr-4">{t("workspace.schemas.col.messageType")}</th>
-              <th className="py-2 px-4">{t("workspace.schemas.col.version")}</th>
-              <th className="py-2 px-4">{t("workspace.schemas.col.namespace")}</th>
-              <th className="py-2 px-4">{t("workspace.schemas.col.file")}</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-[var(--border)] text-xs font-mono">
-            {entries.map((s) => (
-              <tr key={s.namespace}>
-                <td className="py-2 pl-10 pr-4">{s.messageType}</td>
-                <td className="py-2 px-4 text-text-secondary">{s.version}</td>
-                <td className="py-2 px-4 text-text-tertiary truncate max-w-[420px]">
-                  {s.namespace}
-                </td>
-                <td className="py-2 px-4 text-text-secondary">{s.fileName}</td>
+        <>
+          {/* Sprint 9.7 — desktop keeps the 4-column table. Mobile
+              (< md) switches to a card list per schema so a namespace
+              URI ~55 chars in font-mono doesn't force horizontal scroll. */}
+          <table className="w-full hidden md:table">
+            <thead>
+              <tr className="text-left text-[11px] uppercase tracking-wider text-text-tertiary">
+                <th className="py-2 pl-10 pr-4">{t("workspace.schemas.col.messageType")}</th>
+                <th className="py-2 px-4">{t("workspace.schemas.col.version")}</th>
+                <th className="py-2 px-4">{t("workspace.schemas.col.namespace")}</th>
+                <th className="py-2 px-4">{t("workspace.schemas.col.file")}</th>
               </tr>
+            </thead>
+            <tbody className="divide-y divide-[var(--border)] text-xs font-mono">
+              {entries.map((s) => (
+                <tr key={s.namespace}>
+                  <td className="py-2 pl-10 pr-4">{s.messageType}</td>
+                  <td className="py-2 px-4 text-text-secondary">{s.version}</td>
+                  <td className="py-2 px-4 text-text-tertiary truncate max-w-[420px]">
+                    {s.namespace}
+                  </td>
+                  <td className="py-2 px-4 text-text-secondary">{s.fileName}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <ul
+            className="md:hidden divide-y divide-[var(--border)]"
+            data-testid={`workspace-schemas-family-${family}-cards`}
+          >
+            {entries.map((s) => (
+              <li key={s.namespace} className="py-2 pl-10 pr-4 space-y-1 text-xs font-mono">
+                <div className="flex items-baseline justify-between gap-2">
+                  <span className="text-text-primary">{s.messageType}</span>
+                  <span className="text-text-secondary text-[11px]">{s.version}</span>
+                </div>
+                <div className="text-text-tertiary break-all">{s.namespace}</div>
+                <div className="text-text-secondary text-[11px] break-all">{s.fileName}</div>
+              </li>
             ))}
-          </tbody>
-        </table>
+          </ul>
+        </>
       )}
     </div>
   );

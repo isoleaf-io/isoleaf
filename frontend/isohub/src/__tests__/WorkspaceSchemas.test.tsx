@@ -77,19 +77,22 @@ describe("Workspace / SchemasSection", () => {
       expect(screen.getByTestId("workspace-schemas-tree")).toBeInTheDocument();
     });
 
-    // Every "pacs.*" schema must live inside the pacs group; the camt
-    // group must contain zero pacs rows. The scoped `within` guarantees
-    // we're not matching the wrong sub-tree by accident.
+    // Sprint 9.7 — each group now renders both a <table> (desktop) and
+    // a <ul> of cards (mobile). Scope the assertions to the desktop
+    // table so the duplicate mobile-card DOM nodes don't collide with
+    // `getByText`.
     const pacsGroup = screen.getByTestId("workspace-schemas-family-pacs");
-    expect(within(pacsGroup).getByText("pacs.002.001.11")).toBeInTheDocument();
-    expect(within(pacsGroup).getByText("pacs.008.001.09")).toBeInTheDocument();
-    expect(within(pacsGroup).getByText("pacs.008.001.13")).toBeInTheDocument();
-    expect(within(pacsGroup).queryByText("camt.053.001.13")).toBeNull();
+    const pacsTable = within(pacsGroup).getByRole("table");
+    expect(within(pacsTable).getByText("pacs.002.001.11")).toBeInTheDocument();
+    expect(within(pacsTable).getByText("pacs.008.001.09")).toBeInTheDocument();
+    expect(within(pacsTable).getByText("pacs.008.001.13")).toBeInTheDocument();
+    expect(within(pacsTable).queryByText("camt.053.001.13")).toBeNull();
 
     const camtGroup = screen.getByTestId("workspace-schemas-family-camt");
-    expect(within(camtGroup).getByText("camt.053.001.09")).toBeInTheDocument();
-    expect(within(camtGroup).getByText("camt.053.001.13")).toBeInTheDocument();
-    expect(within(camtGroup).queryByText("pacs.008.001.13")).toBeNull();
+    const camtTable = within(camtGroup).getByRole("table");
+    expect(within(camtTable).getByText("camt.053.001.09")).toBeInTheDocument();
+    expect(within(camtTable).getByText("camt.053.001.13")).toBeInTheDocument();
+    expect(within(camtTable).queryByText("pacs.008.001.13")).toBeNull();
   });
 
   it("orders rows inside a group by messageType then version", async () => {
@@ -124,16 +127,18 @@ describe("Workspace / SchemasSection", () => {
     });
 
     const toggle = screen.getByTestId("workspace-schemas-family-toggle-pacs");
-    // Starts open — the pacs rows are visible.
-    expect(screen.getByText("pacs.008.001.13")).toBeInTheDocument();
+    // Starts open — the pacs rows are visible. Sprint 9.7 renders each
+    // schema in both a table row and a mobile card, so
+    // `pacs.008.001.13` appears twice; assert on the count instead.
+    expect(screen.getAllByText("pacs.008.001.13").length).toBeGreaterThan(0);
 
     await userEvent.click(toggle);
-    // After collapsing, the rows are gone from the DOM.
+    // After collapsing, every occurrence (table + mobile card) is gone.
     expect(screen.queryByText("pacs.008.001.13")).toBeNull();
 
     await userEvent.click(toggle);
     // Re-expanding restores them.
-    expect(screen.getByText("pacs.008.001.13")).toBeInTheDocument();
+    expect(screen.getAllByText("pacs.008.001.13").length).toBeGreaterThan(0);
   });
 
   it("uploads a picked file and refreshes the list", async () => {
@@ -165,10 +170,12 @@ describe("Workspace / SchemasSection", () => {
 
     // Freshly uploaded schema lands under its family group, and that
     // group must be expanded so the analyst sees the row without an
-    // extra click.
+    // extra click. Scope to the desktop <table> so the duplicate mobile
+    // card node doesn't collide with the `getByText` matcher.
     await waitFor(() => {
       const group = screen.getByTestId("workspace-schemas-family-pacs");
-      expect(within(group).getByText("pacs.008.001.13")).toBeInTheDocument();
+      const table = within(group).getByRole("table");
+      expect(within(table).getByText("pacs.008.001.13")).toBeInTheDocument();
     });
   });
 
@@ -203,10 +210,13 @@ describe("Workspace / SchemasSection", () => {
     const file = new File(["<xs:schema/>"], uploaded.fileName, { type: "application/xml" });
     await userEvent.upload(fileInput, file);
 
-    // pacs must be back open and the new row visible.
+    // pacs must be back open and the new row visible. Scope to the
+    // desktop <table> so the mobile-card duplicate doesn't disambiguate
+    // the assertion (Sprint 9.7 renders both trees at all times).
     await waitFor(() => {
       const group = screen.getByTestId("workspace-schemas-family-pacs");
-      expect(within(group).getByText("pacs.028.001.06")).toBeInTheDocument();
+      const table = within(group).getByRole("table");
+      expect(within(table).getByText("pacs.028.001.06")).toBeInTheDocument();
     });
   });
 

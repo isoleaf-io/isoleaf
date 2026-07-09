@@ -60,6 +60,10 @@ export default function Iso20022BuilderPage() {
   const [ecosystemId, setEcosystemId] = useState<string>("");
   const [scenarioId, setScenarioId] = useState<string>("");
   const [version, setVersion] = useState<string>("");
+  // Sprint 9.7 — Builder is a form + XML split on desktop, tabs on
+  // mobile. `activeTab` only takes effect below the lg breakpoint;
+  // above it both panes render side-by-side and the state is ignored.
+  const [activeTab, setActiveTab] = useState<"form" | "xml">("form");
 
   const [result, setResult] = useState<BuildResponse | null>(null);
   // Optional leaves the user can promote via search — fetched in parallel
@@ -462,20 +466,63 @@ export default function Iso20022BuilderPage() {
         )}
 
         {result && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4" data-testid="builder-result">
-            <ErrorBoundary area="Builder editor">
-              <RootSections
-                sections={result.sections}
-                fieldValues={fieldValues}
-                onFieldChange={handleFieldChange}
-                addedOptionalXPaths={addedOptionalXPaths}
-                onAddOptional={handleAddOptional}
-                onRemoveOptional={handleRemoveOptional}
-                ecosystemId={ecosystemId}
-              />
-            </ErrorBoundary>
+          <div data-testid="builder-result" className="space-y-3 lg:space-y-0 lg:grid lg:grid-cols-2 lg:gap-4">
+            {/* Sprint 9.7 — mobile tabs. Above lg both panes render
+                side by side and the tabs are hidden; below lg one pane
+                shows at a time and `activeTab` drives which. */}
+            <div
+              role="tablist"
+              aria-label="Builder view"
+              className="flex gap-1 border-b border-[var(--border)] lg:hidden"
+              data-testid="builder-mobile-tabs"
+            >
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeTab === "form"}
+                onClick={() => setActiveTab("form")}
+                className={
+                  "px-3 py-2 text-xs font-medium border-b-2 -mb-px " +
+                  (activeTab === "form"
+                    ? "border-accent text-text-primary"
+                    : "border-transparent text-text-tertiary")
+                }
+                data-testid="builder-mobile-tab-form"
+              >
+                Formulário
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeTab === "xml"}
+                onClick={() => setActiveTab("xml")}
+                className={
+                  "px-3 py-2 text-xs font-medium border-b-2 -mb-px " +
+                  (activeTab === "xml"
+                    ? "border-accent text-text-primary"
+                    : "border-transparent text-text-tertiary")
+                }
+                data-testid="builder-mobile-tab-xml"
+              >
+                XML
+              </button>
+            </div>
 
-            <div className="space-y-3 lg:sticky lg:top-4 lg:self-start">
+            <div className={activeTab === "form" ? "block" : "hidden lg:block"}>
+              <ErrorBoundary area="Builder editor">
+                <RootSections
+                  sections={result.sections}
+                  fieldValues={fieldValues}
+                  onFieldChange={handleFieldChange}
+                  addedOptionalXPaths={addedOptionalXPaths}
+                  onAddOptional={handleAddOptional}
+                  onRemoveOptional={handleRemoveOptional}
+                  ecosystemId={ecosystemId}
+                />
+              </ErrorBoundary>
+            </div>
+
+            <div className={(activeTab === "xml" ? "block " : "hidden lg:block ") + "space-y-3 lg:sticky lg:top-4 lg:self-start"}>
               <Card>
                 <CardHeader>
                   <div className="flex items-center justify-between gap-2 w-full">
