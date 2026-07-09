@@ -1,7 +1,10 @@
+import { useCallback, useEffect, useState } from "react";
 import { Link, NavLink } from "react-router";
 import { useTranslation } from "react-i18next";
 import {
   BookOpen,
+  ChevronDown,
+  ChevronRight,
   Code2,
   Cpu,
   CreditCard,
@@ -33,85 +36,132 @@ interface NavItem {
   feature?: FeatureKey;
 }
 
-interface NavSection {
+interface NavSubsection {
   titleKey: string;
   items: NavItem[];
-  /** Visually separates this section from the previous one with extra spacing. */
-  separated?: boolean;
-  /** Build-time feature flag gating the whole section. */
-  feature?: FeatureKey;
 }
 
-const sections: NavSection[] = [
+/**
+ * Collapsible parent group — the top-level "world" (ISO 8583, ISO 20022).
+ * Its header toggles expansion, its subsections carry the small-caps labels
+ * that used to be the top level of the sidebar, and its `looseItems` render
+ * without a subsection header (used for Simulador at the same level as the
+ * subsections).
+ */
+interface CollapsibleGroup {
+  kind: "group";
+  /** Stable id used as the localStorage key for expansion state. */
+  groupId: string;
+  titleKey: string;
+  feature?: FeatureKey;
+  subsections: NavSubsection[];
+  looseItems?: NavItem[];
+}
+
+/**
+ * Flat section — no chevron, always visible. Used for Cross-Protocol tools
+ * and the Reference/Docs group in the footer area.
+ */
+interface FlatSection {
+  kind: "flat";
+  titleKey: string;
+  items: NavItem[];
+  /**
+   * Visual divider above this section.
+   *   - "subtle"    → thin top border with less breathing room; marks a
+   *     different category (Cross-Protocol) without competing visually
+   *     with the mother-group separators.
+   *   - "separated" → thicker breathing room + border; used at the
+   *     footer boundary to peel Reference/Docs off from the main tree.
+   */
+  divider?: "subtle" | "separated";
+}
+
+type NavEntry = CollapsibleGroup | FlatSection;
+
+/**
+ * Menu structure. Split into two collapsible mother-groups (ISO 8583, ISO
+ * 20022) each containing subsections, plus a flat Cross-Protocol Tools
+ * section and the Reference/Docs group at the bottom. No route was moved —
+ * only the visual hierarchy changed.
+ */
+const NAV: NavEntry[] = [
   {
+    kind: "group",
+    groupId: "iso8583",
     titleKey: "common.nav.iso8583",
-    items: [
-      { to: "/parser", labelKey: "common.nav.parser", icon: Code2 },
-      { to: "/builder", labelKey: "common.nav.builder", icon: Zap },
-      { to: "/bitmap", labelKey: "common.nav.bitmap", icon: LayoutGrid },
+    subsections: [
+      {
+        titleKey: "common.nav.messages",
+        items: [
+          { to: "/parser",  labelKey: "common.nav.parser",  icon: Code2 },
+          { to: "/builder", labelKey: "common.nav.builder", icon: Zap },
+          { to: "/bitmap",  labelKey: "common.nav.bitmap",  icon: LayoutGrid },
+          // "Cartão de teste" moved here from the EMV & Cartões subsection
+          // — the analyst reaches for it while composing a message, not
+          // while inspecting EMV data.
+          { to: "/cards",   labelKey: "common.nav.cards",   icon: CreditCard },
+        ],
+      },
+      {
+        titleKey: "common.nav.emvCards",
+        items: [
+          { to: "/emv", labelKey: "common.nav.emv", icon: Cpu },
+        ],
+      },
+    ],
+    // Simulador sits at the same hierarchical level as the subsections
+    // (Mensagens, EMV & Cartões) — one leaf item, no subsection header
+    // above it.
+    looseItems: [
+      { to: "/simulator", labelKey: "common.nav.simulator", icon: Radio },
     ],
   },
   {
-    titleKey: "common.nav.emvCards",
-    items: [
-      { to: "/emv", labelKey: "common.nav.emv", icon: Cpu },
-      { to: "/cards", labelKey: "common.nav.cards", icon: CreditCard },
-    ],
-  },
-  {
-    titleKey: "common.nav.testing",
-    items: [{ to: "/simulator", labelKey: "common.nav.simulator", icon: Radio }],
-  },
-  {
-    // ISO 20022 — Sprint 6. Whole section and every item are gated by their
-    // own feature flag, so they stay completely invisible (no empty "ISO
-    // 20022" heading) until at least one sub-feature ships.
+    kind: "group",
+    groupId: "iso20022",
     titleKey: "common.nav.iso20022",
     feature: "iso20022",
-    items: [
-      { to: "/iso20022/parser",    labelKey: "common.nav.iso20022Parser",    icon: Code2,      feature: "iso20022Parser" },
-      { to: "/iso20022/reference", labelKey: "common.nav.iso20022FieldRef",  icon: FileText,   feature: "iso20022FieldRef" },
-      // Validator (6.3a) lives as a button inside the Parser page, not as a
-      // standalone route — no sidebar entry by design.
-      { to: "/iso20022/compare",   labelKey: "common.nav.iso20022Comparator", icon: LayoutGrid, feature: "iso20022Comparator" },
-      { to: "/iso20022/builder",   labelKey: "common.nav.iso20022Builder",   icon: Zap,        feature: "iso20022Builder" },
-      { to: "/iso20022/txid",      labelKey: "common.nav.iso20022Txid",      icon: CreditCard, feature: "iso20022Txid" },
-      { to: "/iso20022/mt-mx",     labelKey: "common.nav.iso20022MtMx",      icon: Cpu,        feature: "iso20022MtMx" },
+    subsections: [
+      {
+        titleKey: "common.nav.generic",
+        items: [
+          { to: "/iso20022/parser",    labelKey: "common.nav.iso20022Parser",     icon: Code2,      feature: "iso20022Parser" },
+          { to: "/iso20022/reference", labelKey: "common.nav.iso20022FieldRef",   icon: FileText,   feature: "iso20022FieldRef" },
+          { to: "/iso20022/compare",   labelKey: "common.nav.iso20022Comparator", icon: LayoutGrid, feature: "iso20022Comparator" },
+          { to: "/iso20022/builder",   labelKey: "common.nav.iso20022Builder",    icon: Zap,        feature: "iso20022Builder" },
+        ],
+      },
+      {
+        titleKey: "common.nav.pix",
+        items: [
+          { to: "/pix/qrcode", labelKey: "common.nav.pixQrCode", icon: QrCode, feature: "pixQrCode" },
+        ],
+      },
+      {
+        titleKey: "common.nav.cbpr",
+        items: [
+          { to: "/swift/mt-parser",     labelKey: "common.nav.swiftMtParser",     icon: Globe,      feature: "swiftMtParser" },
+          { to: "/swift/mt-comparator", labelKey: "common.nav.swiftMtComparator", icon: LayoutGrid, feature: "swiftMtComparator" },
+        ],
+      },
     ],
   },
   {
-    // Brazilian Pix — Sprint 7. Each Pix item carries its own flag so the
-    // whole heading disappears in production builds until at least one
-    // sub-feature flips on.
-    titleKey: "common.nav.pix",
-    items: [
-      { to: "/pix/qrcode", labelKey: "common.nav.pixQrCode", icon: QrCode, feature: "pixQrCode" },
-    ],
-  },
-  {
-    // Sprint 9.3 — Flow Visualizer promoted to its own section since it
-    // now covers Pix + CBPR+ MX + CBPR+ MT tabs on the same page.
-    titleKey: "common.nav.flow",
+    kind: "flat",
+    titleKey: "common.nav.crossProtocol",
+    divider: "subtle",
     items: [
       { to: "/flow", labelKey: "common.nav.flowVisualizer", icon: Workflow, feature: "pixFlowVisualizer" },
     ],
   },
   {
-    // SWIFT CBPR+ — Sprint 9. Same dev-gated pattern as Pix: one item
-    // today (MT parser), more to follow as the MT→MX track expands.
-    titleKey: "common.nav.swift",
-    items: [
-      { to: "/swift/mt-parser", labelKey: "common.nav.swiftMtParser", icon: Globe, feature: "swiftMtParser" },
-      { to: "/swift/mt-comparator", labelKey: "common.nav.swiftMtComparator", icon: LayoutGrid, feature: "swiftMtComparator" },
-    ],
-  },
-  {
+    kind: "flat",
     titleKey: "common.nav.reference",
-    separated: true,
+    divider: "separated",
     items: [
       // Docs live on the dedicated GitHub Pages site so search engines index
-      // them and the React bundle stays lean. The in-app /docs route still
-      // exists as a fallback for direct-URL visits.
+      // them and the React bundle stays lean.
       { to: "https://docs.isoleaf.dev", labelKey: "common.nav.docs", icon: BookOpen, external: true },
     ],
   },
@@ -122,6 +172,34 @@ const FOOTER_NAV: NavItem = {
   labelKey: "common.nav.workspace",
   icon: Settings,
 };
+
+// localStorage key + default set. The initial value is "both parent groups
+// open" so a first-time visitor sees the full menu; from then on the user's
+// last-seen expand state is preserved across reloads.
+const EXPANDED_STORAGE_KEY = "isoleaf.sidebar.expandedGroups";
+const DEFAULT_EXPANDED_GROUPS: readonly string[] = ["iso8583", "iso20022"];
+
+function readExpandedGroups(): Set<string> {
+  try {
+    const raw = localStorage.getItem(EXPANDED_STORAGE_KEY);
+    if (raw == null) return new Set(DEFAULT_EXPANDED_GROUPS);
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return new Set(DEFAULT_EXPANDED_GROUPS);
+    return new Set(parsed.filter((v): v is string => typeof v === "string"));
+  } catch {
+    // Corrupt payload / storage disabled — fall back to defaults so the
+    // sidebar stays usable.
+    return new Set(DEFAULT_EXPANDED_GROUPS);
+  }
+}
+
+function writeExpandedGroups(set: Set<string>) {
+  try {
+    localStorage.setItem(EXPANDED_STORAGE_KEY, JSON.stringify([...set]));
+  } catch {
+    // Best-effort — a failed write doesn't affect the in-memory state.
+  }
+}
 
 function NavRow({
   item,
@@ -173,6 +251,152 @@ function NavRow({
   );
 }
 
+/**
+ * Filter items by their feature flag; used for both loose items and
+ * subsection items so a single-flag helper covers every list.
+ */
+function filterItems(items: NavItem[]): NavItem[] {
+  return items.filter((i) => !i.feature || FEATURES[i.feature]);
+}
+
+/**
+ * Small-caps subsection label — same visual treatment the sidebar had at
+ * its previous top level, kept identical so the shift in hierarchy doesn't
+ * introduce a second unfamiliar font weight.
+ */
+function SubsectionHeader({ label }: { label: string }) {
+  return (
+    <div className="px-2 mb-1 mt-2 text-[10px] uppercase tracking-wider font-semibold text-text-tertiary">
+      {label}
+    </div>
+  );
+}
+
+function CollapsibleGroupView({
+  group,
+  expanded,
+  onToggle,
+  simulatorLocked,
+  onNavigate,
+  showTopBorder,
+}: {
+  group: CollapsibleGroup;
+  expanded: boolean;
+  onToggle: () => void;
+  simulatorLocked: boolean;
+  onNavigate?: () => void;
+  /**
+   * Whether to draw the thin top divider that separates this group
+   * from what precedes it. Suppressed for the first mother-group so the
+   * line doesn't sit directly under the app logo (would read redundant
+   * with the logo's own visual "seat").
+   */
+  showTopBorder: boolean;
+}) {
+  const { t } = useTranslation();
+
+  // Feature-filter every list up front so an all-empty group can be
+  // hidden entirely (no dangling header pointing at nothing).
+  const visibleSubsections = group.subsections
+    .map((s) => ({ ...s, items: filterItems(s.items) }))
+    .filter((s) => s.items.length > 0);
+  const visibleLoose = filterItems(group.looseItems ?? []);
+  if (visibleSubsections.length === 0 && visibleLoose.length === 0) return null;
+
+  return (
+    <div
+      className={clsx(
+        // pt-4 on every mother-group gives both headers the same
+        // breathing room the reference banking-menu style uses to peel
+        // "worlds" apart. The optional top border is what makes the
+        // separation explicit; the padding stays even when suppressed.
+        "px-3 pt-4 mb-3",
+        showTopBorder && "border-t border-[var(--border)]",
+      )}
+      data-testid={`sidebar-group-${group.groupId}`}
+    >
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={expanded}
+        aria-controls={`sidebar-group-body-${group.groupId}`}
+        data-testid={`sidebar-group-toggle-${group.groupId}`}
+        // Higher-contrast treatment than the subsection labels so the
+        // two "worlds" (ISO 8583, ISO 20022) read as a level above their
+        // subsections: bolder weight, slightly stronger colour, and a
+        // subtle hover background. Chevron flips on state.
+        className="flex items-center gap-1.5 w-full px-2 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider text-text-primary hover:bg-bg-tertiary transition-colors"
+      >
+        {expanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+        <span>{t(group.titleKey)}</span>
+      </button>
+      {expanded && (
+        <div id={`sidebar-group-body-${group.groupId}`}>
+          {visibleSubsections.map((sub) => (
+            <div key={sub.titleKey}>
+              <SubsectionHeader label={t(sub.titleKey)} />
+              {sub.items.map((item) => (
+                <NavRow
+                  key={item.to}
+                  item={item}
+                  onNavigate={onNavigate}
+                />
+              ))}
+            </div>
+          ))}
+          {visibleLoose.length > 0 && (
+            <div className="mt-2">
+              {visibleLoose.map((item) => (
+                <NavRow
+                  key={item.to}
+                  item={item}
+                  locked={item.to === "/simulator" && simulatorLocked}
+                  onNavigate={onNavigate}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FlatSectionView({
+  section,
+  onNavigate,
+}: {
+  section: FlatSection;
+  onNavigate?: () => void;
+}) {
+  const { t } = useTranslation();
+  const items = filterItems(section.items);
+  if (items.length === 0) return null;
+
+  return (
+    <div
+      data-testid={`sidebar-flat-${section.titleKey}`}
+      className={clsx(
+        "px-3 mb-3",
+        // "subtle" — same border colour as the mother-group divider but
+        // with less top padding, so this section reads as a marginal
+        // category rather than a peer of ISO 8583 / ISO 20022.
+        section.divider === "subtle" && "pt-2 border-t border-[var(--border)]",
+        // "separated" — thicker breathing room + same border; used for
+        // the footer Reference/Docs group.
+        section.divider === "separated" && "mt-3 pt-3 border-t border-[var(--border)]",
+      )}
+    >
+      <div className="px-2 mb-1 text-[10px] uppercase tracking-wider font-semibold text-text-tertiary">
+        {t(section.titleKey)}
+      </div>
+      {items.map((item) => (
+        <NavRow key={item.to} item={item} onNavigate={onNavigate} />
+      ))}
+    </div>
+  );
+}
+
 interface SidebarProps {
   /** Mobile drawer open state. Ignored at md+ where the sidebar is always inline. */
   isOpen?: boolean;
@@ -187,11 +411,27 @@ export function Sidebar({ isOpen = false, onNavigate }: SidebarProps = {}) {
   const config = useAppConfig();
   const { simulatorEnabled, mode } = config;
   const isOnlineMode = mode === "online";
+  const simulatorLocked = !simulatorEnabled;
 
-  // In online mode the Simulator stays in the menu so users can discover it,
-  // but it's marked with a lock icon and the page itself renders a locked
-  // panel instead of the live UI. (Earlier iteration hid the item entirely;
-  // that hid the feature too well — users didn't know it existed.)
+  // Expansion state for the collapsible groups. Initialised from
+  // localStorage on mount so the sidebar comes up in the same state the
+  // user left it; every toggle persists back synchronously.
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(() =>
+    readExpandedGroups(),
+  );
+
+  useEffect(() => {
+    writeExpandedGroups(expandedGroups);
+  }, [expandedGroups]);
+
+  const toggleGroup = useCallback((groupId: string) => {
+    setExpandedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(groupId)) next.delete(groupId);
+      else next.add(groupId);
+      return next;
+    });
+  }, []);
 
   return (
     <aside
@@ -218,33 +458,40 @@ export function Sidebar({ isOpen = false, onNavigate }: SidebarProps = {}) {
       </Link>
 
       <nav className="flex-1 overflow-y-auto py-3">
-        {sections
-          // Filter items first (so a fully-gated section with no visible items
-          // also disappears), then drop sections whose own gate is off or
-          // whose item list ended up empty after item-level gating.
-          .map((s) => ({ ...s, items: s.items.filter((i) => !i.feature || FEATURES[i.feature]) }))
-          .filter((s) => (!s.feature || FEATURES[s.feature]) && s.items.length > 0)
-          .map((section) => (
-            <div
-              key={section.titleKey}
-              className={clsx(
-                "px-3 mb-3",
-                section.separated && "mt-3 pt-3 border-t border-[var(--border)]"
-              )}
-            >
-              <div className="px-2 mb-1 text-[10px] uppercase tracking-wider font-semibold text-text-tertiary">
-                {t(section.titleKey)}
-              </div>
-              {section.items.map((item) => (
-                <NavRow
-                  key={item.to}
-                  item={item}
-                  locked={item.to === "/simulator" && !simulatorEnabled}
+        {(() => {
+          // Track which visible collapsible group is first, so its top
+          // divider can be suppressed (the logo above already acts as a
+          // visual anchor and a line right below would read redundant).
+          // We count `feature`-gated groups too — if ISO 8583 is ever
+          // gated off in the future the first *visible* one still gets
+          // no border.
+          let seenFirstGroup = false;
+          return NAV.map((entry) => {
+            if (entry.kind === "group") {
+              if (entry.feature && !FEATURES[entry.feature]) return null;
+              const isFirst = !seenFirstGroup;
+              seenFirstGroup = true;
+              return (
+                <CollapsibleGroupView
+                  key={entry.groupId}
+                  group={entry}
+                  expanded={expandedGroups.has(entry.groupId)}
+                  onToggle={() => toggleGroup(entry.groupId)}
+                  simulatorLocked={simulatorLocked}
                   onNavigate={onNavigate}
+                  showTopBorder={!isFirst}
                 />
-              ))}
-            </div>
-          ))}
+              );
+            }
+            return (
+              <FlatSectionView
+                key={entry.titleKey}
+                section={entry}
+                onNavigate={onNavigate}
+              />
+            );
+          });
+        })()}
       </nav>
 
       {/* Footer-pinned: Workspace lives below the agent status, no section header. */}
