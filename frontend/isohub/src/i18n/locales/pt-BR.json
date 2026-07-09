@@ -61,7 +61,11 @@
       "flowVisualizer": "⚡ Flows",
       "swift": "SWIFT CBPR+",
       "swiftMtParser": "Parser MT",
-      "swiftMtComparator": "Comparador MT↔MX"
+      "swiftMtComparator": "Comparador MT↔MX",
+      "messages": "Mensagens",
+      "generic": "Genérico",
+      "cbpr": "CBPR+",
+      "crossProtocol": "Ferramentas Cross-Protocol"
     }
   },
   "pix": {
