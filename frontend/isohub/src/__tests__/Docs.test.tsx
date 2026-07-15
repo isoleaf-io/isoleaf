@@ -9,13 +9,33 @@ import DocsPage from "@/pages/Docs";
  * a hash — the docs site uses the hash to deep-link into the right page.
  */
 describe("Docs page", () => {
-  it("renders one external card per section", () => {
+  it("renders one external card per section, in the canonical order", () => {
     renderApp(<DocsPage />);
     const cards = screen.getAllByTestId(/^docs-card-/);
-    expect(cards.length).toBe(8);
+    // Sprint 10.x — split into two ISO 20022 cards: one for the
+    // protocol overview (iso20022) and one for the roles/participants
+    // page (iso20022Roles).
+    expect(cards.length).toBe(10);
+    // The DOM order of the cards drives the nav ordering on the docs
+    // site. It must match the section-key sequence in DOCS_PT/DOCS_EN.
+    const ids = cards.map((c) => c.getAttribute("data-testid"));
+    expect(ids).toEqual([
+      "docs-card-iso8583",
+      "docs-card-emv",
+      "docs-card-roles",
+      "docs-card-fields",
+      "docs-card-iso20022",
+      "docs-card-iso20022Roles",
+      "docs-card-glossary",
+      "docs-card-guides",
+      "docs-card-community",
+      "docs-card-apiDocs",
+    ]);
     for (const c of cards) {
       expect(c.tagName).toBe("A");
       expect(c).toHaveAttribute("target", "_blank");
+      // Section ids are alphanumeric — the case-insensitive [a-z0-9]+
+      // range covers iso20022Roles (capital R) as well.
       expect(c.getAttribute("href")).toMatch(/^https:\/\/docs\.isoleaf\.dev\/(pt|en)\/#[a-z0-9]+$/i);
     }
   });
@@ -24,6 +44,18 @@ describe("Docs page", () => {
     renderApp(<DocsPage />);
     const card = screen.getByTestId("docs-card-iso8583");
     expect(card.getAttribute("href")).toMatch(/#iso8583$/);
+  });
+
+  it("ISO 20022 card links to the iso20022 section", () => {
+    renderApp(<DocsPage />);
+    const card = screen.getByTestId("docs-card-iso20022");
+    expect(card.getAttribute("href")).toMatch(/#iso20022$/);
+  });
+
+  it("ISO 20022 Roles card links to the iso20022Roles section", () => {
+    renderApp(<DocsPage />);
+    const card = screen.getByTestId("docs-card-iso20022Roles");
+    expect(card.getAttribute("href")).toMatch(/#iso20022Roles$/);
   });
 
   it("API Reference card links to the apiDocs section", () => {

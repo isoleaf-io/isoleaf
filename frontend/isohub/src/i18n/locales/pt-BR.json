@@ -568,6 +568,10 @@
         "title": "ISO 8583",
         "description": "Estrutura do protocolo: TPDU, MTI, bitmap primário/secundário e definição dos 128 campos do padrão."
       },
+      "iso20022": {
+        "title": "ISO 20022",
+        "description": "Padrão XML de mensagens financeiras: envelope Document + AppHdr, versionamento por namespace e famílias camt/pacs/pain/head — base do Pix e do SWIFT CBPR+."
+      },
       "emv": {
         "title": "EMV & Criptografia",
         "description": "Bit 55, derivação de chaves (IMK → ICC MK → Session Key), ARQC, ARPC e perfis por bandeira."
@@ -576,13 +580,17 @@
         "title": "Papéis transacionais",
         "description": "Fluxo de uma autorização: Adquirente → Bandeira → Emissor. TPDU, NIIs e campos obrigatórios por papel."
       },
+      "iso20022Roles": {
+        "title": "Papéis — ISO 20022",
+        "description": "Participantes dos ecossistemas Pix (PSP Pagador, SPI/BCB, PSP Recebedor) e SWIFT CBPR+ (Debtor Agent, SWIFT, Creditor Agent), com diagramas de fluxo."
+      },
       "glossary": {
         "title": "Glossário",
         "description": "Termos e acrônimos do mundo de pagamentos: PAN, ARQC, ARPC, TPDU, IAD, ATC, STAN e outros."
       },
       "fields": {
-        "title": "Referência de campos",
-        "description": "Tabela dos campos ISO 8583 mais usados com tipo, encoding e tamanho. Inclui tipos de comprimento e encoding."
+        "title": "Referência de Campos (ISO 8583)",
+        "description": "Tabela dos campos ISO 8583 mais usados com tipo, encoding e tamanho. Inclui tipos de comprimento e encoding. (Para ISO 20022 a referência é dinâmica e vive na ferramenta \"Referência de Campos\" dentro do app.)"
       },
       "guides": {
         "title": "Guias rápidos",
