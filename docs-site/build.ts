@@ -9,7 +9,7 @@
 
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { mkdirSync, writeFileSync, readFileSync } from "node:fs";
+import { cpSync, mkdirSync, readdirSync, rmSync, statSync, writeFileSync, readFileSync } from "node:fs";
 
 // @ts-expect-error - tsx resolves these TS modules at runtime.
 import { DOCS_EN } from "../frontend/isohub/src/pages/Docs/content.en.ts";
@@ -20,6 +20,8 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(__dirname, "..");
 const i18nDir = resolve(repoRoot, "frontend/isohub/src/i18n/locales");
 const outDir = resolve(__dirname, "assets");
+const screenshotsSrc = resolve(repoRoot, "frontend/isohub/public/screenshots");
+const screenshotsDst = resolve(__dirname, "screenshots");
 
 interface CardI18n { title?: string; description?: string }
 interface DocsI18n {
@@ -81,3 +83,30 @@ const blocksPt = ptKeys.reduce((n, k) => n + ((data.pt as Record<string, { block
 console.log(`[docs-build] wrote ${outPath}`);
 console.log(`[docs-build] en: ${enKeys.length} sections / ${blocksEn} blocks`);
 console.log(`[docs-build] pt: ${ptKeys.length} sections / ${blocksPt} blocks`);
+
+// Screenshots are authored in the Vite app's public/ folder so they ship
+// with the app as-is. The docs site is a separate static bundle — mirror
+// the whole tree into docs-site/screenshots/ on every build so the /screenshots/*
+// paths inside content.{pt,en}.ts resolve here too. The destination is
+// wiped first so files removed upstream disappear from the docs bundle
+// as well; recursive cpSync preserves the iso20022/ subfolder.
+function countFiles(dir: string): number {
+  let n = 0;
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const p = resolve(dir, entry.name);
+    if (entry.isDirectory()) n += countFiles(p);
+    else if (entry.isFile()) n += 1;
+  }
+  return n;
+}
+
+try {
+  statSync(screenshotsSrc);
+  rmSync(screenshotsDst, { recursive: true, force: true });
+  cpSync(screenshotsSrc, screenshotsDst, { recursive: true });
+  const copied = countFiles(screenshotsDst);
+  console.log(`[docs-build] copied ${copied} screenshot file(s) → ${screenshotsDst}`);
+} catch (err) {
+  const msg = err instanceof Error ? err.message : String(err);
+  console.warn(`[docs-build] screenshots source not found or unreadable — skipping (${msg})`);
+}
