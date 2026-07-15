@@ -32,16 +32,16 @@ no data leaves your environment.
 ## Screenshots
 
 ### Parser
-![Parser](docs/screenshots/parse1.png)
+![Parser](frontend/isohub/public/screenshots/parse1.png)
 
 ### Builder
-![Builder](docs/screenshots/builder.png)
+![Builder](frontend/isohub/public/screenshots/builder.png)
 
 ### Simulator
-![Simulator](docs/screenshots/simulator.png)
+![Simulator](frontend/isohub/public/screenshots/simulator.png)
 
 ### EMV Data
-![EMV Data](docs/screenshots/emv1.png)
+![EMV Data](frontend/isohub/public/screenshots/emv1.png)
 
 ---
 

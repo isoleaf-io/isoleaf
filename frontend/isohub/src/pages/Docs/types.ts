@@ -23,8 +23,8 @@ export type DocBlock =
   | { type: "svg"; text: string }
   /**
    * Static screenshot or illustration. `src` is a path served by the Agent
-   * (e.g. "/screenshots/parse1.png"). Files in frontend/public/ are copied
-   * to wwwroot/ by Vite's build.
+   * (e.g. "/screenshots/parse1.png"). Files in frontend/isohub/public/ are
+   * copied to wwwroot/ by Vite's build.
    */
   | { type: "image"; src: string; alt: string; caption?: string }
   /** Horizontal rule separating logically distinct sections. */
