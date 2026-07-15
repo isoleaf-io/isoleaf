@@ -598,11 +598,11 @@
       },
       "api": {
         "title": "API Reference",
-        "description": "REST API for parsing, card generation and EMV cryptography. Available in self-hosted mode — interactive docs powered by Scalar."
+        "description": "REST API covering ISO 8583, EMV cryptography and ISO 20022 (Pix, SEPA, CBPR+, TARGET/T2, MT ↔ MX). Available in self-hosted mode — interactive docs powered by Scalar."
       },
       "apiDocs": {
         "title": "API Reference",
-        "subtitle": "REST endpoints for ISO 8583, EMV cryptography and test card generation",
+        "subtitle": "REST endpoints for ISO 8583, EMV cryptography and ISO 20022 (Builder, Validator, MT parse, Pix QR Code, fixtures)",
         "backToDocs": "Back to docs"
       },
       "community": {
