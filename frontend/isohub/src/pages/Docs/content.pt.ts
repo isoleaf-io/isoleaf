@@ -1,5 +1,5 @@
 import type { DocSection } from "./types";
-import { TPDU_SVG, MESSAGE_STRUCTURE_SVG, EMV_BIT55_ORIGINS_SVG, EMV_DERIVATION_CHAIN_SVG, FOUR_LEGS_FLOW_SVG, ISOHUB_ARCHITECTURE_SVG } from "./diagrams";
+import { TPDU_SVG, MESSAGE_STRUCTURE_SVG, EMV_BIT55_ORIGINS_SVG, EMV_DERIVATION_CHAIN_SVG, FOUR_LEGS_FLOW_SVG, ISOHUB_ARCHITECTURE_SVG, PIX_CREDIT_TRANSFER_FLOW_SVG, MT103_DIRECT_FLOW_SVG } from "./diagrams";
 
 /** Long-form documentation in Portuguese. Mirrored by content.en.ts. */
 export const DOCS_PT: Record<string, DocSection> = {
@@ -978,47 +978,6 @@ Decompondo:
     ],
   },
 
-  glossary: {
-    id: "glossary",
-    blocks: [
-      {
-        type: "table",
-        headers: ["Termo", "Definição"],
-        rows: [
-          ["ATC", "Application Transaction Counter — contador sequencial no chip. Incrementa a cada transação. Usado na derivação da Session Key."],
-          ["ARQC", "Application Request Cryptogram — criptograma gerado pelo chip para autenticar a transação. Bit 55, tag 9F26. 8 bytes."],
-          ["ARPC", "Application Response Cryptogram — criptograma gerado pelo emissor em resposta ao ARQC. Tag 91. Comprova que o emissor é legítimo."],
-          ["ARC", "Authorization Response Code — código de resposta do emissor em formato EMV. Tag 8A. Mesmo valor do RC (bit 39) em TLV."],
-          ["BIN", "Bank Identification Number — primeiros 6-8 dígitos do PAN. Identifica emissor e bandeira; usado para roteamento."],
-          ["CVV / CVC", "Card Verification Value/Code — código de 3 dígitos derivado do PAN, validade e chave do emissor. CVV1 na trilha, CVV2 impresso."],
-          ["CNP", "Card Not Present — transação sem o cartão físico (ex: e-commerce). Maior risco de fraude."],
-          ["CSU", "Card Status Update — bloco de dados usado no cálculo do ARPC Method 2. Permite atualizar o status do cartão."],
-          ["DDA", "Dynamic Data Authentication — autenticação offline onde o chip assina dados dinâmicos. Mais seguro que SDA."],
-          ["EMV", "Europay, Mastercard, Visa — padrão global para transações com chip."],
-          ["IAD", "Issuer Application Data — dados proprietários do emissor no Bit 55 (tag 9F10). Inclui o perfil de criptograma (CVN)."],
-          ["IMK", "Issuer Master Key — chave raiz do emissor. Usada para derivar a ICC MK. Nunca sai do HSM em produção."],
-          ["LLVAR", "Campo variável com 2 dígitos de comprimento. Ex: '12HELLO WORLD!' (12 = comprimento)."],
-          ["LLLVAR", "Campo variável com 3 dígitos de comprimento. Ex: '012HELLO WORLD!' (012 = comprimento)."],
-          ["MTI", "Message Type Indicator — 4 dígitos que identificam o tipo da mensagem ISO 8583. Ex: 0200 = Financial Request."],
-          ["NII", "Network Interface Identifier — identificador de 2 bytes atribuído pela bandeira. Usado no TPDU para roteamento."],
-          ["PAN", "Primary Account Number — número do cartão. Bit 2. Geralmente 13-19 dígitos."],
-          ["PIN Block", "Bloco criptografado contendo o PIN. Bit 52. 8 bytes em formato ISO 9564."],
-          ["PSN", "PAN Sequence Number — número de sequência do cartão. Diferencia múltiplos cartões com mesmo PAN. Usado na derivação da ICC MK."],
-          ["RC", "Response Code — 2 caracteres no bit 39 indicando o resultado. '00' = aprovado, '05' = recusado."],
-          ["RRN", "Retrieval Reference Number — referência única da transação. Bit 37. 12 caracteres. Usado para rastreamento e estorno."],
-          ["SDA", "Static Data Authentication — autenticação offline simples. O chip assina dados estáticos do cartão."],
-          ["Session Key", "Chave derivada do ICC MK + ATC. Única por transação. Usada para calcular o ARQC."],
-          ["STAN", "System Trace Audit Number — número sequencial. Bit 11. 6 dígitos. Único por terminal por dia."],
-          ["TLV", "Tag-Length-Value — estrutura de codificação no Bit 55. Cada campo tem Tag, Length e Value."],
-          ["TPDU", "Transport Protocol Data Unit — prefixo de 5 bytes antes do MTI em conexões TCP. ID + NII origem + NII destino."],
-          ["TVR", "Terminal Verification Results — 5 bytes (40 bits) no Bit 55 (tag 95). Cada bit é o resultado de uma verificação no terminal."],
-          ["UN", "Unpredictable Number — 4 bytes aleatórios gerados pelo terminal para o cálculo do ARQC. Tag 9F37."],
-          ["ZPK", "Zone PIN Key — chave de criptografia de PIN. Usada para decriptar o PIN Block recebido."],
-        ],
-      },
-    ],
-  },
-
   fields: {
     id: "fields",
     blocks: [
@@ -1084,6 +1043,312 @@ Decompondo:
           "FIXED = tamanho fixo",
           "LLVAR = 2 dígitos de comprimento + valor (max 99)",
           "LLLVAR = 3 dígitos de comprimento + valor (max 999)",
+        ],
+      },
+    ],
+  },
+
+  iso20022: {
+    id: "iso20022",
+    blocks: [
+      // ── 1. O que é o ISO 20022 ───────────────────────────────────
+      { type: "heading", level: 2, text: "O que é o ISO 20022" },
+      {
+        type: "paragraph",
+        text:
+          "ISO 20022 é o padrão internacional para mensagens financeiras estruturadas em XML. Diferente do ISO 8583 (orientado a campos posicionais em uma mensagem plana) e do ISO 15022 / SWIFT MT (blocos de texto delimitados por dois-pontos), o ISO 20022 descreve cada mensagem via um XSD versionado — um contrato máquina-a-máquina que carrega semântica (moedas, identidades, hierarquia) em vez de posições.",
+      },
+      {
+        type: "paragraph",
+        text:
+          "É o sucessor prático do ISO 15022/MT no mundo bancário e o padrão adotado pelo SPI/BCB no Pix e pela rede SWIFT no programa CBPR+ (Cross-Border Payments and Reporting Plus). Um mesmo esqueleto XSD é reaproveitado por diferentes ecossistemas — o que muda são obrigatoriedades, cardinalidades e regras de negócio locais.",
+      },
+      {
+        type: "callout",
+        tone: "info",
+        text:
+          "No dia a dia da integração, você não escreve o XML \"na mão\": você compõe uma mensagem contra um XSD, valida contra o schema e envia o resultado. O ISOLeaf cobre o ciclo completo — Parser, Referência, Validador, Comparador de versões, Builder e Flow Visualizer trabalham sobre a mesma biblioteca de XSDs oficiais.",
+      },
+      {
+        type: "callout",
+        tone: "info",
+        text:
+          "Referência de campos ISO 20022 é dinâmica — ao contrário do ISO 8583, cujos 128 Data Elements são fixos e por isso ganham a página estática **Referência de Campos (ISO 8583)** desta documentação, o conjunto de campos ISO 20022 depende de qual XSD (e qual versão) você está consumindo, incluindo XSDs personalizados que você tenha subido no Workspace. Por isso a exploração dessa árvore vive **dentro do próprio ISOLeaf**, no módulo **Referência de Campos** (menu ISO 20022 → Genérico → Referência de campos): lá você navega o XSD real que o Agent carregou, com busca cruzada por nome de campo entre todas as famílias e versões.",
+      },
+
+      // ── 2. Estrutura de uma mensagem ─────────────────────────────
+      { type: "heading", level: 2, text: "Estrutura de uma mensagem ISO 20022" },
+      {
+        type: "paragraph",
+        text:
+          "Uma mensagem completa é sempre composta por um envelope + um corpo. O envelope pode incluir um Business Application Header (AppHdr) que carrega metadados de roteamento (quem envia, quem recebe, prioridade, correlação); o corpo é o Document, cujo conteúdo varia conforme o tipo de mensagem — pacs.008 para um crédito interbancário, pain.001 para uma iniciação de pagamento, camt.053 para um extrato.",
+      },
+      {
+        type: "code",
+        lang: "xml",
+        text:
+`<!-- Envelope típico (AppHdr + Document) -->
+<Envelope>
+  <AppHdr xmlns="urn:iso:std:iso:20022:tech:xsd:head.001.001.02">
+    <Fr><FIId><FinInstnId><BICFI>BANKBRSPXXX</BICFI></FinInstnId></FIId></Fr>
+    <To><FIId><FinInstnId><BICFI>BANKBRRJXXX</BICFI></FinInstnId></FIId></To>
+    <BizMsgIdr>MSG-2026-00001</BizMsgIdr>
+    <MsgDefIdr>pacs.008.001.13</MsgDefIdr>
+    <CreDt>2026-07-10T14:30:00Z</CreDt>
+  </AppHdr>
+  <Document xmlns="urn:iso:std:iso:20022:tech:xsd:pacs.008.001.13">
+    <FIToFICstmrCdtTrf>
+      <GrpHdr>
+        <MsgId>MSG-2026-00001</MsgId>
+        <CreDtTm>2026-07-10T14:30:00Z</CreDtTm>
+        <NbOfTxs>1</NbOfTxs>
+        <SttlmInf><SttlmMtd>CLRG</SttlmMtd></SttlmInf>
+      </GrpHdr>
+      <CdtTrfTxInf>
+        <PmtId>
+          <InstrId>INSTR-001</InstrId>
+          <EndToEndId>E12345678202607101430000000000001</EndToEndId>
+        </PmtId>
+        <!-- Debtor, Creditor, Amount ... -->
+      </CdtTrfTxInf>
+    </FIToFICstmrCdtTrf>
+  </Document>
+</Envelope>`,
+      },
+      { type: "heading", level: 3, text: "AppHdr (Business Application Header, head.001)" },
+      {
+        type: "paragraph",
+        text:
+          "O AppHdr é o \"envelope postal\": diz quem envia (Fr), quem recebe (To), qual é o identificador de negócio (BizMsgIdr), qual é a definição da mensagem transportada (MsgDefIdr, ex: pacs.008.001.13) e o carimbo de criação (CreDt). Nem todo ecossistema exige o AppHdr — o SPI, por exemplo, usa apenas o Document na fronteira SPI↔PSP —, mas em cenários de rede (SWIFT CBPR+) ele é obrigatório.",
+      },
+      { type: "heading", level: 3, text: "Document" },
+      {
+        type: "paragraph",
+        text:
+          "O Document é o corpo. O elemento raiz varia por mensagem (FIToFICstmrCdtTrf para pacs.008, CstmrCdtTrfInitn para pain.001, BkToCstmrStmt para camt.053). Todos compartilham a estrutura GrpHdr (metadata do lote) + N transações — o que muda são os campos específicos e as obrigatoriedades.",
+      },
+
+      // ── 3. XSD e versionamento ───────────────────────────────────
+      { type: "heading", level: 2, text: "XSD e versionamento" },
+      {
+        type: "paragraph",
+        text:
+          "Cada mensagem ISO 20022 tem um XSD próprio e é identificada por um namespace canônico. Ler o namespace equivale a ler o tipo + versão da mensagem — não há campo \"versão\" separado.",
+      },
+      {
+        type: "code",
+        lang: "text",
+        text:
+`Formato do namespace:
+  urn:iso:std:iso:20022:tech:xsd:{msgType}.{msgVar}.{msgId}.{version}
+
+Exemplo (pacs.008 versão 13):
+  urn:iso:std:iso:20022:tech:xsd:pacs.008.001.13
+                                  │    │   │  │
+                                  │    │   │  └─ versão (2 dígitos)
+                                  │    │   └──── message id (3 dígitos, quase sempre 001)
+                                  │    └──────── variante (3 dígitos, quase sempre 001)
+                                  └───────────── prefixo da família (pacs/pain/camt/head)`,
+      },
+      {
+        type: "paragraph",
+        text:
+          "É comum encontrar várias versões coexistindo em produção. O motivo é que grupos diferentes (bancos, câmaras, redes) evoluem em ritmos distintos: um PSP pode ainda emitir pacs.008.001.09 enquanto outro já publica pacs.008.001.13, e a rede de destino precisa aceitar ambos até o cronograma de aposentadoria fechar. O Comparador de Versões do ISOLeaf existe justamente para diffar duas versões de uma mesma mensagem e mostrar quais campos foram adicionados, removidos ou tiveram cardinalidade/tipo alterados.",
+      },
+      {
+        type: "callout",
+        tone: "warning",
+        text:
+          "A versão faz parte do namespace, não é um atributo XML. Trocar pacs.008.001.09 por pacs.008.001.13 significa trocar o valor do xmlns do Document — o XSD, os elementos e as regras podem mudar entre uma versão e outra. Nunca assuma equivalência sem diff.",
+      },
+
+      // ── 4. Famílias de mensagem ──────────────────────────────────
+      { type: "heading", level: 2, text: "Famílias de mensagem" },
+      {
+        type: "paragraph",
+        text:
+          "O prefixo de 4 letras no início do nome do XSD identifica a família. Cada família cobre um domínio funcional e agrupa mensagens semanticamente correlatas — dá para inferir o propósito olhando só o prefixo.",
+      },
+      {
+        type: "table",
+        headers: ["Família", "Domínio", "Propósito", "Exemplos suportados no ISOLeaf"],
+        rows: [
+          ["camt", "Cash management & reporting", "Extratos, notificações de débito/crédito, cancelamentos e consultas de status.", "camt.052, camt.053, camt.054, camt.056, camt.060"],
+          ["pacs", "Payments clearing & settlement", "Instruções interbancárias — o \"cabo\" entre instituições financeiras liquidando ordens.", "pacs.002, pacs.004, pacs.008, pacs.009, pacs.028"],
+          ["pain", "Payment initiation", "Cliente → banco: iniciação de crédito, débito, mandatos de Pix Automático e relatórios de status ao cliente.", "pain.001, pain.002, pain.009, pain.012"],
+          ["head", "Business Application Header", "Envelope de roteamento comum a todas as famílias — quem envia, quem recebe, qual mensagem.", "head.001"],
+        ],
+      },
+      {
+        type: "callout",
+        tone: "info",
+        text:
+          "Regra prática: pain.* nasce no cliente e vive entre cliente↔banco. pacs.* vive entre bancos (interbancário). camt.* fecha o ciclo com informação (extratos, notificações, status). head.001 embrulha qualquer um deles quando a rede exige envelope de negócio.",
+      },
+
+      // ── 5. Referências oficiais ──────────────────────────────────
+      { type: "heading", level: 2, text: "Referências oficiais" },
+      {
+        type: "paragraph",
+        text:
+          "As especificações canônicas moram nos sites das entidades reguladoras — não há substituto para os documentos originais quando você está fechando uma integração.",
+      },
+      {
+        type: "list",
+        items: [
+          "[ISO 20022 oficial](https://www.iso20022.org/) — portal do padrão, mantido pelo grupo ISO 20022 Registration Management Group (RMG).",
+          "[Catálogo de mensagens](https://www.iso20022.org/catalogue-messages) — lista completa de mensagens com XSD, exemplos e histórico de versões.",
+          "[Pix / BCB](https://www.bcb.gov.br/estabilidadefinanceira/pix) — página do Pix no site do Banco Central do Brasil, com regulamentação e cronogramas.",
+          "[Manual de Padrões para Iniciação do Pix (PDF)](https://www.bcb.gov.br/content/estabilidadefinanceira/pix/Regulamento_Pix/II_ManualdePadroesparaIniciacaodoPix.pdf) — manual técnico do BCB com formatos de EndToEndId, MsgId, ISPB, cardinalidades e cenários obrigatórios.",
+          "[SWIFT CBPR+](https://www.swift.com/standards/iso-20022/iso-20022-standards) — programa CBPR+ da SWIFT: perfis de uso, guidelines e coexistência MT↔MX.",
+        ],
+      },
+      {
+        type: "callout",
+        tone: "success",
+        text:
+          "O ISOLeaf traz os XSDs desses ecossistemas empacotados no /Schemas. Você não precisa baixar cada arquivo manualmente para validar uma mensagem — mas em caso de dúvida sobre uma regra específica, o documento oficial é sempre a fonte da verdade.",
+      },
+    ],
+  },
+
+  iso20022Roles: {
+    id: "iso20022Roles",
+    blocks: [
+      // ── 1. Participantes do ecossistema Pix ──────────────────────
+      { type: "divider" },
+      { type: "heading", level: 2, text: "Participantes do ecossistema Pix" },
+      {
+        type: "paragraph",
+        text:
+          "No Pix, o fluxo interbancário é intermediado pelo Sistema de Pagamentos Instantâneos (SPI) operado pelo Banco Central. Os PSPs (Provedores de Serviço de Pagamento — bancos, fintechs, cooperativas) conversam com o SPI via mensagens ISO 20022; o SPI faz a liquidação em tempo real na conta Reservas Bancárias de cada participante.",
+      },
+      { type: "svg", text: PIX_CREDIT_TRANSFER_FLOW_SVG },
+      { type: "heading", level: 3, text: "PSP Pagador" },
+      {
+        type: "paragraph",
+        text:
+          "O PSP que atende o cliente pagador. Recebe a ordem do usuário (via app, API, iniciador de pagamento), monta o pacs.008 com dados do pagador e do recebedor, e envia ao SPI. É responsável por débitos na conta do cliente e por observar bloqueios AML/CFT antes de encaminhar.",
+      },
+      { type: "heading", level: 3, text: "PSP Recebedor" },
+      {
+        type: "paragraph",
+        text:
+          "O PSP que atende o cliente recebedor. Recebe do SPI a instrução final (pacs.008) e credita a conta do cliente, normalmente notificando via camt.054. Também é o responsável por chaves DICT (CPF/CNPJ/e-mail/telefone/EVP) associadas ao seu cliente.",
+      },
+      { type: "heading", level: 3, text: "SPI/BCB" },
+      {
+        type: "paragraph",
+        text:
+          "O núcleo operado pelo Banco Central: recebe o pacs.008 do PSP Pagador, valida limites e formatos, executa a liquidação (débito na Reserva do pagador, crédito na Reserva do recebedor) e reencaminha a instrução ao PSP Recebedor. Emite pacs.002 de confirmação (ACCP/ACSC) ou pacs.004 em caso de retorno. As regras completas de formato (EndToEndId 32 chars, ISPB, MsgId) estão no Manual de Padrões para Iniciação do Pix (BCB), linkado na seção ISO 20022 deste guia.",
+      },
+      {
+        type: "callout",
+        tone: "info",
+        text:
+          "Fluxo simplificado: usuário → PSP Pagador → SPI → PSP Recebedor → usuário. Toda a comunicação com o SPI usa ISO 20022 (pacs.008 na ida, pacs.002 na volta, pacs.004 em retornos, camt.054 para notificação de crédito).",
+      },
+
+      // ── 2. Participantes do ecossistema SWIFT CBPR+ ──────────────
+      { type: "divider" },
+      { type: "heading", level: 2, text: "Participantes do ecossistema SWIFT CBPR+" },
+      {
+        type: "paragraph",
+        text:
+          "CBPR+ (Cross-Border Payments and Reporting Plus) é o programa da SWIFT que migra pagamentos transfronteiriços do formato MT (blocos texto) para ISO 20022 (XML). O fluxo lógico é o mesmo dos MTs: cliente do banco ordenante ⇒ SWIFT ⇒ banco beneficiário — só muda o formato do fio.",
+      },
+      { type: "svg", text: MT103_DIRECT_FLOW_SVG },
+      { type: "heading", level: 3, text: "Banco Ordenante (Debtor Agent)" },
+      {
+        type: "paragraph",
+        text:
+          "O banco do cliente pagador (Debtor). Recebe a ordem do cliente e emite um pacs.008 (ou pacs.009 em interbancário puro) para o banco beneficiário via a rede SWIFT. Preenche o UETR (Unique End-to-end Transaction Reference) — identificador global que acompanha a operação em todos os hops.",
+      },
+      { type: "heading", level: 3, text: "SWIFT (rede)" },
+      {
+        type: "paragraph",
+        text:
+          "Transporta as mensagens entre bancos e provê os serviços de rastreamento (gpi Tracker), diretório de BICs (SWIFTRef) e validação de conformidade (HVPS+ / CBPR+ guidelines). Em pagamentos com correspondente, a rede pode acomodar bancos intermediários (Intermediary Agent) que fazem a ponte quando não há conta direta entre ordenante e beneficiário.",
+      },
+      { type: "heading", level: 3, text: "Banco Beneficiário (Creditor Agent)" },
+      {
+        type: "paragraph",
+        text:
+          "O banco do cliente recebedor (Creditor). Recebe o pacs.008/pacs.009 via SWIFT, credita a conta do cliente e emite camt.054 (notificação) ou pacs.002 (confirmação para o remetente). Também pode gerar camt.053 para o extrato consolidado do dia.",
+      },
+      {
+        type: "callout",
+        tone: "warning",
+        text:
+          "Diferença conceitual entre Pix e CBPR+: no Pix, o SPI é uma câmara única (BCB) que efetivamente liquida. No CBPR+, a SWIFT é uma rede de mensageria — a liquidação acontece nos correspondentes, câmaras locais (ex: Fedwire, TARGET2) ou via cobertura. Por isso pacs.009 (cover payment) e o campo Intermediary Agent são especialmente relevantes no CBPR+.",
+      },
+    ],
+  },
+
+  glossary: {
+    id: "glossary",
+    blocks: [
+      // ── Termos ISO 8583 / EMV ────────────────────────────────────
+      { type: "heading", level: 3, text: "Termos ISO 8583 / EMV" },
+      {
+        type: "table",
+        headers: ["Termo", "Definição"],
+        rows: [
+          ["ARC", "Authorization Response Code — código de resposta do emissor em formato EMV. Tag 8A. Mesmo valor do RC (bit 39) em TLV."],
+          ["ARPC", "Application Response Cryptogram — criptograma gerado pelo emissor em resposta ao ARQC. Tag 91. Comprova que o emissor é legítimo."],
+          ["ARQC", "Application Request Cryptogram — criptograma gerado pelo chip para autenticar a transação. Bit 55, tag 9F26. 8 bytes."],
+          ["ATC", "Application Transaction Counter — contador sequencial no chip. Incrementa a cada transação. Usado na derivação da Session Key."],
+          ["BIN", "Bank Identification Number — primeiros 6-8 dígitos do PAN. Identifica emissor e bandeira; usado para roteamento."],
+          ["CNP", "Card Not Present — transação sem o cartão físico (ex: e-commerce). Maior risco de fraude."],
+          ["CSU", "Card Status Update — bloco de dados usado no cálculo do ARPC Method 2. Permite atualizar o status do cartão."],
+          ["CVV / CVC", "Card Verification Value/Code — código de 3 dígitos derivado do PAN, validade e chave do emissor. CVV1 na trilha, CVV2 impresso."],
+          ["DDA", "Dynamic Data Authentication — autenticação offline onde o chip assina dados dinâmicos. Mais seguro que SDA."],
+          ["EMV", "Europay, Mastercard, Visa — padrão global para transações com chip."],
+          ["IAD", "Issuer Application Data — dados proprietários do emissor no Bit 55 (tag 9F10). Inclui o perfil de criptograma (CVN)."],
+          ["IMK", "Issuer Master Key — chave raiz do emissor. Usada para derivar a ICC MK. Nunca sai do HSM em produção."],
+          ["LLLVAR", "Campo variável com 3 dígitos de comprimento. Ex: '012HELLO WORLD!' (012 = comprimento)."],
+          ["LLVAR", "Campo variável com 2 dígitos de comprimento. Ex: '12HELLO WORLD!' (12 = comprimento)."],
+          ["MTI", "Message Type Indicator — 4 dígitos que identificam o tipo da mensagem ISO 8583. Ex: 0200 = Financial Request."],
+          ["NII", "Network Interface Identifier — identificador de 2 bytes atribuído pela bandeira. Usado no TPDU para roteamento."],
+          ["PAN", "Primary Account Number — número do cartão. Bit 2. Geralmente 13-19 dígitos."],
+          ["PIN Block", "Bloco criptografado contendo o PIN. Bit 52. 8 bytes em formato ISO 9564."],
+          ["PSN", "PAN Sequence Number — número de sequência do cartão. Diferencia múltiplos cartões com mesmo PAN. Usado na derivação da ICC MK."],
+          ["RC", "Response Code — 2 caracteres no bit 39 indicando o resultado. '00' = aprovado, '05' = recusado."],
+          ["RRN", "Retrieval Reference Number — referência única da transação. Bit 37. 12 caracteres. Usado para rastreamento e estorno."],
+          ["SDA", "Static Data Authentication — autenticação offline simples. O chip assina dados estáticos do cartão."],
+          ["Session Key", "Chave derivada do ICC MK + ATC. Única por transação. Usada para calcular o ARQC."],
+          ["STAN", "System Trace Audit Number — número sequencial. Bit 11. 6 dígitos. Único por terminal por dia."],
+          ["TLV", "Tag-Length-Value — estrutura de codificação no Bit 55. Cada campo tem Tag, Length e Value."],
+          ["TPDU", "Transport Protocol Data Unit — prefixo de 5 bytes antes do MTI em conexões TCP. ID + NII origem + NII destino."],
+          ["TVR", "Terminal Verification Results — 5 bytes (40 bits) no Bit 55 (tag 95). Cada bit é o resultado de uma verificação no terminal."],
+          ["UN", "Unpredictable Number — 4 bytes aleatórios gerados pelo terminal para o cálculo do ARQC. Tag 9F37."],
+          ["ZPK", "Zone PIN Key — chave de criptografia de PIN. Usada para decriptar o PIN Block recebido."],
+        ],
+      },
+
+      // ── Termos ISO 20022 ────────────────────────────────────────
+      { type: "heading", level: 3, text: "Termos ISO 20022" },
+      {
+        type: "table",
+        headers: ["Termo", "Definição"],
+        rows: [
+          ["ACSC", "Accepted Settlement Completed — status ISO 20022 (pacs.002) indicando que a liquidação foi concluída. É o \"aprovado\" definitivo do mundo ISO 20022."],
+          ["AppHdr", "Business Application Header (head.001) — envelope de roteamento do ISO 20022. Carrega Fr/To, BizMsgIdr, MsgDefIdr, CreDt. Obrigatório em CBPR+; opcional no Pix."],
+          ["BIC", "Business Identifier Code — identificador SWIFT de 8 ou 11 caracteres (ex: BRASBRRJXXX). Nome corporativo do banco/instituição na rede. No ISO 20022 aparece como BICFI dentro de FinInstnId."],
+          ["camt", "Cash Management — família de mensagens ISO 20022 para reporting: extratos (camt.053), notificações (camt.054), cancelamentos (camt.056) e consultas."],
+          ["Document", "Elemento raiz do corpo de uma mensagem ISO 20022. Seu xmlns identifica tipo + versão (ex: urn:iso:std:iso:20022:tech:xsd:pacs.008.001.13)."],
+          ["head.001", "XSD do Business Application Header (AppHdr). Envelope comum a todas as famílias ISO 20022 — obrigatório em CBPR+ e outros contextos de rede."],
+          ["IBAN", "International Bank Account Number — número de conta internacional (até 34 caracteres, começa com o código do país). Usado em SEPA, CBPR+ e T2. No Brasil não é obrigatório para Pix (que usa chave DICT ou dados bancários locais)."],
+          ["MessageId / MsgId", "Identificador único da mensagem ISO 20022. Aparece no GrpHdr do Document e também no BizMsgIdr do AppHdr. Em Pix, o BCB especifica o formato (ISPB + data + sequencial)."],
+          ["MT ↔ MX", "MT são mensagens SWIFT no formato legado (blocos texto \"tag:conteudo\"). MX é o apelido do formato ISO 20022 (XML). CBPR+ é o programa que mapeia MT→MX. O Comparador MT↔MX do ISOLeaf faz esse diff."],
+          ["MTI → MX (equivalência)", "Não existe mapeamento direto de MTI (ISO 8583) para MX (ISO 20022) — são mundos separados. Conceitualmente, um 0100 de autorização de cartão joga o mesmo papel de uma pacs.008 de crédito, mas os fluxos, participantes e liquidação são distintos."],
+          ["pacs", "Payments Clearing and Settlement — família de mensagens ISO 20022 para instruções interbancárias. Ex: pacs.008 (crédito), pacs.002 (status), pacs.004 (retorno), pacs.009 (crédito FI-a-FI)."],
+          ["pain", "Payment Initiation — família de mensagens ISO 20022 para iniciação cliente↔banco. Ex: pain.001 (ordem de crédito), pain.002 (status), pain.009/pain.012 (mandatos de Pix Automático)."],
+          ["PDNG", "Pending — status ISO 20022 (pacs.002) indicando que o processamento ainda está em andamento; a liquidação será notificada depois."],
+          ["RJCT", "Rejected — status ISO 20022 (pacs.002) indicando que a mensagem foi rejeitada. Vem acompanhado de um StsRsn com o motivo da recusa."],
+          ["targetNamespace", "Atributo do XSD que define o namespace do schema. É o valor exato que aparece no xmlns do Document da mensagem correspondente."],
+          ["UETR", "Unique End-to-end Transaction Reference — UUID v4 gerado pelo banco ordenante em CBPR+/SWIFT gpi. Acompanha a transação em todos os hops e é a chave do rastreamento gpi Tracker."],
+          ["XSD", "XML Schema Definition — arquivo que define a estrutura, os tipos e as regras de um XML ISO 20022. Cada mensagem tem seu XSD versionado; o Validador do ISOLeaf compara uma mensagem contra o XSD para apontar erros."],
         ],
       },
     ],
@@ -1208,6 +1473,141 @@ Decompondo:
         src: "/screenshots/workspace2.png",
         alt: "Templates salvos no Workspace",
         caption: "Workspace — templates salvos para reutilização no Builder",
+      },
+
+      { type: "divider" },
+
+      // ── Tour ISO 20022 ────────────────────────────────────────────
+      { type: "heading", level: 2, text: "Primeiros passos — módulos ISO 20022" },
+      {
+        type: "paragraph",
+        text:
+          "O bloco ISO 20022 do ISOLeaf reúne oito módulos que cobrem o ciclo completo de leitura, produção e visualização de mensagens. A ideia desta seção é apresentar cada um em uma linha para você saber para onde ir; o passo-a-passo profundo dos casos mais comuns vem no bloco \"Guias práticos — ISO 20022\" mais adiante.",
+      },
+
+      { type: "heading", level: 3, text: "Parser XML" },
+      {
+        type: "paragraph",
+        text:
+          "Cole qualquer XML ISO 20022 (com ou sem AppHdr) e veja a árvore de campos decodificada. O parser detecta a família e a versão pelo namespace, aplica o XSD certo automaticamente e traz um resumo semântico (tipo de operação, atores, valor, chave Pix quando existir). Botão \"Gerar Return\" produz a mensagem de resposta correlata (pacs.008 → pacs.002/pacs.004).",
+      },
+      {
+        type: "image",
+        src: "/screenshots/iso20022/parser-xml.png",
+        alt: "Tela do Parser XML ISO 20022",
+        caption: "Parser XML — árvore de campos decodificada + resumo semântico",
+      },
+
+      { type: "heading", level: 3, text: "Referência de Campos" },
+      {
+        type: "paragraph",
+        text:
+          "Árvore navegável da estrutura de qualquer mensagem suportada. Aba \"Por mensagem\" mostra o XSD inteiro em formato de tree; aba \"Busca por campo\" cruza um nome (ex: EndToEndId, Dbtr, RmtInf) contra todas as versões e famílias, útil para entender onde um campo aparece em diferentes tipos e como sua cardinalidade evoluiu entre versões.",
+      },
+      {
+        type: "image",
+        src: "/screenshots/iso20022/referencia-campos.png",
+        alt: "Tela da Referência de Campos ISO 20022",
+        caption: "Referência de Campos — árvore por mensagem + busca cruzada",
+      },
+
+      { type: "heading", level: 3, text: "Validador XSD + Comparador de Versões" },
+      {
+        type: "paragraph",
+        text:
+          "O Validador (botão dentro do Parser) roda o XML contra o XSD e devolve erros com mensagens curtas em português — o texto verboso do parser .NET é reformulado por família de erro (elemento inválido, valor fora do facet, cardinalidade errada, namespace errado). O Comparador de Versões diffa duas versões do mesmo tipo (ex: pacs.008.001.09 vs pacs.008.001.13) listando campos adicionados, removidos e alterados; quando aberto a partir de uma mensagem específica, filtra o diff pelos campos que a sua mensagem usa.",
+      },
+      {
+        type: "image",
+        src: "/screenshots/iso20022/validador-comparador.png",
+        alt: "Tela do Validador XSD e do Comparador de Versões",
+        caption: "Validador + Comparador — erros de schema traduzidos e diff entre versões",
+      },
+
+      { type: "heading", level: 3, text: "Builder" },
+      {
+        type: "paragraph",
+        text:
+          "Compõe mensagens ISO 20022 completas a partir de um Ecossistema → Cenário → Versão. Suporta 5 ecossistemas: **Brazilian Pix** (SPI/BCB, com formatos regulamentados de EndToEndId, ISPB, TxId), **SEPA** (crédito e status na área do euro), **SWIFT CBPR+** (cover payments, retornos, cancelamentos, status inquiry), **TARGET/T2** (câmara do Eurosistema) e **Generic** (para explorar qualquer XSD carregado). O split Formulário/XML deixa ver a mensagem sendo escrita em tempo real; abaixo do breakpoint md a interface vira abas para caber no mobile.",
+      },
+      {
+        type: "image",
+        src: "/screenshots/iso20022/builder.png",
+        alt: "Tela do Builder ISO 20022 com formulário e XML lado a lado",
+        caption: "Builder — cascata Ecossistema → Cenário → Versão com split Formulário/XML",
+      },
+
+      { type: "heading", level: 3, text: "QR Code Pix" },
+      {
+        type: "paragraph",
+        text:
+          "Decodifica e gera payloads EMV do Pix Copia e Cola (BR Code). Aceita QR estático (chave + valor) e dinâmico (POI com TXID). Serve tanto para inspecionar um QR alheio quanto para produzir QRs de teste — com validação inline dos campos obrigatórios do padrão BR Code.",
+      },
+      {
+        type: "image",
+        src: "/screenshots/iso20022/qrcode-pix.png",
+        alt: "Tela do módulo QR Code Pix",
+        caption: "QR Code Pix — decode e geração de BR Code (Pix Copia e Cola)",
+      },
+
+      { type: "heading", level: 3, text: "Flow Visualizer" },
+      {
+        type: "paragraph",
+        text:
+          "Diagrama de sequência multi-mensagem. Quatro abas de protocolo (Brazilian Pix, SWIFT CBPR+ MX, SWIFT CBPR+ MT, ISO 8583) — cada uma com seu conjunto de fluxos pré-definidos (crédito direto, cover payment, retorno, cancelamento, transferência com stand-in, etc.). Clicar em uma seta abre o payload correspondente em uma linha abaixo, com parse + botão de \"abrir no Parser\" quando o step for XML.",
+      },
+      {
+        type: "image",
+        src: "/screenshots/iso20022/flow-visualizer.png",
+        alt: "Tela do Flow Visualizer com diagrama de sequência",
+        caption: "Flow Visualizer — sequência multi-mensagem por protocolo",
+      },
+
+      { type: "heading", level: 3, text: "Parser MT" },
+      {
+        type: "paragraph",
+        text:
+          "Parseia mensagens SWIFT MT (formato legado, blocos {1:...}{2:...}{3:...}{4:...}). Reconhece MT103 (crédito de cliente), MT202 e MT202COV (crédito interbancário e cover). Complementa o Comparador MT↔MX quando a integração precisa suportar os dois formatos durante a migração CBPR+.",
+      },
+      {
+        type: "image",
+        src: "/screenshots/iso20022/parser-mt.png",
+        alt: "Tela do Parser MT com mensagem SWIFT decodificada",
+        caption: "Parser MT — decodifica MT103/MT202/MT202COV bloco a bloco",
+      },
+
+      { type: "heading", level: 3, text: "Comparador MT↔MX" },
+      {
+        type: "paragraph",
+        text:
+          "Diffa uma mensagem MT contra uma MX equivalente (ex: MT103 vs pacs.008). Modo A gera a MX a partir do MT via o Builder e mostra os dois lado a lado; Modo B compara duas mensagens já existentes campo a campo. Cada linha do diff traz um nível de confiança (Automatic quando o mapeamento CBPR+ é direto, Ambiguous quando há mais de uma opção equivalente, NoMapping quando o campo não tem correspondente no outro formato).",
+      },
+      {
+        type: "image",
+        src: "/screenshots/iso20022/comparador-mt-mx.png",
+        alt: "Tela do Comparador MT↔MX com diff entre MT103 e pacs.008",
+        caption: "Comparador MT↔MX — diff campo a campo com níveis de confiança",
+      },
+
+      { type: "heading", level: 3, text: "Workspace" },
+      {
+        type: "paragraph",
+        text:
+          "O Workspace consolida a configuração persistente do ISOLeaf. Abriu três abas:",
+      },
+      {
+        type: "list",
+        items: [
+          "**Configuração** — valores padrão aplicados ao Builder e ao Simulador: identificação da instituição, ISPB, BIC, contas-teste, chaves criptográficas (IMK, ZPK) do lado ISO 8583. Um lugar só, aplicado em todos os módulos.",
+          "**Templates** — mensagens salvas e reutilizáveis. Cada template guarda contexto + campos preenchidos; um clique traz de volta o estado exato do Builder. Aceita importação/exportação em JSON para compartilhar entre máquinas.",
+          "**Schemas ISO 20022** — inventário dos XSDs que o Agent conhece, agrupado por família (camt/head/pacs/pain). Um botão de upload permite adicionar um novo XSD; o schema é validado, gravado em disco e o registro é recarregado no ato — sem restart. Sprint 10.1 introduziu persistência híbrida via volume Docker: o volume `schemas-data` (montado em `/app/data/Schemas`) preserva os XSDs importados entre reinícios do container, enquanto o catálogo base continua embutido na imagem.",
+        ],
+      },
+      {
+        type: "callout",
+        tone: "info",
+        text:
+          "Após um upload de XSD, a Referência, o Comparador e o Builder passam a enxergar a nova versão imediatamente — o ReferenceService é recarregado em cadeia pelo SchemaUploadService.",
       },
 
       { type: "divider" },
@@ -1534,6 +1934,174 @@ Decompondo:
           "O ISOLeaf parseia o Bit 55, valida o ARQC, gera o ARPC e monta o Bit 55 de resposta (tags `91` + `8A`).",
           "Copie o Bit 55 de resposta para incluir na sua `0110` / `0210`.",
         ],
+      },
+
+      { type: "divider" },
+
+      // ── Guias práticos — ISO 20022 ───────────────────────────────
+      { type: "heading", level: 2, text: "Guias práticos — ISO 20022" },
+      {
+        type: "paragraph",
+        text:
+          "Três fluxos cobrem 90% do que analistas fazem no dia a dia com o bloco ISO 20022 do ISOLeaf: montar uma mensagem multi-ecossistema no Builder, ler um diagrama de sequência no Flow Visualizer e entender o relatório do Comparador MT↔MX. Cada guia parte do zero e assume que você acabou de abrir o módulo.",
+      },
+
+      // ── Guia: Builder multi-ecossistema ──────────────────────────
+      {
+        type: "heading",
+        level: 4,
+        text: "Builder multi-ecossistema",
+        subtitle: "Cenário: você precisa gerar uma mensagem ISO 20022 pronta para testar uma integração — sem escrever XML na mão.",
+      },
+      {
+        type: "paragraph",
+        text:
+          "O Builder trabalha em uma cascata Ecossistema → Cenário → Versão → Gerar. Cada ecossistema traz seu próprio conjunto de cenários (com placeholders realistas de nomes, contas, BICs) e obriga apenas os campos que a rede em questão exige — o que evita a explosão de campos opcionais que o XSD puro do ISO 20022 traz por padrão.",
+      },
+      {
+        type: "list",
+        ordered: true,
+        items: [
+          "Abra o módulo **Builder**.",
+          "Selecione um **Ecossistema**. As opções são: **Brazilian Pix** (regras do SPI/BCB), **SEPA** (área do euro), **SWIFT CBPR+** (cross-border com BIC), **TARGET/T2** (câmara do Eurosistema) e **Generic** (permite escolher qualquer XSD carregado, sem regras de negócio locais).",
+          "Selecione um **Cenário**. O cenário determina o tipo de mensagem (pacs.008, pain.001, pacs.004, camt.056, etc.) e traz um conjunto de defaults por ecossistema — Debtor, Creditor, agentes intermediários, códigos de propósito.",
+          "Selecione uma **Versão**. Só as versões suportadas pelo cenário aparecem — para pacs.008 no Pix, por exemplo, o Builder traz `001.13` como padrão (a versão vigente no SPI hoje). Se você precisar de uma versão antiga para testar compatibilidade, escolha na lista.",
+          "Clique **↺ Dados de teste** para preencher automaticamente Debtor/Creditor com nomes e contas de um gerador de dados fake do ecossistema (locale pt_BR para Pix, de/en para SEPA/CBPR+/T2).",
+          "Clique **Gerar**. O Builder chama o backend, monta o Document e renderiza o XML em tempo real ao lado do formulário.",
+          "Edite qualquer campo diretamente no formulário — o XML da direita reage. Campos regulados (EndToEndId 32 chars no Pix, UETR UUID v4 no CBPR+) têm um botão **⟳** para regerar o valor conforme o formato oficial.",
+          "Use a barra de busca no topo do formulário para promover um campo opcional. O Builder inclui automaticamente os ancestrais (adicionar `PmtId/InstrId` abre `PmtId`, ganhando o `InstrId` dentro).",
+          "**Copiar XML** para colar no seu integrador ou **Abrir no Parser** para inspecionar imediatamente o resultado com validação.",
+        ],
+      },
+      {
+        type: "callout",
+        tone: "info",
+        text:
+          "Diferença entre os 5 ecossistemas. Brazilian Pix impõe o Manual de Padrões do BCB (formatos regulados de EndToEndId, ISPB no lugar de BIC). SEPA joga com IBAN e códigos de propósito da área do euro. SWIFT CBPR+ exige BIC + UETR e traz cover payments (pacs.009). TARGET/T2 é a variante europeia do interbancário de alto valor. Generic serve para explorar qualquer XSD (inclusive schemas custom que você fez upload no Workspace) sem regras adicionais — útil para testes de conformidade puramente estrutural.",
+      },
+      {
+        type: "callout",
+        tone: "info",
+        text:
+          "Como interpretar o XML gerado. O topo do Document define o namespace (identifica tipo + versão). GrpHdr traz os metadados do lote (MsgId, CreDtTm, NbOfTxs, SttlmInf). O corpo específico da mensagem (FIToFICstmrCdtTrf em pacs.008, CstmrCdtTrfInitn em pain.001) contém uma ou mais transações — cada transação tem sua PmtId (identificadores), o par Debtor/Creditor com seus agentes e o RmtInf com as informações da remessa.",
+      },
+
+      { type: "divider" },
+
+      // ── Guia: Flow Visualizer ────────────────────────────────────
+      {
+        type: "heading",
+        level: 4,
+        text: "Flow Visualizer",
+        subtitle: "Cenário: você precisa entender como uma sequência de mensagens flui entre os participantes de um protocolo.",
+      },
+      {
+        type: "paragraph",
+        text:
+          "O Flow Visualizer desenha diagramas de sequência clássicos: colunas para cada ator, setas verticais para cada mensagem, uma linha do tempo descendo. É útil tanto para aprender um protocolo novo quanto para depurar uma integração real — cada seta abre o payload correspondente e você consegue ver o XML que efetivamente circula em cada hop.",
+      },
+      {
+        type: "list",
+        ordered: true,
+        items: [
+          "Abra **Flow Visualizer**. O topo da tela traz quatro abas de protocolo: **🇧🇷 Pix** (BR), **⚡ CBPR+ MX** (SWIFT XML), **📄 CBPR+ MT** (SWIFT legado) e **💳 ISO 8583** (mundo de cartão).",
+          "Escolha a aba do protocolo que quer estudar. Cada aba tem seu próprio catálogo de fluxos e sua própria coluna de atores — no Pix são \"Pagador → PSP Pagador → SPI/BCB → PSP Recebedor → Recebedor\"; no CBPR+ MX é \"Banco Originador → SWIFT/Correspondente → Banco Intermediário → Banco Beneficiário\".",
+          "Escolha o **Fluxo** no dropdown do topo. Exemplos por aba: no Pix — Transferência, Transferência com return, Open Finance, Rejeitada, Pix Automático; no CBPR+ — Direct Payment, Cover Payment, Return, Cancellation, Status Inquiry.",
+          "Clique **Gerar Fluxo**. O ISOLeaf produz mensagens fictícias válidas para cada step do fluxo escolhido e desenha o diagrama.",
+          "Interprete o diagrama. Cada seta é um step; o rótulo em cima da seta identifica a mensagem (ex: `pacs.008.001.13`). Setas contínuas são hops principais; **setas tracejadas** representam relay do BCB/correspondente; **setas vermelhas** representam timeout (issuer não respondeu, stand-in).",
+          "Clique em uma seta. Uma segunda linha aparece abaixo mostrando o **payload XML** desse step + um **resumo** parseado ao lado. Se o step for MT (legado) ou ISO 8583, o painel adaptativo troca para o formato correto.",
+          "Use **Abrir no Parser** dentro do painel do step para aprofundar a inspeção — o Parser abre com o XML já preenchido e pronto para validação.",
+        ],
+      },
+      {
+        type: "callout",
+        tone: "info",
+        text:
+          "Atores e setas — leitura rápida. Cada coluna vertical é um ator (PSP, banco, SPI, network). Uma seta da coluna A para a coluna B representa uma mensagem indo de A para B. A ordem descendente das setas é a linha do tempo do fluxo. Um step \"clicável\" é qualquer seta — sempre corresponde a um payload real gerado (não é ilustração vazia).",
+      },
+      {
+        type: "callout",
+        tone: "warning",
+        text:
+          "O diagrama é escalado automaticamente para caber na largura disponível — em mobile ele reduz sem exigir arraste horizontal. Se o texto de rótulo ficar pequeno, gire o dispositivo ou abra em uma tela maior para leitura confortável.",
+      },
+
+      { type: "divider" },
+
+      // ── Guia: Comparador MT↔MX ──────────────────────────────────
+      {
+        type: "heading",
+        level: 4,
+        text: "Comparador MT↔MX",
+        subtitle: "Cenário: sua integração precisa suportar SWIFT MT e ISO 20022 (MX) em paralelo durante a migração CBPR+.",
+      },
+      {
+        type: "paragraph",
+        text:
+          "O Comparador MT↔MX confronta uma mensagem SWIFT MT (formato legado) com sua correspondente ISO 20022 (MX). O objetivo é responder três perguntas: (a) esses dois XMLs representam a mesma operação? (b) quais campos foram traduzidos automaticamente e quais precisaram de heurística? (c) o que fazer com os que não têm equivalente do outro lado?",
+      },
+      { type: "heading", level: 3, text: "Modo A — Geração MT→MX via Builder" },
+      {
+        type: "paragraph",
+        text:
+          "No Modo A você cola apenas o MT (por exemplo, um MT103) e o ISOLeaf gera a MX correspondente automaticamente, reaproveitando o BuilderService. É o modo indicado quando você tem os MTs originais e quer ver o resultado esperado da migração para MX.",
+      },
+      {
+        type: "list",
+        ordered: true,
+        items: [
+          "Abra **Comparador MT↔MX**.",
+          "Selecione a aba **Modo A — Gerar MX a partir do MT**.",
+          "Cole o **MT** no textarea (formato SWIFT clássico com blocos `{1:...}{2:...}{3:...}{4:...}`).",
+          "Escolha a **família MX de destino** (pacs.008 para MT103, pacs.009 para MT202/MT202COV).",
+          "Clique **Gerar & comparar**. O ISOLeaf parseia o MT, chama o Builder com o cenário CBPR+ apropriado e produz a MX; o painel de resultado mostra os dois lado a lado com o diff campo a campo.",
+        ],
+      },
+      { type: "heading", level: 3, text: "Modo B — Comparação de duas mensagens existentes" },
+      {
+        type: "paragraph",
+        text:
+          "No Modo B você já tem o par MT e MX e quer confirmar equivalência ou apontar divergências. Este é o modo típico de conciliação: uma integração que já produz MX precisa ser validada contra os MTs históricos.",
+      },
+      {
+        type: "list",
+        ordered: true,
+        items: [
+          "Selecione a aba **Modo B — Comparar dois payloads**.",
+          "Cole o **MT** no textarea esquerdo e a **MX** no direito.",
+          "Clique **Comparar**. O ISOLeaf casa os campos pela tabela de mapeamento CBPR+ e produz o diff.",
+        ],
+      },
+      { type: "heading", level: 3, text: "Como resolver campos ambíguos" },
+      {
+        type: "paragraph",
+        text:
+          "Quando o Comparador encontra um campo com nível de confiança **Ambiguous**, ele destaca a linha em amarelo e traz uma lista de candidatos. Ambiguidade acontece porque a mesma informação pode aparecer em posições diferentes na MX conforme a variação do cenário — por exemplo, um endereço de beneficiário no MT pode virar `Cdtr/PstlAdr/AdrLine` ou `Cdtr/PstlAdr/StrtNm+PstCd+TwnNm` na MX, dependendo se o CBPR+ exige endereço estruturado (post-2025) ou aceita linhas livres (pré-2025).",
+      },
+      {
+        type: "list",
+        items: [
+          "Clique na linha ambígua para expandir os candidatos.",
+          "Compare o valor do MT com o de cada candidato — normalmente um deles bate exatamente com o texto que você esperaria ver.",
+          "Escolha o candidato clicando no chip **Aceitar mapeamento**. O ISOLeaf grava a decisão localmente para as próximas comparações da sessão (não é persistente entre reloads — o objetivo é acelerar batches).",
+          "Se nenhum candidato bater, o problema geralmente é anterior ao Comparador: o Builder pode ter escrito o campo em uma posição não esperada, ou o MT original está fora de padrão. Volte um passo (Builder ou Parser MT) para investigar.",
+        ],
+      },
+      { type: "heading", level: 3, text: "Níveis de confiança" },
+      {
+        type: "table",
+        headers: ["Nível", "Cor", "Significado", "Ação típica"],
+        rows: [
+          ["Automatic", "Verde", "Mapeamento CBPR+ direto, sem ambiguidade. O ISOLeaf casou o campo do MT com um único destino na MX com base na tabela oficial.", "Nenhuma — o diff está confiável."],
+          ["Ambiguous", "Amarelo", "Existe mais de um destino candidato na MX. O ISOLeaf lista as opções e não escolhe automaticamente.", "Expandir, comparar valores e aceitar o candidato correto."],
+          ["NoMapping", "Cinza", "O campo existe em um dos formatos e não tem equivalente no outro. Comum em campos ISO 20022 novos (UETR, dados estruturados de endereço, códigos de propósito ISO) e em campos MT legados (Sender's Reference, Related Reference).", "Registrar como \"perda controlada\" na migração — nem sempre há problema; nem tudo do MT precisa vir para o MX e vice-versa."],
+        ],
+      },
+      {
+        type: "callout",
+        tone: "info",
+        text:
+          "Regra prática: se a soma de \"Ambiguous\" + \"NoMapping\" for pequena e concentrada em campos previsíveis (endereço estruturado vs livre, sender reference), a migração está saudável. Se aparecerem campos financeiros críticos (valor, moeda, contas, BICs) em \"NoMapping\", investigue — provavelmente o parser não pegou o campo do MT por algum desvio de formatação.",
       },
 
       { type: "divider" },

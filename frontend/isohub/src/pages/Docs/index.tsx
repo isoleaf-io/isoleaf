@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { BookOpen, ChevronRight, Cpu, ExternalLink, FileText, Layers, MessageCircle, Network, Sparkles, Terminal } from "lucide-react";
+import { BookOpen, ChevronRight, Cpu, ExternalLink, FileCode, FileText, Layers, MessageCircle, Network, Sparkles, Terminal, Users } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Card, CardBody } from "@/components/ui/Card";
 
@@ -18,14 +18,16 @@ interface Topic {
 }
 
 const TOPICS: Topic[] = [
-  { id: "iso8583",   icon: FileText,      titleKey: "docs.cards.iso8583.title",   descriptionKey: "docs.cards.iso8583.description" },
-  { id: "emv",       icon: Cpu,           titleKey: "docs.cards.emv.title",       descriptionKey: "docs.cards.emv.description" },
-  { id: "roles",     icon: Network,       titleKey: "docs.cards.roles.title",     descriptionKey: "docs.cards.roles.description" },
-  { id: "glossary",  icon: BookOpen,      titleKey: "docs.cards.glossary.title",  descriptionKey: "docs.cards.glossary.description" },
-  { id: "fields",    icon: Layers,        titleKey: "docs.cards.fields.title",    descriptionKey: "docs.cards.fields.description" },
-  { id: "guides",    icon: Sparkles,      titleKey: "docs.cards.guides.title",    descriptionKey: "docs.cards.guides.description" },
-  { id: "apiDocs",   icon: Terminal,      titleKey: "docs.cards.api.title",       descriptionKey: "docs.cards.api.description" },
-  { id: "community", icon: MessageCircle, titleKey: "docs.cards.community.title", descriptionKey: "docs.cards.community.description" },
+  { id: "iso8583",       icon: FileText,      titleKey: "docs.cards.iso8583.title",       descriptionKey: "docs.cards.iso8583.description" },
+  { id: "emv",           icon: Cpu,           titleKey: "docs.cards.emv.title",           descriptionKey: "docs.cards.emv.description" },
+  { id: "roles",         icon: Network,       titleKey: "docs.cards.roles.title",         descriptionKey: "docs.cards.roles.description" },
+  { id: "fields",        icon: Layers,        titleKey: "docs.cards.fields.title",        descriptionKey: "docs.cards.fields.description" },
+  { id: "iso20022",      icon: FileCode,      titleKey: "docs.cards.iso20022.title",      descriptionKey: "docs.cards.iso20022.description" },
+  { id: "iso20022Roles", icon: Users,         titleKey: "docs.cards.iso20022Roles.title", descriptionKey: "docs.cards.iso20022Roles.description" },
+  { id: "glossary",      icon: BookOpen,      titleKey: "docs.cards.glossary.title",      descriptionKey: "docs.cards.glossary.description" },
+  { id: "guides",        icon: Sparkles,      titleKey: "docs.cards.guides.title",        descriptionKey: "docs.cards.guides.description" },
+  { id: "community",     icon: MessageCircle, titleKey: "docs.cards.community.title",     descriptionKey: "docs.cards.community.description" },
+  { id: "apiDocs",       icon: Terminal,      titleKey: "docs.cards.api.title",           descriptionKey: "docs.cards.api.description" },
 ];
 
 const DOCS_BASE = "https://docs.isoleaf.dev";

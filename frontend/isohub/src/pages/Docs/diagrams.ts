@@ -265,9 +265,120 @@ export const FOUR_LEGS_FLOW_SVG = `
 </svg>
 `.trim();
 
+/**
+ * Pix credit-transfer flow — same visual family as FOUR_LEGS_FLOW_SVG:
+ * rounded-rect actors, per-actor colour scheme (fill + stroke of the
+ * same hue), 12px bold labels + 9px muted subtitles, slate arrows with
+ * triangular polygon heads, and a "forward + return" arrow pair per leg
+ * with a bold leg label + two-line caption below.
+ *
+ * Palette choices:
+ *   PSP Pagador     — blue   (initiator, matches Acquirer blue in FOUR_LEGS)
+ *   SPI / BCB       — green  (central authority, matches Issuer green)
+ *   PSP Recebedor   — purple (destination, matches Brand purple)
+ */
+export const PIX_CREDIT_TRANSFER_FLOW_SVG = `
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 160"
+     style="max-width:720px;width:100%;font-family:monospace">
+  <!-- PSP Pagador — blue -->
+  <rect x="10" y="20" width="170" height="70" rx="6"
+        fill="#dbeafe" stroke="#1e40af" stroke-width="1.5"/>
+  <text x="95" y="50" text-anchor="middle" font-size="12" font-weight="bold" fill="#1e40af">PSP Pagador</text>
+  <text x="95" y="68" text-anchor="middle" font-size="9" fill="#1e3a8a">banco do pagador</text>
+
+  <!-- SPI / BCB — green (central authority) -->
+  <rect x="270" y="20" width="170" height="70" rx="6"
+        fill="#dcfce7" stroke="#166534" stroke-width="1.5"/>
+  <text x="355" y="50" text-anchor="middle" font-size="12" font-weight="bold" fill="#166534">SPI / BCB</text>
+  <text x="355" y="68" text-anchor="middle" font-size="9" fill="#14532d">liquidação em tempo real</text>
+
+  <!-- PSP Recebedor — purple -->
+  <rect x="530" y="20" width="170" height="70" rx="6"
+        fill="#ede9fe" stroke="#5b21b6" stroke-width="1.5"/>
+  <text x="615" y="50" text-anchor="middle" font-size="12" font-weight="bold" fill="#5b21b6">PSP Recebedor</text>
+  <text x="615" y="68" text-anchor="middle" font-size="9" fill="#4c1d95">banco do recebedor</text>
+
+  <!-- Envio: PSP Pagador → SPI (gap 180-270) -->
+  <line x1="182" y1="45" x2="263" y2="45" stroke="#475569" stroke-width="1.5"/>
+  <polygon points="268,45 260,41 260,49" fill="#475569"/>
+  <text x="225" y="39" text-anchor="middle" font-size="10" fill="#1e293b">pacs.008 →</text>
+  <line x1="263" y1="70" x2="187" y2="70" stroke="#475569" stroke-width="1.5"/>
+  <polygon points="182,70 190,66 190,74" fill="#475569"/>
+  <text x="225" y="84" text-anchor="middle" font-size="10" fill="#1e293b">← pacs.002</text>
+  <text x="225" y="113" text-anchor="middle" font-size="10" font-weight="bold" fill="#334155">Envio</text>
+  <text x="225" y="128" text-anchor="middle" font-size="9" fill="#64748b">Instrução de crédito</text>
+  <text x="225" y="142" text-anchor="middle" font-size="9" fill="#64748b">Confirmação (ACSC)</text>
+
+  <!-- Repasse: SPI → PSP Recebedor (gap 440-530) -->
+  <line x1="442" y1="45" x2="523" y2="45" stroke="#475569" stroke-width="1.5"/>
+  <polygon points="528,45 520,41 520,49" fill="#475569"/>
+  <text x="485" y="39" text-anchor="middle" font-size="10" fill="#1e293b">pacs.008 →</text>
+  <line x1="523" y1="70" x2="447" y2="70" stroke="#475569" stroke-width="1.5"/>
+  <polygon points="442,70 450,66 450,74" fill="#475569"/>
+  <text x="485" y="84" text-anchor="middle" font-size="10" fill="#1e293b">← pacs.002</text>
+  <text x="485" y="113" text-anchor="middle" font-size="10" font-weight="bold" fill="#334155">Repasse</text>
+  <text x="485" y="128" text-anchor="middle" font-size="9" fill="#64748b">Instrução ao recebedor</text>
+  <text x="485" y="142" text-anchor="middle" font-size="9" fill="#64748b">Confirmação (ACSC)</text>
+</svg>
+`.trim();
+
+/**
+ * SWIFT MT103 direct-payment flow — mirrors PIX_CREDIT_TRANSFER_FLOW_SVG
+ * layout and reuses the same rectangles/arrows/typography so both fit as
+ * a pair. Colour choices intentionally differ per role to hint the
+ * different family without breaking the visual system:
+ *   Banco Ordenante     — blue  (initiator)
+ *   SWIFT               — slate (neutral network, matches Terminal slate in FOUR_LEGS)
+ *   Banco Beneficiário  — green (destination)
+ */
+export const MT103_DIRECT_FLOW_SVG = `
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 160"
+     style="max-width:720px;width:100%;font-family:monospace">
+  <!-- Banco Ordenante — blue -->
+  <rect x="10" y="20" width="170" height="70" rx="6"
+        fill="#dbeafe" stroke="#1e40af" stroke-width="1.5"/>
+  <text x="95" y="50" text-anchor="middle" font-size="12" font-weight="bold" fill="#1e40af">Banco Ordenante</text>
+  <text x="95" y="68" text-anchor="middle" font-size="9" fill="#1e3a8a">Debtor Agent</text>
+
+  <!-- SWIFT — slate (neutral network) -->
+  <rect x="270" y="20" width="170" height="70" rx="6"
+        fill="#f1f5f9" stroke="#475569" stroke-width="1.5"/>
+  <text x="355" y="50" text-anchor="middle" font-size="12" font-weight="bold" fill="#1e293b">SWIFT</text>
+  <text x="355" y="68" text-anchor="middle" font-size="9" fill="#475569">rede de mensageria</text>
+
+  <!-- Banco Beneficiário — green -->
+  <rect x="530" y="20" width="170" height="70" rx="6"
+        fill="#dcfce7" stroke="#166534" stroke-width="1.5"/>
+  <text x="615" y="50" text-anchor="middle" font-size="12" font-weight="bold" fill="#166534">Banco Beneficiário</text>
+  <text x="615" y="68" text-anchor="middle" font-size="9" fill="#14532d">Creditor Agent</text>
+
+  <!-- Envio: Ordenante → SWIFT (gap 180-270) -->
+  <line x1="182" y1="45" x2="263" y2="45" stroke="#475569" stroke-width="1.5"/>
+  <polygon points="268,45 260,41 260,49" fill="#475569"/>
+  <text x="225" y="39" text-anchor="middle" font-size="10" fill="#1e293b">MT103 →</text>
+  <line x1="263" y1="70" x2="187" y2="70" stroke="#475569" stroke-width="1.5"/>
+  <polygon points="182,70 190,66 190,74" fill="#475569"/>
+  <text x="225" y="84" text-anchor="middle" font-size="10" fill="#1e293b">← ACK</text>
+  <text x="225" y="113" text-anchor="middle" font-size="10" font-weight="bold" fill="#334155">Envio</text>
+  <text x="225" y="128" text-anchor="middle" font-size="9" fill="#64748b">Instrução de crédito</text>
+  <text x="225" y="142" text-anchor="middle" font-size="9" fill="#64748b">Ack de recebimento</text>
+
+  <!-- Entrega: SWIFT → Beneficiário (gap 440-530) -->
+  <line x1="442" y1="45" x2="523" y2="45" stroke="#475569" stroke-width="1.5"/>
+  <polygon points="528,45 520,41 520,49" fill="#475569"/>
+  <text x="485" y="39" text-anchor="middle" font-size="10" fill="#1e293b">MT103 →</text>
+  <line x1="523" y1="70" x2="447" y2="70" stroke="#475569" stroke-width="1.5"/>
+  <polygon points="442,70 450,66 450,74" fill="#475569"/>
+  <text x="485" y="84" text-anchor="middle" font-size="10" fill="#1e293b">← ACK</text>
+  <text x="485" y="113" text-anchor="middle" font-size="10" font-weight="bold" fill="#334155">Entrega</text>
+  <text x="485" y="128" text-anchor="middle" font-size="9" fill="#64748b">Roteamento à rede</text>
+  <text x="485" y="142" text-anchor="middle" font-size="9" fill="#64748b">Ack de entrega</text>
+</svg>
+`.trim();
+
 export const ISOHUB_ARCHITECTURE_SVG = `
 <svg xmlns="http://www.w3.org/2000/svg"
-  viewBox="0 0 820 560"
+  viewBox="0 0 820 640"
   style="max-width:820px;width:100%;font-family:system-ui,sans-serif;background:transparent">
   <defs>
     <marker id="arr-blue" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
@@ -288,13 +399,13 @@ export const ISOHUB_ARCHITECTURE_SVG = `
   </defs>
 
   <!-- Máquina do usuário (fundo externo) — abriga também Terminal e Sistema externo -->
-  <rect x="8" y="8" width="620" height="544" rx="14"
+  <rect x="8" y="8" width="620" height="624" rx="14"
     fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5" stroke-dasharray="10,4"/>
   <text x="22" y="28" font-size="11" fill="#94a3b8" font-weight="500"
     letter-spacing="0.5">SUA MÁQUINA</text>
 
   <!-- Docker container -->
-  <rect x="28" y="38" width="580" height="314" rx="10"
+  <rect x="28" y="38" width="580" height="410" rx="10"
     fill="#eff6ff" stroke="#93c5fd" stroke-width="1.5"/>
   <!-- Badge Docker -->
   <rect x="28" y="38" width="110" height="24" rx="5" fill="#2563eb"/>
@@ -302,90 +413,110 @@ export const ISOHUB_ARCHITECTURE_SVG = `
     text-anchor="middle">🐳 Docker</text>
 
   <!-- Agent -->
-  <rect x="50" y="74" width="536" height="120" rx="8"
+  <rect x="50" y="74" width="536" height="148" rx="8"
     fill="#dbeafe" stroke="#60a5fa" stroke-width="1.5"/>
   <text x="318" y="96" font-size="13" fill="#1e40af"
     text-anchor="middle" font-weight="700">ISOLeaf Agent</text>
   <text x="318" y="112" font-size="10" fill="#3b82f6"
     text-anchor="middle">ASP.NET Core 9 · porta 8080</text>
 
-  <!-- REST API -->
-  <rect x="70" y="120" width="220" height="58" rx="6"
+  <!-- REST API — expanded to 3 lines to include the ISO 20022 route families -->
+  <rect x="70" y="120" width="336" height="90" rx="6"
     fill="white" stroke="#93c5fd" stroke-width="1"/>
-  <text x="180" y="142" font-size="11" fill="#1d4ed8"
+  <text x="238" y="140" font-size="11" fill="#1d4ed8"
     text-anchor="middle" font-weight="600">REST API</text>
-  <text x="180" y="158" font-size="9" fill="#3b82f6"
-    text-anchor="middle">/api/parse · /api/build · /api/emv</text>
-  <text x="180" y="170" font-size="9" fill="#3b82f6"
-    text-anchor="middle">/api/simulator · /api/cards</text>
+  <text x="238" y="158" font-size="9" fill="#3b82f6"
+    text-anchor="middle">/api/parse · /api/build · /api/emv · /api/cards · /api/simulator</text>
+  <text x="238" y="172" font-size="9" fill="#3b82f6"
+    text-anchor="middle">/api/iso20022/* · /api/pix/* · /api/swift/* · /api/iso8583/flow</text>
+  <text x="238" y="186" font-size="9" fill="#3b82f6"
+    text-anchor="middle">/api/workspace · /api/health · /api/config · /api/test-data</text>
+  <text x="238" y="202" font-size="8.5" fill="#64748b"
+    text-anchor="middle" font-style="italic">17 controllers · OpenAPI em /api/docs (Scalar)</text>
 
-  <!-- SignalR -->
-  <rect x="308" y="120" width="258" height="58" rx="6"
+  <!-- SignalR — matched height (90) for row alignment -->
+  <rect x="424" y="120" width="142" height="90" rx="6"
     fill="white" stroke="#93c5fd" stroke-width="1"/>
-  <text x="437" y="142" font-size="11" fill="#1d4ed8"
+  <text x="495" y="142" font-size="11" fill="#1d4ed8"
     text-anchor="middle" font-weight="600">SignalR Hub</text>
-  <text x="437" y="158" font-size="9" fill="#3b82f6"
-    text-anchor="middle">WebSocket para log ao vivo</text>
-  <text x="437" y="170" font-size="9" fill="#3b82f6"
-    text-anchor="middle">eventos do Simulador em tempo real</text>
+  <text x="495" y="160" font-size="9" fill="#3b82f6"
+    text-anchor="middle">WebSocket</text>
+  <text x="495" y="174" font-size="9" fill="#3b82f6"
+    text-anchor="middle">log ao vivo</text>
+  <text x="495" y="188" font-size="9" fill="#3b82f6"
+    text-anchor="middle">Simulador</text>
+  <text x="495" y="202" font-size="8.5" fill="#64748b"
+    text-anchor="middle" font-style="italic">/hubs/simulator</text>
 
   <!-- Seta Agent → Frontend -->
-  <line x1="318" y1="194" x2="318" y2="218"
+  <line x1="318" y1="222" x2="318" y2="246"
     stroke="#60a5fa" stroke-width="1.5" marker-end="url(#arr-blue)"/>
 
   <!-- Frontend -->
-  <rect x="50" y="218" width="536" height="58" rx="8"
+  <rect x="50" y="246" width="536" height="58" rx="8"
     fill="#f3e8ff" stroke="#c084fc" stroke-width="1.5"/>
-  <text x="318" y="244" font-size="13" fill="#6b21a8"
+  <text x="318" y="272" font-size="13" fill="#6b21a8"
     text-anchor="middle" font-weight="700">ISOLeaf Frontend</text>
-  <text x="318" y="260" font-size="9" fill="#9333ea"
+  <text x="318" y="288" font-size="9" fill="#9333ea"
     text-anchor="middle">React · TypeScript · Vite · Tailwind CSS (servido como arquivos estáticos pelo Agent)</text>
 
   <!-- Seta Frontend → Libs -->
-  <line x1="318" y1="276" x2="318" y2="298"
+  <line x1="318" y1="304" x2="318" y2="326"
     stroke="#a78bfa" stroke-width="1.5" marker-end="url(#arr-blue)"/>
 
-  <!-- Bibliotecas — 4 caixas -->
-  <rect x="50" y="298" width="120" height="44" rx="6"
+  <!-- Bibliotecas — 4 caixas ISO 8583 na linha 1 -->
+  <rect x="50" y="326" width="120" height="44" rx="6"
     fill="#dcfce7" stroke="#86efac" stroke-width="1.3"/>
-  <text x="110" y="316" font-size="10" fill="#14532d"
+  <text x="110" y="344" font-size="10" fill="#14532d"
     text-anchor="middle" font-weight="600">IsoCore</text>
-  <text x="110" y="330" font-size="8.5" fill="#16a34a"
+  <text x="110" y="358" font-size="8.5" fill="#16a34a"
     text-anchor="middle">Parser · Builder · Bitmap</text>
 
-  <rect x="184" y="298" width="126" height="44" rx="6"
+  <rect x="184" y="326" width="126" height="44" rx="6"
     fill="#dcfce7" stroke="#86efac" stroke-width="1.3"/>
-  <text x="247" y="316" font-size="10" fill="#14532d"
+  <text x="247" y="344" font-size="10" fill="#14532d"
     text-anchor="middle" font-weight="600">Cryptography</text>
-  <text x="247" y="330" font-size="8.5" fill="#16a34a"
+  <text x="247" y="358" font-size="8.5" fill="#16a34a"
     text-anchor="middle">ARQC · ARPC · TLV · 3DES</text>
 
-  <rect x="324" y="298" width="110" height="44" rx="6"
+  <rect x="324" y="326" width="110" height="44" rx="6"
     fill="#dcfce7" stroke="#86efac" stroke-width="1.3"/>
-  <text x="379" y="316" font-size="10" fill="#14532d"
+  <text x="379" y="344" font-size="10" fill="#14532d"
     text-anchor="middle" font-weight="600">Cards</text>
-  <text x="379" y="330" font-size="8.5" fill="#16a34a"
+  <text x="379" y="358" font-size="8.5" fill="#16a34a"
     text-anchor="middle">PAN · CVV · Trilhas</text>
 
-  <rect x="448" y="298" width="138" height="44" rx="6"
+  <rect x="448" y="326" width="138" height="44" rx="6"
     fill="#dcfce7" stroke="#86efac" stroke-width="1.3"/>
-  <text x="517" y="316" font-size="10" fill="#14532d"
+  <text x="517" y="344" font-size="10" fill="#14532d"
     text-anchor="middle" font-weight="600">Simulator</text>
-  <text x="517" y="330" font-size="8.5" fill="#16a34a"
+  <text x="517" y="358" font-size="8.5" fill="#16a34a"
     text-anchor="middle">TcpListener · TcpClient</text>
 
-  <!-- Storage local -->
-  <rect x="50" y="356" width="536" height="38" rx="6"
+  <!-- Bibliotecas — linha 2: novo bloco Iso20022 ocupando full width -->
+  <rect x="50" y="380" width="536" height="52" rx="6"
+    fill="#dcfce7" stroke="#86efac" stroke-width="1.3"/>
+  <text x="318" y="400" font-size="10" fill="#14532d"
+    text-anchor="middle" font-weight="600">Iso8583Toolkit.Iso20022</text>
+  <text x="318" y="416" font-size="8.5" fill="#16a34a"
+    text-anchor="middle">Parser · Builder · Referência · Validador · Comparador · Pix · SWIFT MT · Flows</text>
+  <text x="318" y="428" font-size="8" fill="#166534"
+    text-anchor="middle" font-style="italic">SchemaRegistry (44 XSDs — camt/head/pacs/pain) · recarrega ao upload</text>
+
+  <!-- Storage local — ganhou 3ª linha para /app/data/schemas -->
+  <rect x="50" y="452" width="536" height="54" rx="6"
     fill="#fefce8" stroke="#fde047" stroke-width="1"/>
-  <text x="318" y="372" font-size="9.5" fill="#713f12"
+  <text x="318" y="468" font-size="9.5" fill="#713f12"
     text-anchor="middle">💾 Armazenamento local: Workspace (JSON) · Templates (localStorage) · Sessões TCP (memória)</text>
-  <text x="318" y="386" font-size="8.5" fill="#92400e"
-    text-anchor="middle">Nenhum dado transmitido para servidores externos</text>
+  <text x="318" y="482" font-size="9" fill="#713f12"
+    text-anchor="middle">📁 /app/data/schemas — XSDs ISO 20022 (pré-carregados na imagem, graváveis via upload)</text>
+  <text x="318" y="498" font-size="8.5" fill="#92400e"
+    text-anchor="middle" font-style="italic">Volume Docker opcional: -v isoleaf-schemas:/app/data/schemas (persiste uploads entre updates)</text>
 
   <!-- Portas TCP do Simulador -->
-  <rect x="50" y="404" width="536" height="32" rx="6"
+  <rect x="50" y="516" width="536" height="32" rx="6"
     fill="#fff1f2" stroke="#fca5a5" stroke-width="1"/>
-  <text x="318" y="424" font-size="9" fill="#9f1239"
+  <text x="318" y="536" font-size="9" fill="#9f1239"
     text-anchor="middle">🔌 Portas TCP abertas pelo Simulador: configuradas pelo usuário (ex: 9100, 8583...)</text>
 
   <!-- Browser -->
@@ -402,35 +533,35 @@ export const ISOHUB_ARCHITECTURE_SVG = `
   <text x="650" y="103" font-size="9" fill="#475569"
     text-anchor="middle" transform="rotate(-40,650,103)">HTTP :8080</text>
 
-  <!-- Terminal/POS — moved down to y=490 so it no longer overlaps the Simulador ports rect -->
-  <rect x="28" y="490" width="164" height="52" rx="8"
+  <!-- Terminal/POS — moved down to y=572 to sit below Simulador ports -->
+  <rect x="28" y="572" width="164" height="52" rx="8"
     fill="#fff7ed" stroke="#fb923c" stroke-width="1.5"/>
-  <text x="110" y="512" font-size="18" text-anchor="middle">📟</text>
-  <text x="110" y="530" font-size="10" fill="#c2410c"
+  <text x="110" y="594" font-size="18" text-anchor="middle">📟</text>
+  <text x="110" y="612" font-size="10" fill="#c2410c"
     text-anchor="middle" font-weight="600">Terminal / POS</text>
 
   <!-- Seta Terminal → Simulador (Rebatedor) -->
-  <line x1="190" y1="500" x2="280" y2="438"
+  <line x1="190" y1="582" x2="280" y2="550"
     stroke="#ea580c" stroke-width="1.5"
     marker-end="url(#arr-orange)"/>
-  <text x="220" y="460" font-size="9" fill="#c2410c"
+  <text x="220" y="565" font-size="9" fill="#c2410c"
     text-anchor="middle">TCP · Rebatedor</text>
 
-  <!-- Sistema externo — moved down to y=490 -->
-  <rect x="460" y="490" width="168" height="52" rx="8"
+  <!-- Sistema externo — moved down to y=572 -->
+  <rect x="460" y="572" width="168" height="52" rx="8"
     fill="#fef2f2" stroke="#f87171" stroke-width="1.5"/>
-  <text x="544" y="512" font-size="18" text-anchor="middle">🖧</text>
-  <text x="544" y="530" font-size="10" fill="#991b1b"
+  <text x="544" y="594" font-size="18" text-anchor="middle">🖧</text>
+  <text x="544" y="612" font-size="10" fill="#991b1b"
     text-anchor="middle" font-weight="600">Sistema externo</text>
 
   <!-- Seta Simulador → Sistema (Injetor) -->
-  <line x1="400" y1="438" x2="470" y2="500"
+  <line x1="400" y1="550" x2="470" y2="582"
     stroke="#16a34a" stroke-width="1.5"
     marker-end="url(#arr-green)"/>
-  <text x="450" y="460" font-size="9" fill="#166534"
+  <text x="450" y="565" font-size="9" fill="#166534"
     text-anchor="middle">TCP · Injetor</text>
 
-  <!-- Legenda -->
+  <!-- Legenda — inalterada; Iso20022 reusa a cor "Bibliotecas (.NET)" -->
   <rect x="664" y="130" width="148" height="144" rx="8"
     fill="white" stroke="#e2e8f0" stroke-width="1"/>
   <text x="738" y="150" font-size="10" fill="#475569"

@@ -568,6 +568,10 @@
         "title": "ISO 8583",
         "description": "Protocol structure: TPDU, MTI, primary/secondary bitmap and the 128 Data Elements of the standard."
       },
+      "iso20022": {
+        "title": "ISO 20022",
+        "description": "XML financial-messaging standard: Document + AppHdr envelope, namespace-based versioning and the camt/pacs/pain/head families — the backbone of Pix and SWIFT CBPR+."
+      },
       "emv": {
         "title": "EMV & Cryptography",
         "description": "Bit 55, key derivation (IMK → ICC MK → Session Key), ARQC, ARPC and brand profiles."
@@ -576,13 +580,17 @@
         "title": "Transactional roles",
         "description": "Authorization flow: Acquirer → Brand → Issuer. TPDU, NIIs and mandatory fields per role."
       },
+      "iso20022Roles": {
+        "title": "ISO 20022 Roles",
+        "description": "Participants in the Pix (Payer PSP, SPI/BCB, Payee PSP) and SWIFT CBPR+ (Debtor Agent, SWIFT, Creditor Agent) ecosystems, with flow diagrams."
+      },
       "glossary": {
         "title": "Glossary",
         "description": "Payment world terms and acronyms: PAN, ARQC, ARPC, TPDU, IAD, ATC, STAN and many more."
       },
       "fields": {
-        "title": "Field reference",
-        "description": "Reference table of the most used ISO 8583 Data Elements with type, encoding and length."
+        "title": "Field Reference (ISO 8583)",
+        "description": "Reference table of the most used ISO 8583 Data Elements with type, encoding and length. (For ISO 20022 the reference is dynamic and lives in the \"Field Reference\" tool inside the app.)"
       },
       "guides": {
         "title": "Quick guides",
