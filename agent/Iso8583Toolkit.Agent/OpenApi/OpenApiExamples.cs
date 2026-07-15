@@ -8,15 +8,19 @@ namespace Iso8583Toolkit.Agent.OpenApi;
 /// shape the operation transformer derives from
 /// <c>ApiDescription.RelativePath</c>.
 ///
-/// Only the five publicly-supported endpoints have examples. Other endpoints
-/// surface their summary/description via <c>[EndpointSummary]</c> /
-/// <c>[EndpointDescription]</c> attributes on the action methods, but their
+/// Curated set covers the "headline" endpoints of each protocol — five for
+/// ISO 8583 / EMV and four for ISO 20022 (the fifth ISO 20022 headline,
+/// <c>GET /api/test-data/person</c>, takes no body — only a <c>locale</c>
+/// query param — and therefore has no entry here). Every other endpoint
+/// surfaces its summary/description via <c>[EndpointSummary]</c> /
+/// <c>[EndpointDescription]</c> attributes on the action methods, but its
 /// request body is left empty in the UI — by design, so users have to type
 /// realistic input rather than assume the canned example is a contract.
 ///
 /// Values intentionally use INVENTED hex / synthetic PANs and the test IMK
 /// already published in the integration tests. None of this is real card or
-/// issuer data.
+/// issuer data. The ISO 20022 examples reuse ecosystem/scenario ids that
+/// really exist in <c>ScenarioRegistry</c>.
 /// </summary>
 internal static class OpenApiExamples
 {
@@ -90,6 +94,82 @@ internal static class OpenApiExamples
                 ["csu"]                  = new OpenApiNull(),
                 ["profile"]              = new OpenApiString("Visa"),
                 ["method"]               = new OpenApiString("Method1"),
+            },
+
+            // POST /api/iso20022/builder/build — Pix Credit Transfer sample.
+            // Uses the "brazilian-pix" ecosystem + "pix-credit-transfer"
+            // scenario (both are registered in ScenarioRegistry) against
+            // the current SPI version pacs.008.001.13. IncludeOptionalXPaths
+            // is empty so the response returns only the ecosystem-mandatory
+            // shape — the frontend uses this as its default first render.
+            ["POST:/api/iso20022/builder/build"] = new OpenApiObject
+            {
+                ["messageType"]           = new OpenApiString("pacs.008.001.13"),
+                ["scenarioId"]            = new OpenApiString("pix-credit-transfer"),
+                ["includeOptionalXPaths"] = new OpenApiArray(),
+            },
+
+            // POST /api/iso20022/validate — round-trips a minimal pacs.008
+            // shell against its embedded XSD. The `messageType` override
+            // is left null so the validator auto-detects from the root
+            // xmlns (the same path the Parser exercise takes).
+            ["POST:/api/iso20022/validate"] = new OpenApiObject
+            {
+                ["xmlContent"] = new OpenApiString(
+                    "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
+                    "<Document xmlns=\"urn:iso:std:iso:20022:tech:xsd:pacs.008.001.13\">\n" +
+                    "  <FIToFICstmrCdtTrf>\n" +
+                    "    <GrpHdr>\n" +
+                    "      <MsgId>PIX20260710BANCO0001</MsgId>\n" +
+                    "      <CreDtTm>2026-07-10T14:30:00Z</CreDtTm>\n" +
+                    "      <NbOfTxs>1</NbOfTxs>\n" +
+                    "      <SttlmInf><SttlmMtd>CLRG</SttlmMtd></SttlmInf>\n" +
+                    "    </GrpHdr>\n" +
+                    "  </FIToFICstmrCdtTrf>\n" +
+                    "</Document>"),
+                ["messageType"] = new OpenApiNull(),
+            },
+
+            // POST /api/swift/mt/parse — synthetic MT103 with invented
+            // reference (2262-XYZ), invented BICs (BANKBRSPXXX / BANKUS33XXX)
+            // and a small USD amount. Never a real message.
+            ["POST:/api/swift/mt/parse"] = new OpenApiObject
+            {
+                ["rawMessage"] = new OpenApiString(
+                    "{1:F01BANKBRSPAXXX0000000000}" +
+                    "{2:I103BANKUS33XXXXN}" +
+                    "{4:\n" +
+                    ":20:REF2262XYZ\n" +
+                    ":23B:CRED\n" +
+                    ":32A:260710USD1234,56\n" +
+                    ":50K:/12345678901\n" +
+                    "MARIA SILVA\n" +
+                    ":59:/9876543210\n" +
+                    "JOHN DOE\n" +
+                    ":71A:SHA\n" +
+                    "-}"),
+            },
+
+            // POST /api/pix/qrcode/generate — synthetic Pix key (invented
+            // e-mail), small BRL amount and a Latin-only city that fits
+            // EMV-MPM tag 60 (≤15 chars ASCII upper). SingleUse=false keeps
+            // POI Method 11 (static QR).
+            //
+            // Amount is emitted as an integer (10 BRL) rather than a
+            // fractional double: Microsoft.OpenApi 1.x serialises
+            // OpenApiDouble via the current culture, which produces "12,34"
+            // under pt-BR and breaks /openapi/v1.json as valid JSON. The
+            // PixGenerateRequest DTO accepts decimal? so 10 binds cleanly.
+            // Docs curl snippets in content.{pt,en}.ts mirror this value.
+            ["POST:/api/pix/qrcode/generate"] = new OpenApiObject
+            {
+                ["pixKey"]        = new OpenApiString("teste@isoleaf.dev"),
+                ["merchantName"]  = new OpenApiString("ISOLEAF TESTE"),
+                ["merchantCity"]  = new OpenApiString("SAO PAULO"),
+                ["amount"]        = new OpenApiInteger(10),
+                ["txId"]          = new OpenApiString("ISOLEAF2026071000000001TX"),
+                ["description"]   = new OpenApiString("Pagamento demo"),
+                ["singleUse"]     = new OpenApiBoolean(false),
             },
         };
 }

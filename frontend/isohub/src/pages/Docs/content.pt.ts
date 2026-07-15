@@ -2151,26 +2151,28 @@ Exemplo (pacs.008 versão 13):
       {
         type: "paragraph",
         text:
-          "O ISOLeaf expõe uma API REST para parse ISO 8583, criptografia EMV e geração de cartões de teste. Disponível **apenas no modo self-hosted (Docker)** — ideal para integração com ferramentas de teste automatizado, geração de massa de dados para pipelines de homologação e inspeção de traces de produção capturados.",
+          "O ISOLeaf expõe uma API REST cobrindo ISO 8583, criptografia EMV e todo o bloco ISO 20022 (Pix, SEPA, CBPR+, TARGET/T2, MT ↔ MX). Disponível **apenas no modo self-hosted (Docker)** — ideal para integração com ferramentas de teste automatizado, geração de massa de dados para pipelines de homologação e inspeção de traces de produção capturados.",
       },
       {
         type: "callout",
         tone: "info",
         text:
-          "Documentação interativa completa (todos os endpoints, schemas, painel \"Try it out\") está em [/api/docs](/api/docs) — powered by Scalar.",
+          "Documentação interativa completa (todos os endpoints, schemas, painel \"Try it out\") está em [http://localhost:8080/api/docs](http://localhost:8080/api/docs) — powered by Scalar. Suba o Agent local antes: `docker run -p 8080:8080 ghcr.io/isoleaf-io/isoleaf:latest`.",
       },
       { type: "divider" },
 
-      // ── Seção 2: 5 APIs recomendadas ──────────────────────────────────
+      // ── Seção 2: APIs recomendadas ────────────────────────────────────
       { type: "heading", level: 2, text: "Endpoints recomendados" },
       {
         type: "paragraph",
         text:
-          "Cinco endpoints cobrem a maior parte dos cenários de integração — os demais são majoritariamente infraestrutura da própria UI.",
+          "Dez endpoints — cinco por protocolo — cobrem a maior parte dos cenários de integração, geração de massa de dados e automação de testes. Os demais são majoritariamente infraestrutura da própria UI. Cada bloco de código abaixo usa exatamente os mesmos valores sintéticos que o painel \"Try it out\" do Scalar traz pré-preenchidos.",
       },
 
+      { type: "heading", level: 3, text: "ISO 8583 / EMV" },
+
       // 1. Parse hex
-      { type: "heading", level: 3, text: "POST /api/parse/hex" },
+      { type: "heading", level: 4, text: "POST /api/parse/hex" },
       { type: "paragraph", text: "**Quando usar:** automatizar parse de traces de produção, validar mensagens em testes de integração, extrair campos específicos de logs ISO." },
       {
         type: "list",
@@ -2193,7 +2195,7 @@ Exemplo (pacs.008 versão 13):
       { type: "paragraph", text: "**Retorna:** o `mti` decodificado, `messageClass`, `activeBits` e `fields[]` (cada um com `bitNumber`, `name`, `value`, `displayValue` e `length`). Parses parciais voltam como `success=false` com `parseError` estruturado — nunca 5xx." },
 
       // 2. Parse Bit 55
-      { type: "heading", level: 3, text: "POST /api/emv/parse-bit55" },
+      { type: "heading", level: 4, text: "POST /api/emv/parse-bit55" },
       { type: "paragraph", text: "**Quando usar:** inspecionar dados EMV de transações chip capturadas, validar conteúdo do Bit 55 em testes de chip, debugar tags TLV." },
       {
         type: "list",
@@ -2216,7 +2218,7 @@ Exemplo (pacs.008 versão 13):
       { type: "paragraph", text: "**Retorna:** `tags[]` (cada um com `tag`, `name`, `length`, `value`) mais campos de conveniência (`arqc`, `atc`, `cryptogramType`, `authResponseCode`). Parses parciais surfacem cada tag lida até o byte de falha mais `parseError`." },
 
       // 3. Generate card
-      { type: "heading", level: 3, text: "POST /api/cards/generate" },
+      { type: "heading", level: 4, text: "POST /api/cards/generate" },
       { type: "paragraph", text: "**Quando usar:** gerar massa de dados de teste para homologação, criar cartões sintéticos Luhn-válidos com Track 1/2, CVV e identidade completa." },
       {
         type: "list",
@@ -2237,7 +2239,7 @@ Exemplo (pacs.008 versão 13):
       { type: "paragraph", text: "**Retorna:** `pan`, `panMasked`, `cardholderName`, `expiry`, `expiryFormatted`, `serviceCode`, `cvv`, `cvv2`, `track1`, `track2`, `brand` e `generatedAt`. Apenas dados de teste — nunca alimentar com dados reais de portadores." },
 
       // 4. Generate ARQC
-      { type: "heading", level: 3, text: "POST /api/emv/generate-arqc" },
+      { type: "heading", level: 4, text: "POST /api/emv/generate-arqc" },
       { type: "paragraph", text: "**Quando usar:** simular o criptograma do chip em testes de autorização EMV, validar o fluxo ARQC sem precisar de um cartão físico." },
       {
         type: "list",
@@ -2276,7 +2278,7 @@ Exemplo (pacs.008 versão 13):
       { type: "paragraph", text: "**Retorna:** o `arqc` de 8 bytes (16 chars hex) mais o `sessionKey` derivado, `iccMasterKey` e `transactionData` (input do MAC) para rastreabilidade. Mesmo algoritmo da aba EMV → Generate ARQC." },
 
       // 5. Generate ARPC
-      { type: "heading", level: 3, text: "POST /api/emv/generate-arpc" },
+      { type: "heading", level: 4, text: "POST /api/emv/generate-arpc" },
       { type: "paragraph", text: "**Quando usar:** simular a resposta do emissor em testes de autorização EMV, validar o cálculo de ARPC em desenvolvimento de host emissor." },
       {
         type: "list",
@@ -2308,6 +2310,127 @@ Exemplo (pacs.008 versão 13):
       },
       { type: "paragraph", text: "**Retorna:** o `arpc` de 8 bytes mais o `sessionKey` usado no cálculo. O Method 2 do Mastercard também devolve o `csu` na resposta." },
 
+      { type: "heading", level: 3, text: "ISO 20022" },
+
+      // 6. Builder — gerar mensagem ISO 20022
+      { type: "heading", level: 4, text: "POST /api/iso20022/builder/build" },
+      { type: "paragraph", text: "**Quando usar:** produzir massa de dados ISO 20022 para pipelines de teste (Pix, SEPA, CBPR+, TARGET/T2), popular ambientes de homologação com mensagens estruturalmente válidas, ou baixar um esqueleto de qualquer cenário do catálogo pra editar programaticamente." },
+      {
+        type: "list",
+        items: [
+          "`messageType` — string · tipo completo com versão (ex: `pacs.008.001.13`)",
+          "`scenarioId` — string · id do cenário no `ScenarioRegistry` (ex: `pix-credit-transfer`, `pix-return`, `cbpr-direct-payment`, `sepa-initiation`, `t2-credit-transfer`)",
+          "`includeOptionalXPaths` — array de strings · XPaths de campos opcionais que devem aparecer no XML além dos obrigatórios (default vazio)",
+        ],
+      },
+      {
+        type: "code",
+        lang: "bash",
+        text:
+`curl -X POST http://localhost:8080/api/iso20022/builder/build \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "messageType": "pacs.008.001.13",
+    "scenarioId": "pix-credit-transfer",
+    "includeOptionalXPaths": []
+  }'`,
+      },
+      { type: "paragraph", text: "**Retorna:** `messageType`, `scenarioId`, `xml` (Document renderizado com os overrides do cenário aplicados) e `sections[]` (árvore de seções/campos com metadata pra guiar o editor: obrigatório, valor default, enumerações, min/max length, pattern regex). Mesmo endpoint que a UI do Builder consome." },
+
+      // 7. Test data — person
+      { type: "heading", level: 4, text: "GET /api/test-data/person" },
+      { type: "paragraph", text: "**Quando usar:** popular formulários de teste com dados sintéticos coerentes (nome, CPF, e-mail, telefone-chave-Pix) em vez de digitar valores fixos, gerar cenários de carga com identidades distintas, evitar poluir logs com dados reais de portadores." },
+      {
+        type: "list",
+        items: [
+          "`locale` — query param opcional · `pt_BR` (default), `de`, `en` — direciona o gerador Faker do backend. `pt_BR` produz CPF + telefone +55; `de`/`en` produzem equivalentes locais.",
+        ],
+      },
+      {
+        type: "code",
+        lang: "bash",
+        text:
+`curl "http://localhost:8080/api/test-data/person?locale=pt_BR"`,
+      },
+      { type: "paragraph", text: "**Retorna:** `name`, `cpf`, `email`, `phone` — todos válidos estruturalmente (CPF passa dígito verificador, telefone formatado E.164) e completamente sintéticos. Nunca cache — cada chamada gera uma identidade nova." },
+
+      // 8. Validate ISO 20022 XML
+      { type: "heading", level: 4, text: "POST /api/iso20022/validate" },
+      { type: "paragraph", text: "**Quando usar:** validar em CI/CD que uma mensagem gerada continua conforme o XSD após uma refatoração, capturar erros de estrutura antes de enviar pra SPI/CBPR+, checar em batch um lote de mensagens capturadas." },
+      {
+        type: "list",
+        items: [
+          "`xmlContent` — string · XML completo do Document (com ou sem AppHdr)",
+          "`messageType` — string opcional · quando omitido, o validador auto-detecta o tipo pelo `xmlns` do root; útil quando você quer forçar validação contra uma versão específica",
+        ],
+      },
+      {
+        type: "code",
+        lang: "bash",
+        text:
+`curl -X POST http://localhost:8080/api/iso20022/validate \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "xmlContent": "<?xml version=\\"1.0\\" encoding=\\"UTF-8\\"?><Document xmlns=\\"urn:iso:std:iso:20022:tech:xsd:pacs.008.001.13\\"><FIToFICstmrCdtTrf><GrpHdr><MsgId>PIX20260710BANCO0001</MsgId><CreDtTm>2026-07-10T14:30:00Z</CreDtTm><NbOfTxs>1</NbOfTxs><SttlmInf><SttlmMtd>CLRG</SttlmMtd></SttlmInf></GrpHdr></FIToFICstmrCdtTrf></Document>",
+    "messageType": null
+  }'`,
+      },
+      { type: "paragraph", text: "**Retorna:** `messageType`, `isValid` (bool), `errorCount`, `warningCount` e `errors[]` — cada erro traz `message` (texto do validador .NET), `severity` (`error`/`warning`), `lineNumber`, `linePosition` e o `xpath` do elemento ofensivo resolvido pelo `XmlLineMapper` (pra ancorar o erro na árvore parseada)." },
+
+      // 9. SWIFT MT parse
+      { type: "heading", level: 4, text: "POST /api/swift/mt/parse" },
+      { type: "paragraph", text: "**Quando usar:** parsear MTs SWIFT capturadas no ambiente legado antes/durante a migração CBPR+, alimentar um pipeline de reconciliação MT vs MX, decodificar blocos de teste sintéticos em suites de integração." },
+      {
+        type: "list",
+        items: [
+          "`rawMessage` — string · MT completo com os blocos `{1:...}{2:...}{3:...}{4:...}` no formato SWIFT clássico. Aceita MT103, MT202 e MT202COV.",
+        ],
+      },
+      {
+        type: "code",
+        lang: "bash",
+        text:
+`curl -X POST http://localhost:8080/api/swift/mt/parse \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "rawMessage": "{1:F01BANKBRSPAXXX0000000000}{2:I103BANKUS33XXXXN}{4:\\n:20:REF2262XYZ\\n:23B:CRED\\n:32A:260710USD1234,56\\n:50K:/12345678901\\nMARIA SILVA\\n:59:/9876543210\\nJOHN DOE\\n:71A:SHA\\n-}"
+  }'`,
+      },
+      { type: "paragraph", text: "**Retorna:** `messageType` (`MT103`/`MT202`/`MT202COV`), `fields` (bloco 4 decodificado por tag — `:20:` senderReference, `:32A:` value date/currency/amount, `:50K:`/`:59:` ordenante/beneficiário, etc.), `senderBic`/`receiverBic` extraídos do bloco 1/2, e `warnings[]` para desvios de formato não fatais. Tipos fora de MT103/MT202/MT202COV retornam 422." },
+
+      // 10. Pix QR Code generate
+      { type: "heading", level: 4, text: "POST /api/pix/qrcode/generate" },
+      { type: "paragraph", text: "**Quando usar:** gerar QR codes Pix sintéticos para testes de checkout, criar lotes de payloads Copia-e-Cola para popular telas de POS/e-commerce em homologação, produzir QRs válidos com CRC-16 correto para regressão de decoders." },
+      {
+        type: "list",
+        items: [
+          "`pixKey` — string · chave Pix (aceita EVP, e-mail, telefone, CPF ou CNPJ)",
+          "`merchantName` — string · nome do recebedor (ASCII upper preferido, EMV-MPM limita a 25 chars)",
+          "`merchantCity` — string · cidade (ASCII upper, ≤15 chars — endpoint auxiliar `GET /api/test-data/city` já devolve compatível)",
+          "`amount` — decimal opcional · valor em reais (ex: `10` ou `12.34`); omitido gera QR sem valor pré-definido",
+          "`txId` — string opcional · até 25 chars alfanuméricos; default `***` (QR estático sem TXID)",
+          "`description` — string opcional · texto livre exibido no app do pagador",
+          "`singleUse` — bool · `true` marca POI Method 12 (QR dinâmico de uso único); default `false` (estático)",
+        ],
+      },
+      {
+        type: "code",
+        lang: "bash",
+        text:
+`curl -X POST http://localhost:8080/api/pix/qrcode/generate \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "pixKey": "teste@isoleaf.dev",
+    "merchantName": "ISOLEAF TESTE",
+    "merchantCity": "SAO PAULO",
+    "amount": 10,
+    "txId": "ISOLEAF2026071000000001TX",
+    "description": "Pagamento demo",
+    "singleUse": false
+  }'`,
+      },
+      { type: "paragraph", text: "**Retorna:** `payload` — a string EMV-MPM completa (Pix Copia-e-Cola) com CRC-16 calculado no final. Estrutura pronta pra virar QR code (basta jogar num renderer QR) ou pra fluir num campo de \"Copia-e-Cola\" no app do pagador." },
+
       { type: "divider" },
 
       // ── Seção 3: Documentação completa ────────────────────────────────
@@ -2315,13 +2438,13 @@ Exemplo (pacs.008 versão 13):
       {
         type: "paragraph",
         text:
-          "Para a lista completa de endpoints disponíveis — incluindo Builder, Simulador, Workspace, Health e Config — acesse a documentação interativa via Scalar:",
+          "São 48 endpoints no total, distribuídos por 17 controllers. Os 10 documentados aqui são só a ponta didática — para a lista completa (Flow Visualizer, Comparador de Versões, upload de schemas, gestão de sessões TCP do Simulador, Health, Config, etc.) acesse a documentação interativa via Scalar:",
       },
       {
         type: "callout",
         tone: "info",
         text:
-          "➜ [Abrir Scalar API Docs](/api/docs) — disponível apenas no modo self-hosted (Docker / agent local).",
+          "➜ [Abrir Scalar API Docs](http://localhost:8080/api/docs) — disponível apenas no modo self-hosted (Docker / agent local, porta 8080 por padrão). Se você mudou a porta do Agent, ajuste a URL na mão.",
       },
     ],
   },
