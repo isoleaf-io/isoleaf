@@ -35,6 +35,7 @@ public sealed class ConfigController : ControllerBase
             SimulatorEnabled = !isOnline,
             EmvCryptoEnabled = !isOnline,
             WorkspaceKeysEnabled = !isOnline,
+            SchemaUploadEnabled = !isOnline,
         };
     }
 }
@@ -45,4 +46,11 @@ public sealed class AppConfig
     public bool SimulatorEnabled { get; init; } = true;
     public bool EmvCryptoEnabled { get; init; } = true;
     public bool WorkspaceKeysEnabled { get; init; } = true;
+    /// <summary>
+    /// False when running the public online demo — the middleware in
+    /// Program.cs also 403s POST /api/workspace/schemas/upload in that
+    /// mode. The list/read endpoints stay open so the Reference and
+    /// Version Comparator screens keep working over the fixed catalogue.
+    /// </summary>
+    public bool SchemaUploadEnabled { get; init; } = true;
 }

@@ -36,49 +36,55 @@ const STORAGE_KEY = "isoleaf.sidebar.expandedGroups";
 describe("Sidebar — two-mother-group layout", () => {
   beforeEach(() => {
     // Fresh storage per test so the persistence assertions start from
-    // the "first-visit" default (both groups expanded).
+    // the "first-visit" default (both groups collapsed — the empty
+    // DEFAULT_EXPANDED_GROUPS set in Sidebar.tsx).
     localStorage.clear();
   });
 
-  it("renders both mother groups expanded by default on first visit", () => {
+  it("renders both mother groups collapsed by default on first visit", () => {
     renderApp(<Sidebar />);
 
     const iso8583 = screen.getByTestId("sidebar-group-toggle-iso8583");
     const iso20022 = screen.getByTestId("sidebar-group-toggle-iso20022");
 
-    expect(iso8583).toHaveAttribute("aria-expanded", "true");
-    expect(iso20022).toHaveAttribute("aria-expanded", "true");
+    expect(iso8583).toHaveAttribute("aria-expanded", "false");
+    expect(iso20022).toHaveAttribute("aria-expanded", "false");
 
-    // Child nav links are visible when expanded — pick one item per
-    // group as a spot-check.
-    expect(
-      screen.getAllByRole("link").some((l) => l.getAttribute("href") === "/parser"),
-    ).toBe(true);
-    expect(
-      screen.getAllByRole("link").some((l) => l.getAttribute("href") === "/iso20022/parser"),
-    ).toBe(true);
+    // No child nav links inside either group — the accordions are
+    // closed and their content is unmounted. Only sidebar chrome
+    // links (logo `/parser` link, footer `/workspace`) live outside
+    // the groups and remain.
+    const iso8583Group = screen.getByTestId("sidebar-group-iso8583");
+    const iso20022Group = screen.getByTestId("sidebar-group-iso20022");
+    expect(within(iso8583Group).queryAllByRole("link")).toHaveLength(0);
+    expect(within(iso20022Group).queryAllByRole("link")).toHaveLength(0);
   });
 
-  it("clicking a group header collapses it and hides its child links", async () => {
+  it("clicking a collapsed group header expands it and reveals its child links", async () => {
     const user = userEvent.setup();
     renderApp(<Sidebar />);
 
     const group = screen.getByTestId("sidebar-group-iso8583");
     const toggle = within(group).getByTestId("sidebar-group-toggle-iso8583");
-    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
 
     await user.click(toggle);
 
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    // Child links now mounted inside the group — pick /parser and
+    // /simulator as spot-checks (both live under ISO 8583).
+    expect(
+      within(group).getAllByRole("link").filter((l) => l.getAttribute("href") === "/parser"),
+    ).toHaveLength(1);
+    expect(
+      within(group).getAllByRole("link").filter((l) => l.getAttribute("href") === "/simulator"),
+    ).toHaveLength(1);
+
+    // Clicking again collapses back — the unmount is symmetric.
+    await user.click(toggle);
     expect(toggle).toHaveAttribute("aria-expanded", "false");
-    // Child links (Parser, Builder, Bitmap, Cartão, Dados EMV,
-    // Simulador) are unmounted while the group is collapsed. Scoped to
-    // the group container so the sidebar-logo link (also /parser) and
-    // any external `/simulator` refs elsewhere don't confuse the count.
     expect(
       within(group).queryAllByRole("link").filter((l) => l.getAttribute("href") === "/parser"),
-    ).toHaveLength(0);
-    expect(
-      within(group).queryAllByRole("link").filter((l) => l.getAttribute("href") === "/simulator"),
     ).toHaveLength(0);
   });
 
@@ -86,22 +92,23 @@ describe("Sidebar — two-mother-group layout", () => {
     const user = userEvent.setup();
     renderApp(<Sidebar />);
 
-    // Collapse iso8583 first, then iso20022 — assert localStorage
-    // reflects the accumulated state.
+    // Starts empty (default = both collapsed). Expanding iso8583 first,
+    // then iso20022 — assert localStorage reflects the accumulated state.
     await user.click(screen.getByTestId("sidebar-group-toggle-iso8583"));
     let stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "[]");
-    expect(stored).not.toContain("iso8583");
-    expect(stored).toContain("iso20022");
+    expect(stored).toContain("iso8583");
+    expect(stored).not.toContain("iso20022");
 
     await user.click(screen.getByTestId("sidebar-group-toggle-iso20022"));
     stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "[]");
-    expect(stored).not.toContain("iso8583");
-    expect(stored).not.toContain("iso20022");
+    expect(stored).toContain("iso8583");
+    expect(stored).toContain("iso20022");
 
-    // Re-expanding writes the id back.
+    // Collapsing removes the id back.
     await user.click(screen.getByTestId("sidebar-group-toggle-iso8583"));
     stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "[]");
-    expect(stored).toContain("iso8583");
+    expect(stored).not.toContain("iso8583");
+    expect(stored).toContain("iso20022");
   });
 
   it("hydrates from a pre-seeded localStorage value", () => {
@@ -136,6 +143,13 @@ describe("Sidebar — two-mother-group layout", () => {
   });
 
   it("Cartão de teste lives under Mensagens, not under EMV & Cartões", () => {
+    // Seed localStorage so the ISO 8583 group is expanded on render —
+    // the assertion below depends on the subsection labels and nav
+    // links being mounted. Without this, the accordion is collapsed
+    // (empty DEFAULT_EXPANDED_GROUPS) and the DOM won't hold /cards
+    // and /emv at all.
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(["iso8583"]));
+
     renderApp(<Sidebar />);
 
     // Both subsection labels exist. Localise via the rendered text.

@@ -60,6 +60,58 @@ public class ConfigControllerTests
         body.GetProperty("simulatorEnabled").GetBoolean().Should().BeFalse();
         body.GetProperty("emvCryptoEnabled").GetBoolean().Should().BeFalse();
         body.GetProperty("workspaceKeysEnabled").GetBoolean().Should().BeFalse();
+        body.GetProperty("schemaUploadEnabled").GetBoolean().Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Config_Standalone_ExposesSchemaUploadEnabledTrue()
+    {
+        // Companion to Config_Standalone_ReturnsAllEnabled — checks the
+        // schemaUploadEnabled flag was actually added to the wire, not
+        // just to the record. Backend and frontend read the same JSON
+        // shape, so a missing property here would silently fall back to
+        // the frontend DEFAULT_CONFIG (also true) and mask the bug.
+        await using var factory = FactoryWithMode(null);
+        using var client = factory.CreateClient();
+        var resp = await client.GetAsync("/api/config");
+        resp.StatusCode.Should().Be(HttpStatusCode.OK);
+        var body = await resp.Content.ReadFromJsonAsync<JsonElement>();
+        body.GetProperty("schemaUploadEnabled").GetBoolean().Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task SchemaUpload_Online_Returns403WithCatalogueHint()
+    {
+        // The XSD upload path (POST /api/workspace/schemas/upload) is gated
+        // in online mode, with a hint that names the fixed catalogue
+        // constraint — separate from the generic simulator/EMV hint so the
+        // UI can surface a targeted banner on the Workspace screen.
+        await using var factory = FactoryWithMode("online");
+        using var client = factory.CreateClient();
+        // Empty multipart is fine — the 403 fires in middleware before the
+        // controller ever binds the IFormFile.
+        using var form = new MultipartFormDataContent();
+        var resp = await client.PostAsync("/api/workspace/schemas/upload", form);
+        resp.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        var body = await resp.Content.ReadFromJsonAsync<JsonElement>();
+        body.GetProperty("error").GetString().Should().Contain("online");
+        body.GetProperty("hint").GetString().Should().Contain("fixed");
+        body.GetProperty("docker").GetString().Should().Contain("ghcr.io/isoleaf-io/isoleaf");
+    }
+
+    [Fact]
+    public async Task SchemaList_Online_IsNotBlocked()
+    {
+        // Companion to SchemaUpload_Online_Returns403WithCatalogueHint —
+        // the read path GET /api/workspace/schemas MUST stay open in
+        // online mode so the Reference and Version Comparator screens
+        // keep working over the fixed 44-XSD catalogue. Middleware uses
+        // the specific "/upload" suffix precisely to avoid catching the
+        // list route by prefix.
+        await using var factory = FactoryWithMode("online");
+        using var client = factory.CreateClient();
+        var resp = await client.GetAsync("/api/workspace/schemas");
+        resp.StatusCode.Should().NotBe(HttpStatusCode.Forbidden);
     }
 
     [Fact]

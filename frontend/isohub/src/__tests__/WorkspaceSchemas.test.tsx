@@ -11,6 +11,24 @@ vi.mock("@/api/workspace", () => ({
   uploadWorkspaceSchema: vi.fn(),
 }));
 
+// Sprint 10.7 — schemaUploadEnabled gates the upload button. Every test
+// starts with it true (standalone default); the "online mode" test flips
+// it before rendering. Kept as a mutable holder so the mock factory can
+// pick up the current value at call time.
+const { appConfigState } = vi.hoisted(() => ({
+  appConfigState: {
+    mode: "standalone" as string,
+    simulatorEnabled: true,
+    emvCryptoEnabled: true,
+    workspaceKeysEnabled: true,
+    schemaUploadEnabled: true,
+  },
+}));
+vi.mock("@/contexts/AppConfigContext", () => ({
+  useAppConfig: () => appConfigState,
+  AppConfigProvider: ({ children }: { children: React.ReactNode }) => children,
+}));
+
 import {
   listWorkspaceSchemas,
   uploadWorkspaceSchema,
@@ -50,6 +68,10 @@ describe("Workspace / SchemasSection", () => {
   beforeEach(() => {
     mockedList.mockReset();
     mockedUpload.mockReset();
+    // Reset back to standalone defaults so tests that don't opt into
+    // online mode always start from a clean full-featured baseline.
+    appConfigState.mode = "standalone";
+    appConfigState.schemaUploadEnabled = true;
   });
 
   it("groups schemas under family accordions with correct counts", async () => {
@@ -243,5 +265,56 @@ describe("Workspace / SchemasSection", () => {
         screen.getByText(/Invalid schema.*element 'Foo' not declared/i),
       ).toBeInTheDocument();
     });
+  });
+
+  it("hides the upload button and shows an online-mode banner when schemaUploadEnabled is false", async () => {
+    appConfigState.mode = "online";
+    appConfigState.schemaUploadEnabled = false;
+    mockedList.mockResolvedValue(SAMPLE);
+
+    renderApp(<SchemasSection />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("workspace-schemas-tree")).toBeInTheDocument();
+    });
+
+    // The upload button is unmounted entirely in online mode — safer than
+    // just disabling it because a rogue enable via devtools still gets a
+    // 403 from the backend middleware.
+    expect(screen.queryByTestId("workspace-schema-upload")).toBeNull();
+    expect(screen.queryByTestId("workspace-schema-file")).toBeNull();
+
+    // Banner surfaces the shared "not available in the online version"
+    // phrasing plus the schema-specific reason mentioning the fixed
+    // catalogue.
+    const banner = screen.getByTestId("workspace-schema-upload-banner");
+    expect(banner).toBeInTheDocument();
+    expect(banner.textContent).toMatch(
+      /not available in the online version|não está disponível na versão online/i,
+    );
+    expect(banner.textContent).toMatch(
+      /fixed ISO 20022 XSD catalogue|catálogo fixo de XSDs ISO 20022/i,
+    );
+
+    // The tree itself keeps rendering — the read/browse flow (Reference,
+    // Comparator) has to keep working over the fixed catalogue.
+    const pacsGroup = screen.getByTestId("workspace-schemas-family-pacs");
+    expect(pacsGroup).toBeInTheDocument();
+  });
+
+  it("keeps the upload button visible when schemaUploadEnabled is true (standalone)", async () => {
+    // Regression guard for the gate — the button reappears the moment the
+    // flag flips back to true. beforeEach already resets to standalone.
+    mockedList.mockResolvedValue(SAMPLE);
+
+    renderApp(<SchemasSection />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("workspace-schemas-tree")).toBeInTheDocument();
+    });
+
+    expect(screen.getByTestId("workspace-schema-upload")).toBeInTheDocument();
+    expect(screen.getByTestId("workspace-schema-file")).toBeInTheDocument();
+    expect(screen.queryByTestId("workspace-schema-upload-banner")).toBeNull();
   });
 });

@@ -173,11 +173,13 @@ const FOOTER_NAV: NavItem = {
   icon: Settings,
 };
 
-// localStorage key + default set. The initial value is "both parent groups
-// open" so a first-time visitor sees the full menu; from then on the user's
-// last-seen expand state is preserved across reloads.
+// localStorage key + default set. Empty on the first visit — both
+// mother-groups start collapsed so the menu opens with just the section
+// headings visible, forcing the visitor to acknowledge the two "worlds"
+// (ISO 8583 vs ISO 20022) before diving in. Every subsequent expand/
+// collapse is persisted, so returning users land on the state they left.
 const EXPANDED_STORAGE_KEY = "isoleaf.sidebar.expandedGroups";
-const DEFAULT_EXPANDED_GROUPS: readonly string[] = ["iso8583", "iso20022"];
+const DEFAULT_EXPANDED_GROUPS: readonly string[] = [];
 
 function readExpandedGroups(): Set<string> {
   try {
