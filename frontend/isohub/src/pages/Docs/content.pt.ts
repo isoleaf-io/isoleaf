@@ -1357,6 +1357,141 @@ Exemplo (pacs.008 versão 13):
   guides: {
     id: "guides",
     blocks: [
+      // ── Guia amigável para iniciantes em Docker ──────────────────
+      { type: "heading", level: 2, text: "Self-host com Docker — guia para iniciantes" },
+      {
+        type: "paragraph",
+        text:
+          "Cinco passos para rodar o ISOLeaf inteiro na sua máquina, mesmo se você nunca abriu um terminal antes. Nada de `git clone`, nada de compilar código, nada de editor. Só o Docker Desktop e um comando de uma linha.",
+      },
+      { type: "heading", level: 3, text: "O que você precisa" },
+      {
+        type: "list",
+        items: [
+          "**Docker Desktop** instalado — Windows, Mac ou Linux. É o único requisito.",
+          "**Um navegador** — Chrome, Firefox, Safari ou Edge, qualquer versão recente.",
+          "**Zero configuração adicional** — não precisa criar conta, gerar chaves, instalar Node, .NET, git ou qualquer coisa além do Docker.",
+        ],
+      },
+
+      { type: "heading", level: 3, text: "Passo 1 — Instalar o Docker Desktop" },
+      {
+        type: "paragraph",
+        text:
+          "Baixe o instalador do [site oficial da Docker](https://www.docker.com/products/docker-desktop/) e siga o assistente até o fim (é o mesmo fluxo Next → Next → Instalar). Depois de instalar, abra o **Docker Desktop** — na primeira execução ele mostra uma tela de boas-vindas com aceite de termos.",
+      },
+      {
+        type: "paragraph",
+        text:
+          "Confirme que está tudo pronto: na parte de baixo da janela do Docker Desktop deve aparecer o indicador verde com o texto **\"Engine running\"** (ou equivalente em português: \"Motor em execução\"). Se aparecer \"starting\" ou vermelho, aguarde alguns segundos ou reinicie o app.",
+      },
+      {
+        type: "callout",
+        tone: "info",
+        text:
+          "No Windows, o Docker Desktop pode pedir para habilitar o WSL 2 (Subsistema Windows para Linux) na primeira execução — aceite. É automático, só demora 1-2 minutos.",
+      },
+
+      { type: "heading", level: 3, text: "Passo 2 — Abrir um terminal e colar o comando" },
+      {
+        type: "paragraph",
+        text:
+          "**Onde encontrar o terminal:** no Windows, procure por \"PowerShell\" ou \"Prompt de Comando\" no menu Iniciar. No Mac, abra o app \"Terminal\" via Spotlight (⌘+Space, digite \"terminal\"). No Linux, ele geralmente já está no seu dock com o nome \"Terminal\" ou \"Console\".",
+      },
+      {
+        type: "paragraph",
+        text:
+          "Cole o comando abaixo no terminal e pressione Enter. A primeira execução baixa a imagem (~200 MB), aguarde de 30s a 2 minutos dependendo da sua conexão. Depois disso, o container inicia em poucos segundos:",
+      },
+      {
+        type: "code",
+        lang: "bash",
+        text:
+          "docker run -d --name isoleaf -p 8080:8080 ghcr.io/isoleaf-io/isoleaf:latest",
+      },
+      {
+        type: "paragraph",
+        text:
+          "Se aparecer uma linha longa com letras e números (o ID do container), deu certo. Se aparecer erro, veja a seção **Problemas comuns** no final deste guia.",
+      },
+
+      { type: "heading", level: 3, text: "Passo 3 — Abrir no navegador" },
+      {
+        type: "paragraph",
+        text:
+          "Abra o navegador e vá para **[http://localhost:8080](http://localhost:8080)**. A aplicação aparece imediatamente — é exatamente a mesma que você usa em isoleaf.dev, só que rodando 100% localmente.",
+      },
+      {
+        type: "callout",
+        tone: "success",
+        text:
+          "Diferença prática vs. a versão online: no self-hosted todas as features do Simulador TCP e da criptografia EMV ficam habilitadas — sessões TCP reais, ARQC/ARPC com IMK configurável, upload de XSDs ISO 20022 personalizados, tudo sem restrições.",
+      },
+
+      { type: "heading", level: 3, text: "Passo 4 (opcional) — Persistir XSDs entre atualizações" },
+      {
+        type: "paragraph",
+        text:
+          "Se você planeja fazer upload de XSDs ISO 20022 personalizados (via **Workspace → Schemas ISO 20022**) e quer que eles sobrevivam a `docker pull` de novas versões do ISOLeaf, use um volume Docker nomeado. Pare o container atual e rode com a flag `-v`:",
+      },
+      {
+        type: "code",
+        lang: "bash",
+        text:
+          "docker stop isoleaf\ndocker rm isoleaf\ndocker run -d --name isoleaf -p 8080:8080 \\\n  -v isoleaf-schemas:/app/data/schemas \\\n  ghcr.io/isoleaf-io/isoleaf:latest",
+      },
+      {
+        type: "paragraph",
+        text:
+          "Na primeira vez, o Docker copia automaticamente o catálogo de 44 XSDs padrão para dentro do volume `isoleaf-schemas`. Uploads posteriores ficam ao lado deles e persistem entre reinícios e atualizações da imagem. Sem essa flag, uploads valem só pela vida do container atual (mas o catálogo padrão está sempre disponível de novo).",
+      },
+
+      { type: "heading", level: 3, text: "Passo 5 — Parar e atualizar" },
+      {
+        type: "paragraph",
+        text:
+          "**Parar o container** (não desinstala — só desliga):",
+      },
+      {
+        type: "code",
+        lang: "bash",
+        text:
+          "docker stop isoleaf\ndocker rm isoleaf",
+      },
+      {
+        type: "paragraph",
+        text:
+          "**Atualizar para a versão mais recente:** puxe a nova imagem, remova o container antigo e rode de novo com o mesmo comando do Passo 2 (ou do Passo 4 se você usa volume):",
+      },
+      {
+        type: "code",
+        lang: "bash",
+        text:
+          "docker pull ghcr.io/isoleaf-io/isoleaf:latest\ndocker stop isoleaf && docker rm isoleaf\ndocker run -d --name isoleaf -p 8080:8080 ghcr.io/isoleaf-io/isoleaf:latest",
+      },
+
+      { type: "heading", level: 3, text: "Problemas comuns" },
+      {
+        type: "callout",
+        tone: "warning",
+        text:
+          "**Erro \"port is already allocated\" ou \"bind: address already in use\"** — a porta 8080 já está sendo usada por outro programa (talvez outra instância do próprio ISOLeaf, ou um servidor local). Troque a porta local pra 8081 (ou qualquer outra livre): `-p 8081:8080` no comando. Depois abra `http://localhost:8081` em vez de 8080.",
+      },
+      {
+        type: "callout",
+        tone: "warning",
+        text:
+          "**Docker Desktop não inicia / aparece \"Docker daemon is not running\"** — reinicie o Docker Desktop pelo app (menu → Restart). Se persistir, reinicie a máquina e abra o Docker Desktop antes de qualquer outra coisa. Em último caso, reinstale o Docker Desktop pelo instalador oficial.",
+      },
+      {
+        type: "callout",
+        tone: "info",
+        text:
+          "**Como saber que o container está rodando?** Rode `docker ps` no terminal — se aparecer uma linha com `isoleaf` e `Up X minutes`, tudo certo. Se não aparecer, rode `docker ps -a` (com `-a`) para ver containers parados e reveja o output do `docker run` para eventuais erros.",
+      },
+
+      { type: "divider" },
+
       { type: "heading", level: 2, text: "Arquitetura do ISOLeaf" },
       {
         type: "paragraph",
