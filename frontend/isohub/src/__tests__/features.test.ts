@@ -1,17 +1,26 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 describe("FEATURES flags", () => {
-  it("ships Parser, Field Reference, Validator, Comparator and Builder enabled in dev with the rest gated", async () => {
+  it("ships every ISOLeaf 2.0 feature enabled, with legacy slots kept off", async () => {
     const { FEATURES } = await import("@/config/features");
-    // Module gate + 6.1 + 6.2 (v1.4.0) + 6.3a + 6.3b (v1.4.2) + 6.4 (v1.4.3).
-    // All gated behind import.meta.env.DEV — true in Vitest.
+    // ISO 20022 module + 6.1 Parser + 6.2 Field Reference + 6.3a Validator
+    // + 6.3b Comparator + 6.5 Builder — all launched with 2.0.
     expect(FEATURES.iso20022).toBe(true);
     expect(FEATURES.iso20022Parser).toBe(true);
     expect(FEATURES.iso20022FieldRef).toBe(true);
     expect(FEATURES.iso20022Validator).toBe(true);
     expect(FEATURES.iso20022Comparator).toBe(true);
     expect(FEATURES.iso20022Builder).toBe(true);
-    // Everything else stays gated until its own release.
+    // 7.x Pix + 9.x SWIFT/CBPR+ + 9.4 ISO 8583 flows — all launched with 2.0.
+    expect(FEATURES.pixQrCode).toBe(true);
+    expect(FEATURES.pixFlowVisualizer).toBe(true);
+    expect(FEATURES.swiftMtParser).toBe(true);
+    expect(FEATURES.swiftMtComparator).toBe(true);
+    expect(FEATURES.swiftFlowVisualizer).toBe(true);
+    expect(FEATURES.iso8583FlowVisualizer).toBe(true);
+    // Legacy slots — replaced by newer flags, kept as `false` so the
+    // routing table stays pinned. Never delete a key without checking
+    // every consumer first.
     expect(FEATURES.iso20022QrCode).toBe(false);
     expect(FEATURES.iso20022Txid).toBe(false);
     expect(FEATURES.iso20022MtMx).toBe(false);
