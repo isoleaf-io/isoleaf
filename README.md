@@ -121,6 +121,28 @@ dotnet run
 
 Open [http://localhost:8080](http://localhost:8080)
 
+### Option 4 — Portable (no Docker, no git required)
+
+For environments where Docker is blocked but .NET is already available on
+developer workstations — common in enterprise setups with locked-down runtime
+policies.
+
+**Prerequisite:** only the [.NET 9 Runtime](https://dotnet.microsoft.com/download/dotnet/9.0)
+(the full SDK is *not* required — the runtime alone is enough to launch a
+framework-dependent build).
+
+1. Grab `isoleaf-portable-vX.Y.Z.zip` from the
+   [Releases page](https://github.com/isoleaf-io/isoleaf/releases).
+2. Extract anywhere.
+3. Launch:
+   - **Windows** — double-click `run.bat` (or run it from PowerShell / Command Prompt).
+   - **macOS / Linux** — `./run.sh` from a Terminal.
+4. Open [http://localhost:8080](http://localhost:8080).
+
+The same zip runs on Windows, macOS and Linux — no per-OS build. Every feature
+present in the Docker image is available (Simulator, EMV crypto, custom XSD
+uploads, etc.). To stop the app, close the terminal window (or `Ctrl+C`).
+
 ---
 
 ## API

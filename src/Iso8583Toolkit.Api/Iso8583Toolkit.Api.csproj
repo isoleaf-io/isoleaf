@@ -4,8 +4,20 @@
     <TargetFramework>net9.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <Version>2.0.0</Version>
+    <Version>2.1.0</Version>
   </PropertyGroup>
+
+  <!-- Api is consumed by Agent as a project reference. Both are Web SDK
+       projects, so both auto-include appsettings*.json and both files
+       collide at publish time (NETSDK1152). Api's appsettings values are
+       only used when this project runs standalone via `dotnet run` from
+       source — never at publish. Skip them from the publish payload so
+       Agent's own copies win without a duplicate error. -->
+  <ItemGroup>
+    <Content Update="appsettings*.json">
+      <CopyToPublishDirectory>Never</CopyToPublishDirectory>
+    </Content>
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="FluentValidation.AspNetCore" Version="11.3.1" />
