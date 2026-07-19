@@ -294,6 +294,14 @@ if (configuredMode == "online")
             path.StartsWith("/api/emv/generate", StringComparison.OrdinalIgnoreCase) ||
             path.StartsWith("/api/emv/full-flow", StringComparison.OrdinalIgnoreCase);
 
+        // Schema upload is blocked separately: same 403 shape, but the hint
+        // clarifies the online demo works over a fixed XSD catalogue. Read-
+        // only endpoints on the same controller (`GET /api/workspace/schemas`,
+        // reference lookup, version comparator) stay open — only the upload
+        // path (POST /api/workspace/schemas/upload) is gated.
+        var schemaUploadBlocked =
+            path.StartsWith("/api/workspace/schemas/upload", StringComparison.OrdinalIgnoreCase);
+
         if (blocked)
         {
             context.Response.StatusCode = StatusCodes.Status403Forbidden;
@@ -301,6 +309,17 @@ if (configuredMode == "online")
             {
                 error = "This feature is not available in the online version.",
                 hint = "Install ISOLeaf locally via Docker to use this feature.",
+                docker = "docker run -p 8080:8080 ghcr.io/isoleaf-io/isoleaf:latest"
+            });
+            return;
+        }
+        if (schemaUploadBlocked)
+        {
+            context.Response.StatusCode = StatusCodes.Status403Forbidden;
+            await context.Response.WriteAsJsonAsync(new
+            {
+                error = "Schema upload is not available in the online version.",
+                hint = "The online demo works over a fixed ISO 20022 XSD catalogue. Install ISOLeaf locally via Docker to upload custom XSDs.",
                 docker = "docker run -p 8080:8080 ghcr.io/isoleaf-io/isoleaf:latest"
             });
             return;

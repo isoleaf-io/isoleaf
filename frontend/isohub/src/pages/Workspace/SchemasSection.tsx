@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronDown, ChevronRight, Folder, Upload } from "lucide-react";
+import { Cloud, ChevronDown, ChevronRight, Folder, Upload } from "lucide-react";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { ErrorBanner } from "@/components/shared/ErrorBanner";
+import { useAppConfig } from "@/contexts/AppConfigContext";
 import {
   listWorkspaceSchemas,
   uploadWorkspaceSchema,
@@ -27,6 +28,7 @@ import {
 export function SchemasSection() {
   const { t } = useTranslation();
   const qc = useQueryClient();
+  const { schemaUploadEnabled } = useAppConfig();
   const query = useQuery({
     queryKey: ["workspace-schemas"],
     queryFn: listWorkspaceSchemas,
@@ -96,35 +98,59 @@ export function SchemasSection() {
           <span className="text-sm font-semibold">
             {t("workspace.schemas.title")}
           </span>
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => fileRef.current?.click()}
-            disabled={uploadMut.isPending}
-            data-testid="workspace-schema-upload"
-          >
-            <Upload size={13} />{" "}
-            {uploadMut.isPending
-              ? t("workspace.schemas.uploading")
-              : t("workspace.schemas.addButton")}
-          </Button>
-          <input
-            ref={fileRef}
-            type="file"
-            accept=".xsd,application/xml,text/xml"
-            className="hidden"
-            data-testid="workspace-schema-file"
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              onPickFile(f);
-              // Clear so the user can re-select the same filename after
-              // a failed upload.
-              e.target.value = "";
-            }}
-          />
+          {/* Upload button is hidden entirely in online mode — the tree
+              below stays visible so users can still browse the fixed
+              44-XSD catalogue via the Reference and Comparator screens. */}
+          {schemaUploadEnabled && (
+            <>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => fileRef.current?.click()}
+                disabled={uploadMut.isPending}
+                data-testid="workspace-schema-upload"
+              >
+                <Upload size={13} />{" "}
+                {uploadMut.isPending
+                  ? t("workspace.schemas.uploading")
+                  : t("workspace.schemas.addButton")}
+              </Button>
+              <input
+                ref={fileRef}
+                type="file"
+                accept=".xsd,application/xml,text/xml"
+                className="hidden"
+                data-testid="workspace-schema-file"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  onPickFile(f);
+                  // Clear so the user can re-select the same filename after
+                  // a failed upload.
+                  e.target.value = "";
+                }}
+              />
+            </>
+          )}
         </div>
       </CardHeader>
       <CardBody className="p-0">
+        {/* Online-mode banner — same phrasing family as common.online.feature.unavailable,
+            adapted to name the specific reason (fixed XSD catalogue). Shown
+            regardless of upload state so users don't wonder where the button
+            went. */}
+        {!schemaUploadEnabled && (
+          <div
+            role="status"
+            data-testid="workspace-schema-upload-banner"
+            className="flex items-start gap-3 px-4 py-3 bg-accent-bg/40 border-b border-accent/30 text-accent-text text-xs"
+          >
+            <Cloud size={14} className="shrink-0 mt-0.5" />
+            <span>
+              {t("online.feature.unavailable")} —{" "}
+              {t("workspace.schemas.uploadUnavailableReason")}
+            </span>
+          </div>
+        )}
         {uploadError && (
           <div className="p-4">
             <ErrorBanner message={uploadError} />

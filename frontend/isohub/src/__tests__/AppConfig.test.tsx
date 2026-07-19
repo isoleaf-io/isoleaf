@@ -37,6 +37,7 @@ const ONLINE_CONFIG: AppConfig = {
   simulatorEnabled: false,
   emvCryptoEnabled: false,
   workspaceKeysEnabled: false,
+  schemaUploadEnabled: false,
 };
 
 const STANDALONE_CONFIG: AppConfig = {
@@ -44,6 +45,7 @@ const STANDALONE_CONFIG: AppConfig = {
   simulatorEnabled: true,
   emvCryptoEnabled: true,
   workspaceKeysEnabled: true,
+  schemaUploadEnabled: true,
 };
 
 /**
@@ -59,6 +61,10 @@ describe("AppConfig — online vs standalone mode", () => {
     try {
       window.sessionStorage.removeItem("isoleaf-online-banner-dismissed");
       window.localStorage.removeItem("isoleaf-docs-open");
+      // Sprint 10.7 — sidebar expand state persists in localStorage.
+      // Clear it here so per-test seeding (e.g. the Simulator test)
+      // doesn't leak into subsequent tests.
+      window.localStorage.removeItem("isoleaf.sidebar.expandedGroups");
     } catch { /* ignore */ }
   });
 
@@ -76,8 +82,17 @@ describe("AppConfig — online vs standalone mode", () => {
   });
 
   it("Simulator menu stays visible in online mode (locked, not hidden)", () => {
-    // Earlier iteration hid /simulator entirely; current behaviour keeps it in
-    // the menu with a lock icon so users can discover the feature.
+    // Earlier iteration hid /simulator entirely; current behaviour keeps
+    // it in the menu with a lock icon so users can discover the feature.
+    // Sprint 10.7 — the ISO 8583 mother-group now starts collapsed by
+    // default, which unmounts /simulator (a leaf item inside the group).
+    // Seed localStorage so this test still asserts what it means to
+    // assert: the *visibility policy* under online mode, not the group's
+    // default expansion state.
+    localStorage.setItem(
+      "isoleaf.sidebar.expandedGroups",
+      JSON.stringify(["iso8583"]),
+    );
     renderApp(withConfig(<Sidebar />, ONLINE_CONFIG));
     const navLinks = screen.getAllByRole("link");
     const hrefs = navLinks.map((el) => el.getAttribute("href"));

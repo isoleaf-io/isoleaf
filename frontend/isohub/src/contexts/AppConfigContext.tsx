@@ -15,6 +15,7 @@ const DEFAULT_CONFIG: AppConfig = {
   simulatorEnabled: true,
   emvCryptoEnabled: true,
   workspaceKeysEnabled: true,
+  schemaUploadEnabled: true,
 };
 
 const AppConfigContext = createContext<AppConfig>(DEFAULT_CONFIG);

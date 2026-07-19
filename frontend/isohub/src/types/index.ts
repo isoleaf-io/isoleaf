@@ -341,4 +341,11 @@ export interface AppConfig {
   simulatorEnabled: boolean;
   emvCryptoEnabled: boolean;
   workspaceKeysEnabled: boolean;
+  /**
+   * False when running the online demo — the Workspace UI hides the
+   * "add XSD" button and shows a banner; the backend also 403s the
+   * upload endpoint. List/read endpoints stay open so the Reference
+   * and Version Comparator screens keep working over the fixed catalogue.
+   */
+  schemaUploadEnabled: boolean;
 }

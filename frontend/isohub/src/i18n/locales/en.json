@@ -623,6 +623,7 @@
       "uploading": "Uploading…",
       "loading": "Loading schemas…",
       "empty": "No schemas loaded.",
+      "uploadUnavailableReason": "the online version works over a fixed ISO 20022 XSD catalogue. The tree below, Field Reference and Version Comparator keep working normally over that catalogue. To upload custom XSDs, install ISOLeaf locally via Docker.",
       "col": {
         "messageType": "Message Type",
         "version": "Version",

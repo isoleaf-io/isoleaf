@@ -623,6 +623,7 @@
       "uploading": "Enviando…",
       "loading": "Carregando schemas…",
       "empty": "Nenhum schema carregado.",
+      "uploadUnavailableReason": "a versão online trabalha com um catálogo fixo de XSDs ISO 20022. A árvore abaixo, a Referência de Campos e o Comparador de Versões continuam funcionando normalmente sobre esse catálogo. Para carregar XSDs personalizados, instale o ISOLeaf localmente via Docker.",
       "col": {
         "messageType": "Message Type",
         "version": "Versão",
