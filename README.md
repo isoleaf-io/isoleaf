@@ -1,6 +1,6 @@
-# ISOLeaf — ISO 8583 Toolkit
+# ISOLeaf — ISO 8583 & ISO 20022 Toolkit
 
-> Parse, build, simulate and debug ISO 8583 messages — all in one place.
+> Parse, build, simulate and debug ISO 8583 and ISO 20022 messages — all in one place.
 
 [![License: ELv2](https://img.shields.io/badge/License-ELv2-blue.svg)](./LICENSE)
 [![.NET](https://img.shields.io/badge/.NET-9.0-purple.svg)](https://dotnet.microsoft.com)
@@ -11,11 +11,12 @@
 
 ## What is ISOLeaf?
 
-ISOLeaf is a standalone developer toolkit for engineers working with ISO 8583
-payment protocols. It runs entirely on your machine — no cloud, no sign-up,
-no data leaves your environment.
+ISOLeaf is a standalone developer toolkit for engineers working with card-network
+payment protocols (ISO 8583) and financial-messaging XML protocols (ISO 20022 —
+covering Brazilian Pix, SWIFT CBPR+, SEPA and TARGET/T2). It runs entirely on
+your machine — no cloud, no sign-up, no data leaves your environment.
 
-### Modules
+### ISO 8583 Modules
 
 | Module | Description |
 |--------|-------------|
@@ -26,6 +27,20 @@ no data leaves your environment.
 | **TCP Simulator** | Listen and auto-respond (rebatedor) or connect and inject (injector) |
 | **Test Card Generator** | Generate valid test PANs, tracks and CVV by brand |
 | **Workspace** | Local key management — configure IMK/ZPK for real ARQC generation |
+
+### ISO 20022 Modules
+
+| Module | Description |
+|--------|-------------|
+| **XML Parser** | Decode any ISO 20022 message — auto-detects family and version by namespace |
+| **Field Reference** | Browse the XSD tree per message and cross-search fields across every family and version |
+| **XSD Validator + Version Comparator** | Validate against the schema and diff two versions of the same type |
+| **Builder (5 ecosystems)** | Generate messages for Brazilian Pix, SEPA, SWIFT CBPR+, TARGET/T2 or Generic |
+| **Pix QR Code** | Decode and generate Pix Copia-e-Cola payloads (EMV-MPM) with CRC-16 validation |
+| **Flow Visualizer** | Cross-protocol sequence diagram — Pix, CBPR+ MX/MT and ISO 8583 |
+| **MT Parser** | Parse legacy SWIFT MT103 / MT202 / MT202COV messages block by block |
+| **MT ↔ MX Comparator** | Convert MT into pacs.008/pacs.009 and diff field by field with confidence levels |
+| **Workspace Schemas** | Upload custom XSDs — SchemaRegistry reloads live, no restart |
 
 ---
 
@@ -42,6 +57,15 @@ no data leaves your environment.
 
 ### EMV Data
 ![EMV Data](frontend/isohub/public/screenshots/emv1.png)
+
+### ISO 20022 Builder
+![ISO 20022 Builder](frontend/isohub/public/screenshots/iso20022/builder.png)
+
+### Cross-Protocol Flow Visualizer
+![Cross-Protocol Flow Visualizer](frontend/isohub/public/screenshots/iso20022/flow-visualizer.png)
+
+### MT ↔ MX Comparator
+![MT ↔ MX Comparator](frontend/isohub/public/screenshots/iso20022/comparador-mt-mx.png)
 
 ---
 
@@ -69,6 +93,11 @@ docker compose -f docker-compose.standalone.yml up
 The compose file already exposes ports `8080`, `9100`, `9200` and `8583`,
 mounts a `isoleaf-data` volume at `/app/data`, and runs the container with a
 `/api/health` healthcheck.
+
+> **Persisting uploaded ISO 20022 schemas.** If you plan to upload custom XSDs
+> via **Workspace → ISO 20022 Schemas** and want them to survive image
+> updates, add `-v isoleaf-schemas:/app/data/schemas` to the `docker run`
+> command (or the equivalent volume entry in your compose override).
 
 ### Option 3 — Build from source
 
@@ -111,6 +140,11 @@ http://localhost:8080/api/docs
 | `POST /api/cards/generate` | Generate a synthetic Luhn-valid test card |
 | `POST /api/emv/generate-arqc` | Compute the ARQC cryptogram |
 | `POST /api/emv/generate-arpc` | Compute the ARPC (issuer response cryptogram) |
+| `POST /api/iso20022/builder/build` | Generate an ISO 20022 message from an ecosystem + scenario cascade |
+| `GET  /api/test-data/person` | Return a fake person fixture (name, CPF, e-mail, Pix phone) |
+| `POST /api/iso20022/validate` | Validate an ISO 20022 XML against its embedded XSD |
+| `POST /api/swift/mt/parse` | Parse a SWIFT MT103 / MT202 / MT202COV message |
+| `POST /api/pix/qrcode/generate` | Generate a Pix Copia-e-Cola payload (EMV-MPM with CRC-16) |
 
 ### Quick example
 
@@ -164,6 +198,20 @@ curl -X POST http://localhost:8080/api/cards/generate \
 - TPDU mode: Optional, Required, Strip, or Auto
 - Live log with per-session filtering
 
+### ISO 20022
+- **Multi-Ecosystem Builder** — five ready-made ecosystems with regulator-compliant defaults:
+  - **Brazilian Pix** (SPI/BCB) — 32-char EndToEndId, ISPB, TxId per BCB Standards Manual
+  - **SEPA** — IBAN, euro-area purpose codes and cardinalities
+  - **SWIFT CBPR+** — BIC + UETR, cover payments (pacs.009), Debtor/Creditor agents
+  - **TARGET/T2** — Eurosystem RTGS variant
+  - **Generic** — any loaded XSD (including custom uploads from Workspace)
+- **Cross-Protocol Flow Visualizer** — sequence diagrams for Pix (PSP → SPI → PSP), SWIFT CBPR+ (MX and legacy MT) and ISO 8583; each arrow opens the real message payload with a parse summary
+- **MT ↔ MX Parser & Comparator** — parse MT103/MT202/MT202COV, convert to pacs.008/pacs.009 via BuilderService, diff MT vs MX field by field with `Automatic`/`Ambiguous`/`NoMapping` confidence per field
+- **Reference & Validator** — browse the XSD tree per message, cross-search field names across 44+ shipped schemas, validate any XML against the schema with line/column-anchored errors
+- **Pix QR Code** — decode and generate Copia-e-Cola (EMV-MPM) payloads, static or dynamic, with CRC-16 and DICT key detection
+
+> Deep-dive documentation at [docs.isoleaf.dev](https://docs.isoleaf.dev) — including every ISO 20022 family (camt/pacs/pain/head), the AppHdr / Document envelope model, the 5 ecosystems' business rules, and step-by-step guides for the Builder, Flow Visualizer and MT↔MX Comparator.
+
 ---
 
 ## Architecture
@@ -174,6 +222,7 @@ isoleaf/
 │   ├── Iso8583Toolkit.IsoCore/        # ISO 8583 parsing and building
 │   ├── Iso8583Toolkit.Cards/          # Card generation (PAN, tracks, CVV)
 │   ├── Iso8583Toolkit.Cryptography/   # EMV cryptography (ARQC, ARPC, TLV)
+│   ├── Iso8583Toolkit.Iso20022/       # ISO 20022 parsing, building, reference and validation
 │   └── Iso8583Toolkit.Simulator/      # TCP session management
 ├── agent/
 │   └── Iso8583Toolkit.Agent/          # ASP.NET Core host + REST API + SignalR
@@ -198,8 +247,6 @@ dotnet test
 cd frontend/isohub
 npm run test
 ```
-
-Current test count: **487 tests, 0 failures**
 
 ---
 
@@ -274,7 +321,7 @@ ISOLeaf is licensed under the [Elastic License 2.0](./LICENSE).
 
 - [ ] EMV tag decoders (TVR, AIP, TTQ, CVM List, IAD by brand)
 - [ ] Key Block decoder (ANSI TR-31)
-- [ ] ISOLeaf Online (hosted, no sign-up required)
+- [ ] ISO 20022 Simulator (Sprint 11)
 - [ ] Custom MTI response map in Simulator UI
 - [ ] ISO 8583:2003 layout support
 
