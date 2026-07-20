@@ -194,6 +194,21 @@
     }
     .hero-ctas .btn { padding: 13px 26px; font-size: 15px; }
 
+    /* Portable fallback line under the two big CTAs. Deliberately small
+       and muted — this is a niche third path, not a peer button. */
+    .hero-secondary {
+      margin-top: 18px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .hero-secondary a {
+      color: var(--accent);
+      font-weight: 600;
+      margin-left: 4px;
+      transition: color .15s;
+    }
+    .hero-secondary a:hover { color: var(--accent-dark); }
+
     /* ---------- SECTION HEADERS ---------- */
     .section { padding: 72px 0; }
     .section-head { text-align: center; margin-bottom: 52px; }
@@ -553,7 +568,18 @@
              data-href-en="https://docs.isoleaf.dev/en/#guides/self-hosting-with-docker-beginner-s-guide"
              data-href-pt="https://docs.isoleaf.dev/pt/#guides/self-host-com-docker-guia-para-iniciantes">Self-host with Docker</a>
         </div>
-        
+        <!-- Portable link: a lightweight third path for shops where Docker
+             is blocked but .NET is already on the box. Deliberately typed
+             as a plain small link, not a third button — this is a niche
+             fallback, not a peer of "Use online" or "Self-host with Docker". -->
+        <p class="hero-secondary">
+          <span data-en="No Docker?" data-pt="Sem Docker?">No Docker?</span>
+          <a href="https://github.com/isoleaf-io/isoleaf/releases"
+             target="_blank"
+             rel="noopener"
+             data-en="Try the portable version →"
+             data-pt="Experimente a versão portátil →">Try the portable version →</a>
+        </p>
       </div>
     </section>
 

@@ -254,3 +254,123 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  # ── Stage 5 (parallel with docker) ────────────────────────────────────────
+  # Framework-dependent portable zip attached as a GitHub Release asset on
+  # every `v*` tag. Same gate as `docker`: backend+frontend must strictly
+  # succeed; gitleaks/codeql may be skipped (they gate themselves off tag
+  # pushes). Only fires on tag pushes — main pushes don't produce a portable
+  # asset because there is no Release object to attach to.
+  portable:
+    name: Portable zip (framework-dependent)
+    needs: [backend, frontend, gitleaks, codeql]
+    if: |
+      always() &&
+      needs.backend.result == 'success' &&
+      needs.frontend.result == 'success' &&
+      (needs.gitleaks.result == 'success' || needs.gitleaks.result == 'skipped') &&
+      (needs.codeql.result == 'success' || needs.codeql.result == 'skipped') &&
+      github.event_name == 'push' &&
+      startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write   # softprops/action-gh-release creates the release + uploads asset
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET 9
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Setup Node 20
+        # Agent's csproj target BuildFrontend runs `npm install && npm run
+        # build` during dotnet publish -c Release; Node must be on the PATH
+        # for that to succeed on the CI runner.
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
+      - name: Cache npm packages
+        uses: actions/cache@v4
+        with:
+          path: frontend/isohub/node_modules
+          key: ${{ runner.os }}-npm-${{ hashFiles('frontend/isohub/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-
+
+      - name: Publish (framework-dependent, cross-platform)
+        # No -r/RuntimeIdentifier and no PublishSingleFile: a single .dll
+        # payload runs on Windows/Mac/Linux as long as the .NET 9 Runtime
+        # is installed. BuildFrontend + CopyLandingToWwwroot targets in
+        # Agent.csproj populate wwwroot with the SPA and landing pages.
+        run: dotnet publish agent/Iso8583Toolkit.Agent/Iso8583Toolkit.Agent.csproj -c Release -o publish/portable --no-self-contained
+
+      - name: Write launcher scripts and README
+        run: |
+          # Windows: swallow the console window closing instantly on error
+          # so a double-click user sees the exception before it disappears.
+          cat > publish/portable/run.bat <<'BAT'
+          @echo off
+          echo Starting ISOLeaf on http://localhost:8080 ...
+          echo (requires .NET 9 Runtime: https://dotnet.microsoft.com/download/dotnet/9.0)
+          dotnet Iso8583Toolkit.Agent.dll
+          pause
+          BAT
+
+          # Mac/Linux: /bin/sh keeps the launcher portable across default
+          # shells (bash on Linux, zsh on modern Mac). No `set -e` so a
+          # normal Ctrl+C exits cleanly without a bash trap.
+          cat > publish/portable/run.sh <<'SH'
+          #!/bin/sh
+          echo "Starting ISOLeaf on http://localhost:8080 ..."
+          echo "(requires .NET 9 Runtime: https://dotnet.microsoft.com/download/dotnet/9.0)"
+          exec dotnet Iso8583Toolkit.Agent.dll
+          SH
+          chmod +x publish/portable/run.sh
+
+          cat > publish/portable/README-PORTABLE.txt <<TXT
+          ISOLeaf ${{ github.ref_name }} — portable (framework-dependent)
+
+          Prerequisite: .NET 9 Runtime
+            https://dotnet.microsoft.com/download/dotnet/9.0
+
+          Run:
+            Windows        →  run.bat  (or double-click)
+            macOS / Linux  →  ./run.sh
+
+          Then open http://localhost:8080 in your browser.
+
+          Same payload runs on Windows, macOS and Linux — no per-OS build.
+          TXT
+
+      - name: Zip payload
+        # Zip from inside the publish/ dir so the archive expands to
+        # `isoleaf-portable-vX.Y.Z/` (no double nesting). No RID in the
+        # name: the same zip serves Windows/Mac/Linux.
+        run: |
+          cd publish
+          mv portable "isoleaf-portable-${{ github.ref_name }}"
+          zip -r "isoleaf-portable-${{ github.ref_name }}.zip" "isoleaf-portable-${{ github.ref_name }}"
+          ls -lh "isoleaf-portable-${{ github.ref_name }}.zip"
+
+      - name: Create GitHub Release and upload asset
+        # Creates the Release if it doesn't exist yet (first job to run on
+        # the tag), or reuses it if the docker job's downstream tooling
+        # already made one. `generate_release_notes` fills the body with
+        # commits since the previous tag so we don't have to hand-write
+        # anything for point releases.
+        uses: softprops/action-gh-release@v2
+        with:
+          files: publish/isoleaf-portable-${{ github.ref_name }}.zip
+          generate_release_notes: true
+          fail_on_unmatched_files: true
