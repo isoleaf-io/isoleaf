@@ -208,6 +208,28 @@ function collectText(b) {
 // `expandedKey` = section whose accordion is currently open (may differ from
 // activeKey because clicking an already-expanded item collapses it without
 // changing the visible content).
+//
+// Visual grouping: keys listed as children of GROUP_PARENT render with the
+// nav-item--nested modifier (extra left padding, slightly smaller label
+// font) so they read as members of the ISO 8583 / ISO 20022 world without
+// changing any click/expand behaviour — each section still owns its own
+// independent accordion. iso8583 and iso20022 are the group headings and
+// have no entry here (they behave like any other top-level section).
+const GROUP_PARENT = {
+  emv: "iso8583",
+  roles: "iso8583",
+  fields: "iso8583",
+  iso20022Roles: "iso20022",
+};
+// Derived set — every value that appears on the right-hand side of the
+// map above is a "group parent" (the label that other keys nest under).
+// Rendering-side these items get an extra `nav-item--group-parent`
+// modifier: permanent bold label + thin top border, matching the
+// mother-group treatment in the app Sidebar. No hardcoding a second
+// list of names — a new child in GROUP_PARENT automatically lifts its
+// parent into the set here.
+const GROUP_PARENTS = new Set(Object.values(GROUP_PARENT));
+
 function renderSidebar(sections, activeKey, expandedKey, activeSubId) {
   const nav = document.getElementById("nav");
   if (!nav) return;
@@ -224,6 +246,8 @@ function renderSidebar(sections, activeKey, expandedKey, activeSubId) {
       const itemClasses = ["nav-item"];
       if (isActive) itemClasses.push("active");
       if (isExpanded) itemClasses.push("expanded");
+      if (GROUP_PARENT[s.key]) itemClasses.push("nav-item--nested");
+      if (GROUP_PARENTS.has(s.key)) itemClasses.push("nav-item--group-parent");
       return `
         <button type="button" class="${itemClasses.join(" ")}" data-section="${s.key}" aria-expanded="${isExpanded}">
           <span class="nav-caret">▶</span>
