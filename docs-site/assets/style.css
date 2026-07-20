@@ -163,6 +163,28 @@ button { font-family: inherit; }
 .nav-item.expanded .nav-caret { transform: rotate(90deg); }
 .nav-item-label { flex: 1; }
 
+/* Nested items — visually grouped under a parent section (see GROUP_PARENT
+   in app.js). Same visual language as .sub-item.level-3: extra left
+   padding to match the group's caret column, slightly smaller label
+   font (13px vs 13.5px) to hint hierarchy. Behaviour is unchanged —
+   the accordion still opens/closes independently. */
+.nav-item.nav-item--nested { padding-left: 26px; }
+.nav-item.nav-item--nested .nav-item-label { font-size: 13px; }
+
+/* Group parents — the labels that other keys nest UNDER (iso8583, iso20022).
+   Permanent bold + thin top divider mirror the mother-group treatment in
+   the app Sidebar (frontend/isohub/src/components/layout/Sidebar.tsx):
+   the bold reads "this is a heading of something", the divider peels
+   the group off from what precedes it. Independent of the .active
+   highlight (which layers accent-bg on top when the group is on
+   screen). */
+.nav-item.nav-item--group-parent {
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+  margin-top: 12px;
+}
+.nav-item.nav-item--group-parent .nav-item-label { font-weight: 600; }
+
 .subnav {
   display: none;
   padding: 4px 0 10px 28px;

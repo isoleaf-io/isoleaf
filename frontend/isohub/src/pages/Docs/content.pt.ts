@@ -3,6 +3,977 @@ import { TPDU_SVG, MESSAGE_STRUCTURE_SVG, EMV_BIT55_ORIGINS_SVG, EMV_DERIVATION_
 
 /** Long-form documentation in Portuguese. Mirrored by content.en.ts. */
 export const DOCS_PT: Record<string, DocSection> = {
+  guides: {
+    id: "guides",
+    blocks: [
+      // ── Guia amigável para iniciantes em Docker ──────────────────
+      { type: "heading", level: 2, text: "Self-host com Docker — guia para iniciantes" },
+      {
+        type: "paragraph",
+        text:
+          "Cinco passos para rodar o ISOLeaf inteiro na sua máquina, mesmo se você nunca abriu um terminal antes. Nada de `git clone`, nada de compilar código, nada de editor. Só o Docker Desktop e um comando de uma linha.",
+      },
+      { type: "heading", level: 3, text: "O que você precisa" },
+      {
+        type: "list",
+        items: [
+          "**Docker Desktop** instalado — Windows, Mac ou Linux. É o único requisito.",
+          "**Um navegador** — Chrome, Firefox, Safari ou Edge, qualquer versão recente.",
+          "**Zero configuração adicional** — não precisa criar conta, gerar chaves, instalar Node, .NET, git ou qualquer coisa além do Docker.",
+        ],
+      },
+
+      { type: "heading", level: 3, text: "Passo 1 — Instalar o Docker Desktop" },
+      {
+        type: "paragraph",
+        text:
+          "Baixe o instalador do [site oficial da Docker](https://www.docker.com/products/docker-desktop/) e siga o assistente até o fim (é o mesmo fluxo Next → Next → Instalar). Depois de instalar, abra o **Docker Desktop** — na primeira execução ele mostra uma tela de boas-vindas com aceite de termos.",
+      },
+      {
+        type: "paragraph",
+        text:
+          "Confirme que está tudo pronto: na parte de baixo da janela do Docker Desktop deve aparecer o indicador verde com o texto **\"Engine running\"** (ou equivalente em português: \"Motor em execução\"). Se aparecer \"starting\" ou vermelho, aguarde alguns segundos ou reinicie o app.",
+      },
+      {
+        type: "callout",
+        tone: "info",
+        text:
+          "No Windows, o Docker Desktop pode pedir para habilitar o WSL 2 (Subsistema Windows para Linux) na primeira execução — aceite. É automático, só demora 1-2 minutos.",
+      },
+
+      { type: "heading", level: 3, text: "Passo 2 — Abrir um terminal e colar o comando" },
+      {
+        type: "paragraph",
+        text:
+          "**Onde encontrar o terminal:** no Windows, procure por \"PowerShell\" ou \"Prompt de Comando\" no menu Iniciar. No Mac, abra o app \"Terminal\" via Spotlight (⌘+Space, digite \"terminal\"). No Linux, ele geralmente já está no seu dock com o nome \"Terminal\" ou \"Console\".",
+      },
+      {
+        type: "paragraph",
+        text:
+          "Cole o comando abaixo no terminal e pressione Enter. A primeira execução baixa a imagem (~200 MB), aguarde de 30s a 2 minutos dependendo da sua conexão. Depois disso, o container inicia em poucos segundos:",
+      },
+      {
+        type: "code",
+        lang: "bash",
+        text:
+          "docker run -d --name isoleaf -p 8080:8080 ghcr.io/isoleaf-io/isoleaf:latest",
+      },
+      {
+        type: "paragraph",
+        text:
+          "Se aparecer uma linha longa com letras e números (o ID do container), deu certo. Se aparecer erro, veja a seção **Problemas comuns** no final deste guia.",
+      },
+
+      { type: "heading", level: 3, text: "Passo 3 — Abrir no navegador" },
+      {
+        type: "paragraph",
+        text:
+          "Abra o navegador e vá para **[http://localhost:8080](http://localhost:8080)**. A aplicação aparece imediatamente — é exatamente a mesma que você usa em isoleaf.dev, só que rodando 100% localmente.",
+      },
+      {
+        type: "callout",
+        tone: "success",
+        text:
+          "Diferença prática vs. a versão online: no self-hosted todas as features do Simulador TCP e da criptografia EMV ficam habilitadas — sessões TCP reais, ARQC/ARPC com IMK configurável, upload de XSDs ISO 20022 personalizados, tudo sem restrições.",
+      },
+
+      { type: "heading", level: 3, text: "Passo 4 (opcional) — Persistir XSDs entre atualizações" },
+      {
+        type: "paragraph",
+        text:
+          "Se você planeja fazer upload de XSDs ISO 20022 personalizados (via **Workspace → Schemas ISO 20022**) e quer que eles sobrevivam a `docker pull` de novas versões do ISOLeaf, use um volume Docker nomeado. Pare o container atual e rode com a flag `-v`:",
+      },
+      {
+        type: "code",
+        lang: "bash",
+        text:
+          "docker stop isoleaf\ndocker rm isoleaf\ndocker run -d --name isoleaf -p 8080:8080 \\\n  -v isoleaf-schemas:/app/data/schemas \\\n  ghcr.io/isoleaf-io/isoleaf:latest",
+      },
+      {
+        type: "paragraph",
+        text:
+          "Na primeira vez, o Docker copia automaticamente o catálogo de 44 XSDs padrão para dentro do volume `isoleaf-schemas`. Uploads posteriores ficam ao lado deles e persistem entre reinícios e atualizações da imagem. Sem essa flag, uploads valem só pela vida do container atual (mas o catálogo padrão está sempre disponível de novo).",
+      },
+
+      { type: "heading", level: 3, text: "Passo 5 — Parar e atualizar" },
+      {
+        type: "paragraph",
+        text:
+          "**Parar o container** (não desinstala — só desliga):",
+      },
+      {
+        type: "code",
+        lang: "bash",
+        text:
+          "docker stop isoleaf\ndocker rm isoleaf",
+      },
+      {
+        type: "paragraph",
+        text:
+          "**Atualizar para a versão mais recente:** puxe a nova imagem, remova o container antigo e rode de novo com o mesmo comando do Passo 2 (ou do Passo 4 se você usa volume):",
+      },
+      {
+        type: "code",
+        lang: "bash",
+        text:
+          "docker pull ghcr.io/isoleaf-io/isoleaf:latest\ndocker stop isoleaf && docker rm isoleaf\ndocker run -d --name isoleaf -p 8080:8080 ghcr.io/isoleaf-io/isoleaf:latest",
+      },
+
+      { type: "heading", level: 3, text: "Problemas comuns" },
+      {
+        type: "callout",
+        tone: "warning",
+        text:
+          "**Erro \"port is already allocated\" ou \"bind: address already in use\"** — a porta 8080 já está sendo usada por outro programa (talvez outra instância do próprio ISOLeaf, ou um servidor local). Troque a porta local pra 8081 (ou qualquer outra livre): `-p 8081:8080` no comando. Depois abra `http://localhost:8081` em vez de 8080.",
+      },
+      {
+        type: "callout",
+        tone: "warning",
+        text:
+          "**Docker Desktop não inicia / aparece \"Docker daemon is not running\"** — reinicie o Docker Desktop pelo app (menu → Restart). Se persistir, reinicie a máquina e abra o Docker Desktop antes de qualquer outra coisa. Em último caso, reinstale o Docker Desktop pelo instalador oficial.",
+      },
+      {
+        type: "callout",
+        tone: "info",
+        text:
+          "**Como saber que o container está rodando?** Rode `docker ps` no terminal — se aparecer uma linha com `isoleaf` e `Up X minutes`, tudo certo. Se não aparecer, rode `docker ps -a` (com `-a`) para ver containers parados e reveja o output do `docker run` para eventuais erros.",
+      },
+
+      { type: "divider" },
+
+      // ── Guia Portable (sem Docker, sem git) ──────────────────────
+      { type: "heading", level: 2, text: "Portable — sem Docker, sem git" },
+      {
+        type: "paragraph",
+        text:
+          "Três passos para rodar o ISOLeaf a partir de um zip, sem instalar Docker, sem clonar repositório, sem editor. Distribuição pensada para ambientes corporativos com Docker bloqueado mas .NET já instalado nas estações — bancos, seguradoras, órgãos regulados.",
+      },
+
+      { type: "heading", level: 3, text: "O que você precisa" },
+      {
+        type: "list",
+        items: [
+          "**.NET 9 Runtime** — só o runtime, não o SDK completo. Baixe do [site oficial da Microsoft](https://dotnet.microsoft.com/download/dotnet/9.0) e siga o assistente.",
+          "**Um navegador** — Chrome, Firefox, Safari ou Edge.",
+          "**Nenhum Docker**, **nenhum git**, **nenhuma linha de comando complicada** — o zip vem com um script `run.bat` (Windows) ou `run.sh` (Mac/Linux) que sobe o app.",
+        ],
+      },
+
+      { type: "heading", level: 3, text: "Passo 1 — Baixar o zip" },
+      {
+        type: "paragraph",
+        text:
+          "Abra a [página de Releases do ISOLeaf no GitHub](https://github.com/isoleaf-io/isoleaf/releases) e baixe o arquivo `isoleaf-portable-vX.Y.Z.zip` (X.Y.Z é a versão mais recente). Extraia o zip em qualquer pasta da sua máquina.",
+      },
+      {
+        type: "callout",
+        tone: "info",
+        text:
+          "O mesmo zip roda em Windows, Mac e Linux — não tem versão separada por sistema operacional. É um build framework-dependent do .NET, o runtime local resolve as diferenças de plataforma automaticamente.",
+      },
+
+      { type: "heading", level: 3, text: "Passo 2 — Rodar o script" },
+      {
+        type: "paragraph",
+        text:
+          "Dentro da pasta extraída, execute o script apropriado para o seu sistema:",
+      },
+      {
+        type: "list",
+        items: [
+          "**Windows** — clique duas vezes em `run.bat`, ou execute pelo PowerShell / Prompt de Comando.",
+          "**Mac / Linux** — abra o Terminal na pasta e rode `./run.sh`. Se o sistema reclamar de permissão, execute `chmod +x run.sh` uma única vez para marcar o script como executável e tente de novo.",
+        ],
+      },
+      {
+        type: "paragraph",
+        text:
+          "O terminal mostra `Now listening on: http://localhost:8080` quando estiver pronto. Deixe a janela aberta — fechar ela desliga o app.",
+      },
+
+      { type: "heading", level: 3, text: "Passo 3 — Abrir no navegador" },
+      {
+        type: "paragraph",
+        text:
+          "Vá para **[http://localhost:8080](http://localhost:8080)**. A aplicação aparece — mesmas telas, mesmas features do modo Docker, incluindo Simulador TCP, criptografia EMV e upload de XSDs ISO 20022 personalizados.",
+      },
+
+      {
+        type: "callout",
+        tone: "info",
+        text:
+          "**Trocar a porta 8080** — se algo já usa essa porta na sua máquina, tem duas formas de mudar. **Opção A:** edite `appsettings.json` dentro da pasta extraída, seção `\"Agent\": { \"Port\": 9090 }`, e rode o script de novo. **Opção B:** defina a variável de ambiente `ASPNETCORE_URLS=http://localhost:9090` antes de rodar (`set ASPNETCORE_URLS=…` no CMD Windows, `export ASPNETCORE_URLS=…` no Mac/Linux). Depois abra `http://localhost:9090`.",
+      },
+      {
+        type: "callout",
+        tone: "success",
+        text:
+          "**Caso de uso típico:** desenvolvedor em banco/seguradora onde a política de TI bloqueia Docker e outros containers, mas o .NET Runtime já está instalado nas estações (comum em stacks .NET corporativas). O zip Portable roda direto — sem admin, sem VPN, sem pedir liberação para o time de infraestrutura.",
+      },
+
+      { type: "divider" },
+
+      { type: "heading", level: 2, text: "Arquitetura do ISOLeaf" },
+      {
+        type: "paragraph",
+        text:
+          "O ISOLeaf é uma aplicação standalone que roda inteiramente na sua máquina. Nenhum dado sai do seu ambiente.",
+      },
+      { type: "svg", text: ISOHUB_ARCHITECTURE_SVG },
+      { type: "heading", level: 3, text: "Segurança" },
+      { type: "callout", tone: "success", text: "Dados ficam na sua máquina — zero telemetria, sem conexões externas além das que você configurar." },
+      { type: "callout", tone: "warning", text: "Sem autenticação JWT — acesso livre em localhost. Se expor a porta 8080 na rede (0.0.0.0), qualquer máquina da rede pode acessar sem senha. Use apenas em redes confiáveis ou com firewall." },
+      { type: "heading", level: 3, text: "Dados armazenados localmente" },
+      {
+        type: "list",
+        items: [
+          "Workspace (IMK, ZPK, configurações): arquivo JSON local",
+          "Templates: localStorage do browser",
+          "Histórico EMV: memória da sessão (limpo ao reiniciar)",
+        ],
+      },
+
+      // ── Primeiros passos — visão geral dos módulos ─────────────────
+      { type: "heading", level: 2, text: "Primeiros passos — conhecendo os módulos" },
+      {
+        type: "paragraph",
+        text:
+          "O ISOLeaf é organizado em seis módulos. Antes de mergulhar em um guia específico, vale conhecer rapidamente o que cada um faz.",
+      },
+
+      { type: "heading", level: 3, text: "Parser" },
+      {
+        type: "paragraph",
+        text:
+          "O módulo mais usado. Cole qualquer mensagem ISO 8583 (ASCII wire ou binary-hex, com ou sem TPDU) e veja todos os campos decodificados automaticamente. Clique em qualquer campo para copiar, revelar valores mascarados ou navegar para outros módulos.",
+      },
+      {
+        type: "image",
+        src: "/screenshots/parse1.png",
+        alt: "Tela do Parser",
+        caption: "Parser — decodifica qualquer mensagem ISO 8583",
+      },
+
+      { type: "heading", level: 3, text: "Builder" },
+      {
+        type: "paragraph",
+        text:
+          "Gera mensagens ISO 8583 completas sem precisar conhecer cada campo. Selecione o contexto (papel, bandeira, canal, tipo de transação) e o ISOLeaf preenche automaticamente os campos corretos — incluindo o Bit 55 com ARQC real quando a IMK está configurada no Workspace.",
+      },
+      {
+        type: "image",
+        src: "/screenshots/builder2.png",
+        alt: "Builder com mensagem gerada",
+        caption: "Builder — mensagem gerada com campos preenchidos automaticamente",
+      },
+      {
+        type: "image",
+        src: "/screenshots/builder3.png",
+        alt: "Painel de adição de bits adicionais no Builder",
+        caption: "Builder — adicione bits extras à mensagem gerada",
+      },
+
+      { type: "heading", level: 3, text: "Simulador" },
+      {
+        type: "paragraph",
+        text:
+          "Suba um Rebatedor para receber mensagens TCP e responder automaticamente — simulando um autorizador/emissor. Ou use o Injetor para enviar mensagens ao seu sistema e acompanhar as respostas em tempo real.",
+      },
+      {
+        type: "image",
+        src: "/screenshots/simulator.png",
+        alt: "Tela do Simulador",
+        caption: "Simulador — 4 sessões ativas com mensagem rebatida com sucesso",
+      },
+
+      { type: "heading", level: 3, text: "Dados EMV" },
+      {
+        type: "paragraph",
+        text:
+          "Seis tabs para trabalhar com criptografia EMV: Parse Bit 55, Validate ARQC, Generate ARQC, Generate ARPC, Build Response e Full Flow.",
+      },
+      {
+        type: "image",
+        src: "/screenshots/emv1.png",
+        alt: "Tela de Dados EMV",
+        caption: "Dados EMV — Parse Bit 55 com tags decodificadas",
+      },
+
+      { type: "heading", level: 3, text: "Cartão de teste" },
+      {
+        type: "paragraph",
+        text:
+          "Gera PANs válidos com trilhas e CVV por bandeira para usar em testes sem precisar de cartões reais.",
+      },
+      {
+        type: "image",
+        src: "/screenshots/testcard.png",
+        alt: "Tela de Cartão de teste",
+        caption: "Cartão de teste — gera dados válidos por bandeira",
+      },
+
+      { type: "heading", level: 3, text: "Workspace" },
+      {
+        type: "paragraph",
+        text:
+          "Configure valores padrão (Terminal ID, Merchant ID, NIIs) e chaves criptográficas (IMK, ZPK) que são usadas automaticamente pelo Builder e pelo Simulador.",
+      },
+      {
+        type: "image",
+        src: "/screenshots/workspace.png",
+        alt: "Tela do Workspace",
+        caption: "Workspace — configurações e chaves criptográficas",
+      },
+      {
+        type: "image",
+        src: "/screenshots/workspace2.png",
+        alt: "Templates salvos no Workspace",
+        caption: "Workspace — templates salvos para reutilização no Builder",
+      },
+
+      { type: "divider" },
+
+      // ── Tour ISO 20022 ────────────────────────────────────────────
+      { type: "heading", level: 2, text: "Primeiros passos — módulos ISO 20022" },
+      {
+        type: "paragraph",
+        text:
+          "O bloco ISO 20022 do ISOLeaf reúne oito módulos que cobrem o ciclo completo de leitura, produção e visualização de mensagens. A ideia desta seção é apresentar cada um em uma linha para você saber para onde ir; o passo-a-passo profundo dos casos mais comuns vem no bloco \"Guias práticos — ISO 20022\" mais adiante.",
+      },
+
+      { type: "heading", level: 3, text: "Parser XML" },
+      {
+        type: "paragraph",
+        text:
+          "Cole qualquer XML ISO 20022 (com ou sem AppHdr) e veja a árvore de campos decodificada. O parser detecta a família e a versão pelo namespace, aplica o XSD certo automaticamente e traz um resumo semântico (tipo de operação, atores, valor, chave Pix quando existir). Botão \"Gerar Return\" produz a mensagem de resposta correlata (pacs.008 → pacs.002/pacs.004).",
+      },
+      {
+        type: "image",
+        src: "/screenshots/iso20022/parser-xml.png",
+        alt: "Tela do Parser XML ISO 20022",
+        caption: "Parser XML — árvore de campos decodificada + resumo semântico",
+      },
+
+      { type: "heading", level: 3, text: "Referência de Campos" },
+      {
+        type: "paragraph",
+        text:
+          "Árvore navegável da estrutura de qualquer mensagem suportada. Aba \"Por mensagem\" mostra o XSD inteiro em formato de tree; aba \"Busca por campo\" cruza um nome (ex: EndToEndId, Dbtr, RmtInf) contra todas as versões e famílias, útil para entender onde um campo aparece em diferentes tipos e como sua cardinalidade evoluiu entre versões.",
+      },
+      {
+        type: "image",
+        src: "/screenshots/iso20022/referencia-campos.png",
+        alt: "Tela da Referência de Campos ISO 20022",
+        caption: "Referência de Campos — árvore por mensagem + busca cruzada",
+      },
+
+      { type: "heading", level: 3, text: "Validador XSD + Comparador de Versões" },
+      {
+        type: "paragraph",
+        text:
+          "O Validador (botão dentro do Parser) roda o XML contra o XSD e devolve erros com mensagens curtas em português — o texto verboso do parser .NET é reformulado por família de erro (elemento inválido, valor fora do facet, cardinalidade errada, namespace errado). O Comparador de Versões diffa duas versões do mesmo tipo (ex: pacs.008.001.09 vs pacs.008.001.13) listando campos adicionados, removidos e alterados; quando aberto a partir de uma mensagem específica, filtra o diff pelos campos que a sua mensagem usa.",
+      },
+      {
+        type: "image",
+        src: "/screenshots/iso20022/validador-comparador.png",
+        alt: "Tela do Validador XSD e do Comparador de Versões",
+        caption: "Validador + Comparador — erros de schema traduzidos e diff entre versões",
+      },
+
+      { type: "heading", level: 3, text: "Builder" },
+      {
+        type: "paragraph",
+        text:
+          "Compõe mensagens ISO 20022 completas a partir de um Ecossistema → Cenário → Versão. Suporta 5 ecossistemas: **Brazilian Pix** (SPI/BCB, com formatos regulamentados de EndToEndId, ISPB, TxId), **SEPA** (crédito e status na área do euro), **SWIFT CBPR+** (cover payments, retornos, cancelamentos, status inquiry), **TARGET/T2** (câmara do Eurosistema) e **Generic** (para explorar qualquer XSD carregado). O split Formulário/XML deixa ver a mensagem sendo escrita em tempo real; abaixo do breakpoint md a interface vira abas para caber no mobile.",
+      },
+      {
+        type: "image",
+        src: "/screenshots/iso20022/builder.png",
+        alt: "Tela do Builder ISO 20022 com formulário e XML lado a lado",
+        caption: "Builder — cascata Ecossistema → Cenário → Versão com split Formulário/XML",
+      },
+
+      { type: "heading", level: 3, text: "QR Code Pix" },
+      {
+        type: "paragraph",
+        text:
+          "Decodifica e gera payloads EMV do Pix Copia e Cola (BR Code). Aceita QR estático (chave + valor) e dinâmico (POI com TXID). Serve tanto para inspecionar um QR alheio quanto para produzir QRs de teste — com validação inline dos campos obrigatórios do padrão BR Code.",
+      },
+      {
+        type: "image",
+        src: "/screenshots/iso20022/qrcode-pix.png",
+        alt: "Tela do módulo QR Code Pix",
+        caption: "QR Code Pix — decode e geração de BR Code (Pix Copia e Cola)",
+      },
+
+      { type: "heading", level: 3, text: "Flow Visualizer" },
+      {
+        type: "paragraph",
+        text:
+          "Diagrama de sequência multi-mensagem. Quatro abas de protocolo (Brazilian Pix, SWIFT CBPR+ MX, SWIFT CBPR+ MT, ISO 8583) — cada uma com seu conjunto de fluxos pré-definidos (crédito direto, cover payment, retorno, cancelamento, transferência com stand-in, etc.). Clicar em uma seta abre o payload correspondente em uma linha abaixo, com parse + botão de \"abrir no Parser\" quando o step for XML.",
+      },
+      {
+        type: "image",
+        src: "/screenshots/iso20022/flow-visualizer.png",
+        alt: "Tela do Flow Visualizer com diagrama de sequência",
+        caption: "Flow Visualizer — sequência multi-mensagem por protocolo",
+      },
+
+      { type: "heading", level: 3, text: "Parser MT" },
+      {
+        type: "paragraph",
+        text:
+          "Parseia mensagens SWIFT MT (formato legado, blocos {1:...}{2:...}{3:...}{4:...}). Reconhece MT103 (crédito de cliente), MT202 e MT202COV (crédito interbancário e cover). Complementa o Comparador MT↔MX quando a integração precisa suportar os dois formatos durante a migração CBPR+.",
+      },
+      {
+        type: "image",
+        src: "/screenshots/iso20022/parser-mt.png",
+        alt: "Tela do Parser MT com mensagem SWIFT decodificada",
+        caption: "Parser MT — decodifica MT103/MT202/MT202COV bloco a bloco",
+      },
+
+      { type: "heading", level: 3, text: "Comparador MT↔MX" },
+      {
+        type: "paragraph",
+        text:
+          "Diffa uma mensagem MT contra uma MX equivalente (ex: MT103 vs pacs.008). Modo A gera a MX a partir do MT via o Builder e mostra os dois lado a lado; Modo B compara duas mensagens já existentes campo a campo. Cada linha do diff traz um nível de confiança (Automatic quando o mapeamento CBPR+ é direto, Ambiguous quando há mais de uma opção equivalente, NoMapping quando o campo não tem correspondente no outro formato).",
+      },
+      {
+        type: "image",
+        src: "/screenshots/iso20022/comparador-mt-mx.png",
+        alt: "Tela do Comparador MT↔MX com diff entre MT103 e pacs.008",
+        caption: "Comparador MT↔MX — diff campo a campo com níveis de confiança",
+      },
+
+      { type: "heading", level: 3, text: "Workspace" },
+      {
+        type: "paragraph",
+        text:
+          "O Workspace consolida a configuração persistente do ISOLeaf. Abriu três abas:",
+      },
+      {
+        type: "list",
+        items: [
+          "**Configuração** — valores padrão aplicados ao Builder e ao Simulador: identificação da instituição, ISPB, BIC, contas-teste, chaves criptográficas (IMK, ZPK) do lado ISO 8583. Um lugar só, aplicado em todos os módulos.",
+          "**Templates** — mensagens salvas e reutilizáveis. Cada template guarda contexto + campos preenchidos; um clique traz de volta o estado exato do Builder. Aceita importação/exportação em JSON para compartilhar entre máquinas.",
+          "**Schemas ISO 20022** — inventário dos XSDs que o Agent conhece, agrupado por família (camt/head/pacs/pain). Um botão de upload permite adicionar um novo XSD; o schema é validado, gravado em disco e o registro é recarregado no ato — sem restart. Sprint 10.1 introduziu persistência híbrida via volume Docker: o volume `schemas-data` (montado em `/app/data/Schemas`) preserva os XSDs importados entre reinícios do container, enquanto o catálogo base continua embutido na imagem.",
+        ],
+      },
+      {
+        type: "callout",
+        tone: "info",
+        text:
+          "Após um upload de XSD, a Referência, o Comparador e o Builder passam a enxergar a nova versão imediatamente — o ReferenceService é recarregado em cadeia pelo SchemaUploadService.",
+      },
+
+      { type: "divider" },
+
+      // ── Guias práticos ────────────────────────────────────────────
+      { type: "heading", level: 2, text: "Guias práticos" },
+      {
+        type: "paragraph",
+        text:
+          "Passo a passo dos fluxos mais comuns no ISOLeaf. Cada guia parte de um cenário concreto e mostra os cliques exatos.",
+      },
+
+      {
+        type: "heading",
+        level: 3,
+        text: "Parsear uma mensagem ISO 8583",
+        subtitle: "Cenário: você recebeu uma mensagem ISO 8583 e precisa entender o que ela contém.",
+      },
+      {
+        type: "image",
+        src: "/screenshots/parse1.png",
+        alt: "Tela do Parser com mensagem ISO 8583 decodificada",
+        caption: "Parser — cole uma mensagem e veja todos os campos decodificados",
+      },
+      {
+        type: "image",
+        src: "/screenshots/parse2.png",
+        alt: "Parser com mensagem parseada",
+        caption: "Parser — mensagem decodificada com todos os campos",
+      },
+      {
+        type: "image",
+        src: "/screenshots/parse3.png",
+        alt: "Parser exibindo o bitmap",
+        caption: "Parser — visualização dos bits ativos no bitmap",
+      },
+      {
+        type: "list",
+        ordered: true,
+        items: [
+          "Abra o módulo **Parser**.",
+          "Cole a mensagem no campo de texto (aceita ASCII wire, binary-hex ou com TPDU).",
+          "Clique **Parsear →** ou pressione `Ctrl+Enter`. O ISOLeaf detecta o formato automaticamente.",
+        ],
+      },
+      { type: "callout", tone: "info", text: "Colar uma mensagem já dispara o parse automaticamente (300 ms de debounce)." },
+
+      { type: "divider" },
+
+      {
+        type: "heading",
+        level: 3,
+        text: "Gerar uma mensagem ISO 8583",
+        subtitle: "Cenário: você precisa de uma mensagem pronta para testar uma integração.",
+      },
+      {
+        type: "image",
+        src: "/screenshots/builder2.png",
+        alt: "Builder com mensagem gerada e campos preenchidos",
+        caption: "Builder — selecione o contexto e gere a mensagem completa",
+      },
+      {
+        type: "list",
+        ordered: true,
+        items: [
+          "Abra o módulo **Builder**.",
+          "Selecione **MTI**, **Papel**, **Bandeira**, **Canal** e **Tipo de transação**.",
+          "Clique **Gerar →**. Os campos são preenchidos automaticamente.",
+          "Edite os valores que precisar na tabela.",
+          "Copie a mensagem gerada (ASCII wire ou binary-hex).",
+        ],
+      },
+      { type: "callout", tone: "info", text: "Configure a IMK no **Workspace** para gerar **ARQC** real em vez de aleatório." },
+
+      { type: "divider" },
+
+      {
+        type: "heading",
+        level: 3,
+        text: "Validar ARQC de uma transação",
+        subtitle: "Cenário: você recebeu uma mensagem com Bit 55 e quer confirmar que o criptograma é legítimo.",
+      },
+      {
+        type: "image",
+        src: "/screenshots/emv2.png",
+        alt: "Tela de validação de ARQC no módulo Dados EMV",
+        caption: "Dados EMV — Validação de ARQC com resultado detalhado",
+      },
+      { type: "paragraph", text: "Pré-requisito: ter o Bit 55 em hex e a IMK do emissor." },
+      {
+        type: "list",
+        ordered: true,
+        items: [
+          "Abra **Dados EMV** → aba **Validate ARQC**.",
+          "Cole o Bit 55 em hex.",
+          "Informe a Issuer Master Key (**IMK-AC**).",
+          "Informe o **PAN** e o **PAN Sequence Number** (geralmente `00`).",
+          "Selecione o perfil da bandeira.",
+          "Clique **Validar ARQC**.",
+        ],
+      },
+      { type: "callout", tone: "info", text: "Use **Validar no EMV** diretamente no **Parser** — o PAN e a bandeira são preenchidos automaticamente após parsear uma mensagem com Bit 55." },
+
+      { type: "divider" },
+
+      {
+        type: "heading",
+        level: 3,
+        text: "Simular um autorizador (Rebatedor)",
+        subtitle: "Cenário: você tem um terminal/sistema que envia transações e quer simular o autorizador.",
+      },
+      {
+        type: "image",
+        src: "/screenshots/simulator.png",
+        alt: "Tela do Simulador com 4 sessões rebatedoras ativas",
+        caption: "Simulador — 4 sessões ativas com mensagem rebatida com sucesso",
+      },
+      {
+        type: "list",
+        ordered: true,
+        items: [
+          "Abra **Simulador** e clique **+ Nova sessão**.",
+          "Configure: **Porta TCP** (ex.: `9100`), **Papel** = `Emissor`, **RC padrão** = `00`, **Resposta automática** ligada.",
+          "Clique **Confirmar**.",
+          "Aponte seu terminal para `localhost:9100`.",
+          "O ISOLeaf responde automaticamente a cada mensagem recebida.",
+        ],
+      },
+      { type: "callout", tone: "info", text: "Clique no ícone de log no card da sessão para filtrar o log apenas dessa sessão." },
+
+      { type: "heading", level: 4, text: "Rebatedor (Listener)" },
+      {
+        type: "paragraph",
+        text:
+          "Abre uma porta TCP local e aguarda conexões. Quando recebe uma mensagem, responde automaticamente conforme as configurações da sessão.",
+      },
+      { type: "paragraph", text: "Campos de configuração:" },
+      {
+        type: "list",
+        items: [
+          "**Porta TCP**: porta local onde vai escutar (ex.: `9100`).",
+          "**Papel**: define o contexto da resposta automática — `Adquirente` (simula uma credenciadora), `Bandeira` (simula a rede) ou `Emissor` (simula o banco emissor, mais comum).",
+          "**RC padrão**: código de resposta padrão (`00` = aprovar tudo).",
+          "**Modo TPDU**: como tratar o prefixo TPDU — `Opcional` (aceita com ou sem), `Obrigatório` (rejeita sem TPDU) ou `Remover` (strip antes de processar).",
+          "**MTI desconhecido**: como responder a MTIs não mapeados — `Derivar` (tenta `0100`→`0110` automaticamente), `Rejeitar` (não responde), `Ecoar` (responde com o mesmo MTI) ou `Customizado` (MTI específico).",
+          "**Resposta automática**: toggle para ligar/desligar.",
+          "**Validar ARQC**: verifica o criptograma EMV (requer IMK configurada no **Workspace**).",
+        ],
+      },
+      {
+        type: "image",
+        src: "/screenshots/new_session.png",
+        alt: "Formulário de nova sessão do Simulador",
+        caption: "Criação de sessão — configurações do Rebatedor incluindo modo de framing (Length prefix)",
+      },
+
+      { type: "heading", level: 4, text: "Configurar resposta EMV (Rebatedor Emissor)" },
+      {
+        type: "paragraph",
+        text:
+          "No modo Emissor, o Rebatedor pode ser configurado para definir como o Bit 55 é tratado na resposta. Clique no botão ⚙️ no card da sessão para acessar as opções.",
+      },
+      {
+        type: "image",
+        src: "/screenshots/simulator2.png",
+        alt: "Configuração da resposta EMV no Rebatedor Emissor",
+        caption: "Config EMV — escolha entre Echo (cópia do Bit 55) ou Gerar ARPC (simular emissor real)",
+      },
+      {
+        type: "list",
+        items: [
+          "**Echo** (padrão): copia o Bit 55 recebido diretamente na resposta. Funciona com qualquer formato, incluindo mensagens com header proprietário antes do TLV.",
+          "**Gerar ARPC**: deriva o ARPC usando a IMK e retorna o Bit 55 de resposta com as tags `91` e `8A`. Permite configurar o tamanho do header proprietário (se houver) e a IMK (usa o Workspace se não informada).",
+          "**Validar ARQC**: quando ativado junto com **Gerar ARPC**, valida o ARQC antes de gerar a resposta. ARQC inválido resulta em RC=05 na resposta.",
+        ],
+      },
+
+      { type: "heading", level: 4, text: "Injetor (Connector)" },
+      {
+        type: "paragraph",
+        text:
+          "Conecta a um sistema TCP externo e envia mensagens. Use para testar seu autorizador enviando transações e verificando as respostas.",
+      },
+      { type: "paragraph", text: "Campos de configuração:" },
+      {
+        type: "list",
+        items: [
+          "**Host destino**: IP ou hostname do sistema alvo.",
+          "**Porta destino**: porta TCP do sistema alvo (ex.: `8583`).",
+          "**Mensagem**: a ISO 8583 a enviar (hex ou ASCII wire).",
+          "**Modo contínuo**: envia em loop (1 msg/s). Marque **Variar identificadores** para STAN/RRN/DateTime mudarem a cada envio; **Variar valor** para Amount aleatório dentro de um range.",
+        ],
+      },
+
+      { type: "heading", level: 4, text: "Log ao vivo" },
+      {
+        type: "paragraph",
+        text:
+          "Mostra em tempo real todas as mensagens recebidas e enviadas pelos Rebatedores. Clique no ícone de log em cada sessão para filtrar apenas aquela sessão.",
+      },
+
+      { type: "divider" },
+
+      {
+        type: "heading",
+        level: 3,
+        text: "Injetar mensagens (Injetor)",
+        subtitle: "Cenário: você tem um autorizador rodando e quer enviar transações para testá-lo.",
+      },
+      {
+        type: "list",
+        ordered: true,
+        items: [
+          "Abra **Simulador** → seção **Injetor**.",
+          "Configure **Host destino** e **Porta destino** (ex.: `localhost:8583`).",
+          "Cole a mensagem ISO 8583 no campo de texto (pode usar uma gerada pelo **Builder**).",
+          "Clique **Injetar →** para enviar uma única mensagem ou **Iniciar contínuo** para loop (1 msg/s).",
+        ],
+      },
+      { type: "callout", tone: "info", text: "Marque **Variar identificadores** para que cada envio tenha STAN/RRN diferente — evita rejeição por duplicata." },
+
+      { type: "divider" },
+
+      { type: "heading", level: 2, text: "As 6 tabs do módulo Dados EMV" },
+      {
+        type: "paragraph",
+        text:
+          "O módulo **Dados EMV** organiza os fluxos de criptografia em seis tabs encadeáveis. Você pode usar cada uma isolada ou combiná-las no **Full Flow**.",
+      },
+
+      { type: "heading", level: 4, text: "Parse Bit 55" },
+      {
+        type: "paragraph",
+        text:
+          "Cole um Bit 55 em hex e veja todas as tags BER-TLV decodificadas. Suporta parse parcial — se encontrar uma tag inválida, mostra o que conseguiu parsear até aquele ponto.",
+      },
+      {
+        type: "image",
+        src: "/screenshots/emv1.png",
+        alt: "Parse Bit 55 — tela inicial sem dados",
+        caption: "Parse Bit 55 — cole o Bit 55 em hex para decodificar as tags",
+      },
+
+      { type: "heading", level: 4, text: "Validate ARQC" },
+      {
+        type: "paragraph",
+        text:
+          "Valide se um ARQC recebido é legítimo. Informe o Bit 55, a IMK e o PAN. O ISOLeaf recalcula a cadeia de derivação e compara com o ARQC recebido.",
+      },
+      {
+        type: "image",
+        src: "/screenshots/emv3.png",
+        alt: "Validate ARQC — tela de validação",
+        caption: "Validate ARQC — informe o Bit 55, IMK e PAN para validar",
+      },
+
+      { type: "heading", level: 4, text: "Generate ARQC" },
+      {
+        type: "paragraph",
+        text:
+          "Gere um ARQC real a partir de dados de transação. Útil para criar dados de teste realistas ou verificar sua implementação de derivação.",
+      },
+      {
+        type: "image",
+        src: "/screenshots/emv4.png",
+        alt: "Generate ARQC — tela de geração",
+        caption: "Generate ARQC — gere um ARQC real a partir dos dados da transação",
+      },
+
+      { type: "heading", level: 4, text: "Generate ARPC" },
+      {
+        type: "paragraph",
+        text:
+          "Gere o ARPC (resposta do emissor) a partir do ARQC recebido. Suporta **Method 1** (Visa/Elo) e **Method 2** (Mastercard).",
+      },
+      {
+        type: "image",
+        src: "/screenshots/emv5.png",
+        alt: "Generate ARPC — tela de geração da resposta",
+        caption: "Generate ARPC — gere a resposta do emissor (Method 1 ou 2)",
+      },
+
+      { type: "heading", level: 4, text: "Build Response" },
+      {
+        type: "paragraph",
+        text:
+          "Monte o Bit 55 de resposta (tags `91` + `8A`) que o emissor deve retornar na mensagem de resposta.",
+      },
+      {
+        type: "image",
+        src: "/screenshots/emv6.png",
+        alt: "Build Response — montar Bit 55 de resposta",
+        caption: "Build Response — monte o Bit 55 de resposta com ARPC e ARC",
+      },
+
+      { type: "heading", level: 4, text: "Full Flow" },
+      {
+        type: "paragraph",
+        text:
+          "Executa os 4 passos em sequência automática — **Parse Bit 55** → **Validate ARQC** → **Generate ARPC** → **Build Response**. O fluxo completo do emissor em um único clique.",
+      },
+      {
+        type: "image",
+        src: "/screenshots/emv7.png",
+        alt: "Full Flow EMV com resultado completo",
+        caption: "Full Flow — ARQC validado, ARPC gerado, Bit 55 montado",
+      },
+
+      { type: "divider" },
+
+      {
+        type: "heading",
+        level: 3,
+        text: "Full Flow EMV",
+        subtitle: "Cenário: receber uma transação com chip e responder corretamente com ARPC.",
+      },
+      {
+        type: "list",
+        ordered: true,
+        items: [
+          "Abra **Dados EMV** → aba **Full Flow**.",
+          "Preencha: **Bit 55** hex da mensagem recebida, **IMK-AC**, **PAN**, **PAN Sequence Number**, **Auth Response Code**.",
+          "Clique **Run Full EMV Flow**.",
+          "O ISOLeaf parseia o Bit 55, valida o ARQC, gera o ARPC e monta o Bit 55 de resposta (tags `91` + `8A`).",
+          "Copie o Bit 55 de resposta para incluir na sua `0110` / `0210`.",
+        ],
+      },
+
+      { type: "divider" },
+
+      // ── Guias práticos — ISO 20022 ───────────────────────────────
+      { type: "heading", level: 2, text: "Guias práticos — ISO 20022" },
+      {
+        type: "paragraph",
+        text:
+          "Três fluxos cobrem 90% do que analistas fazem no dia a dia com o bloco ISO 20022 do ISOLeaf: montar uma mensagem multi-ecossistema no Builder, ler um diagrama de sequência no Flow Visualizer e entender o relatório do Comparador MT↔MX. Cada guia parte do zero e assume que você acabou de abrir o módulo.",
+      },
+
+      // ── Guia: Builder multi-ecossistema ──────────────────────────
+      {
+        type: "heading",
+        level: 4,
+        text: "Builder multi-ecossistema",
+        subtitle: "Cenário: você precisa gerar uma mensagem ISO 20022 pronta para testar uma integração — sem escrever XML na mão.",
+      },
+      {
+        type: "paragraph",
+        text:
+          "O Builder trabalha em uma cascata Ecossistema → Cenário → Versão → Gerar. Cada ecossistema traz seu próprio conjunto de cenários (com placeholders realistas de nomes, contas, BICs) e obriga apenas os campos que a rede em questão exige — o que evita a explosão de campos opcionais que o XSD puro do ISO 20022 traz por padrão.",
+      },
+      {
+        type: "list",
+        ordered: true,
+        items: [
+          "Abra o módulo **Builder**.",
+          "Selecione um **Ecossistema**. As opções são: **Brazilian Pix** (regras do SPI/BCB), **SEPA** (área do euro), **SWIFT CBPR+** (cross-border com BIC), **TARGET/T2** (câmara do Eurosistema) e **Generic** (permite escolher qualquer XSD carregado, sem regras de negócio locais).",
+          "Selecione um **Cenário**. O cenário determina o tipo de mensagem (pacs.008, pain.001, pacs.004, camt.056, etc.) e traz um conjunto de defaults por ecossistema — Debtor, Creditor, agentes intermediários, códigos de propósito.",
+          "Selecione uma **Versão**. Só as versões suportadas pelo cenário aparecem — para pacs.008 no Pix, por exemplo, o Builder traz `001.13` como padrão (a versão vigente no SPI hoje). Se você precisar de uma versão antiga para testar compatibilidade, escolha na lista.",
+          "Clique **↺ Dados de teste** para preencher automaticamente Debtor/Creditor com nomes e contas de um gerador de dados fake do ecossistema (locale pt_BR para Pix, de/en para SEPA/CBPR+/T2).",
+          "Clique **Gerar**. O Builder chama o backend, monta o Document e renderiza o XML em tempo real ao lado do formulário.",
+          "Edite qualquer campo diretamente no formulário — o XML da direita reage. Campos regulados (EndToEndId 32 chars no Pix, UETR UUID v4 no CBPR+) têm um botão **⟳** para regerar o valor conforme o formato oficial.",
+          "Use a barra de busca no topo do formulário para promover um campo opcional. O Builder inclui automaticamente os ancestrais (adicionar `PmtId/InstrId` abre `PmtId`, ganhando o `InstrId` dentro).",
+          "**Copiar XML** para colar no seu integrador ou **Abrir no Parser** para inspecionar imediatamente o resultado com validação.",
+        ],
+      },
+      {
+        type: "callout",
+        tone: "info",
+        text:
+          "Diferença entre os 5 ecossistemas. Brazilian Pix impõe o Manual de Padrões do BCB (formatos regulados de EndToEndId, ISPB no lugar de BIC). SEPA joga com IBAN e códigos de propósito da área do euro. SWIFT CBPR+ exige BIC + UETR e traz cover payments (pacs.009). TARGET/T2 é a variante europeia do interbancário de alto valor. Generic serve para explorar qualquer XSD (inclusive schemas custom que você fez upload no Workspace) sem regras adicionais — útil para testes de conformidade puramente estrutural.",
+      },
+      {
+        type: "callout",
+        tone: "info",
+        text:
+          "Como interpretar o XML gerado. O topo do Document define o namespace (identifica tipo + versão). GrpHdr traz os metadados do lote (MsgId, CreDtTm, NbOfTxs, SttlmInf). O corpo específico da mensagem (FIToFICstmrCdtTrf em pacs.008, CstmrCdtTrfInitn em pain.001) contém uma ou mais transações — cada transação tem sua PmtId (identificadores), o par Debtor/Creditor com seus agentes e o RmtInf com as informações da remessa.",
+      },
+
+      { type: "divider" },
+
+      // ── Guia: Flow Visualizer ────────────────────────────────────
+      {
+        type: "heading",
+        level: 4,
+        text: "Flow Visualizer",
+        subtitle: "Cenário: você precisa entender como uma sequência de mensagens flui entre os participantes de um protocolo.",
+      },
+      {
+        type: "paragraph",
+        text:
+          "O Flow Visualizer desenha diagramas de sequência clássicos: colunas para cada ator, setas verticais para cada mensagem, uma linha do tempo descendo. É útil tanto para aprender um protocolo novo quanto para depurar uma integração real — cada seta abre o payload correspondente e você consegue ver o XML que efetivamente circula em cada hop.",
+      },
+      {
+        type: "list",
+        ordered: true,
+        items: [
+          "Abra **Flow Visualizer**. O topo da tela traz quatro abas de protocolo: **🇧🇷 Pix** (BR), **⚡ CBPR+ MX** (SWIFT XML), **📄 CBPR+ MT** (SWIFT legado) e **💳 ISO 8583** (mundo de cartão).",
+          "Escolha a aba do protocolo que quer estudar. Cada aba tem seu próprio catálogo de fluxos e sua própria coluna de atores — no Pix são \"Pagador → PSP Pagador → SPI/BCB → PSP Recebedor → Recebedor\"; no CBPR+ MX é \"Banco Originador → SWIFT/Correspondente → Banco Intermediário → Banco Beneficiário\".",
+          "Escolha o **Fluxo** no dropdown do topo. Exemplos por aba: no Pix — Transferência, Transferência com return, Open Finance, Rejeitada, Pix Automático; no CBPR+ — Direct Payment, Cover Payment, Return, Cancellation, Status Inquiry.",
+          "Clique **Gerar Fluxo**. O ISOLeaf produz mensagens fictícias válidas para cada step do fluxo escolhido e desenha o diagrama.",
+          "Interprete o diagrama. Cada seta é um step; o rótulo em cima da seta identifica a mensagem (ex: `pacs.008.001.13`). Setas contínuas são hops principais; **setas tracejadas** representam relay do BCB/correspondente; **setas vermelhas** representam timeout (issuer não respondeu, stand-in).",
+          "Clique em uma seta. Uma segunda linha aparece abaixo mostrando o **payload XML** desse step + um **resumo** parseado ao lado. Se o step for MT (legado) ou ISO 8583, o painel adaptativo troca para o formato correto.",
+          "Use **Abrir no Parser** dentro do painel do step para aprofundar a inspeção — o Parser abre com o XML já preenchido e pronto para validação.",
+        ],
+      },
+      {
+        type: "callout",
+        tone: "info",
+        text:
+          "Atores e setas — leitura rápida. Cada coluna vertical é um ator (PSP, banco, SPI, network). Uma seta da coluna A para a coluna B representa uma mensagem indo de A para B. A ordem descendente das setas é a linha do tempo do fluxo. Um step \"clicável\" é qualquer seta — sempre corresponde a um payload real gerado (não é ilustração vazia).",
+      },
+      {
+        type: "callout",
+        tone: "warning",
+        text:
+          "O diagrama é escalado automaticamente para caber na largura disponível — em mobile ele reduz sem exigir arraste horizontal. Se o texto de rótulo ficar pequeno, gire o dispositivo ou abra em uma tela maior para leitura confortável.",
+      },
+
+      { type: "divider" },
+
+      // ── Guia: Comparador MT↔MX ──────────────────────────────────
+      {
+        type: "heading",
+        level: 4,
+        text: "Comparador MT↔MX",
+        subtitle: "Cenário: sua integração precisa suportar SWIFT MT e ISO 20022 (MX) em paralelo durante a migração CBPR+.",
+      },
+      {
+        type: "paragraph",
+        text:
+          "O Comparador MT↔MX confronta uma mensagem SWIFT MT (formato legado) com sua correspondente ISO 20022 (MX). O objetivo é responder três perguntas: (a) esses dois XMLs representam a mesma operação? (b) quais campos foram traduzidos automaticamente e quais precisaram de heurística? (c) o que fazer com os que não têm equivalente do outro lado?",
+      },
+      { type: "heading", level: 3, text: "Modo A — Geração MT→MX via Builder" },
+      {
+        type: "paragraph",
+        text:
+          "No Modo A você cola apenas o MT (por exemplo, um MT103) e o ISOLeaf gera a MX correspondente automaticamente, reaproveitando o BuilderService. É o modo indicado quando você tem os MTs originais e quer ver o resultado esperado da migração para MX.",
+      },
+      {
+        type: "list",
+        ordered: true,
+        items: [
+          "Abra **Comparador MT↔MX**.",
+          "Selecione a aba **Modo A — Gerar MX a partir do MT**.",
+          "Cole o **MT** no textarea (formato SWIFT clássico com blocos `{1:...}{2:...}{3:...}{4:...}`).",
+          "Escolha a **família MX de destino** (pacs.008 para MT103, pacs.009 para MT202/MT202COV).",
+          "Clique **Gerar & comparar**. O ISOLeaf parseia o MT, chama o Builder com o cenário CBPR+ apropriado e produz a MX; o painel de resultado mostra os dois lado a lado com o diff campo a campo.",
+        ],
+      },
+      { type: "heading", level: 3, text: "Modo B — Comparação de duas mensagens existentes" },
+      {
+        type: "paragraph",
+        text:
+          "No Modo B você já tem o par MT e MX e quer confirmar equivalência ou apontar divergências. Este é o modo típico de conciliação: uma integração que já produz MX precisa ser validada contra os MTs históricos.",
+      },
+      {
+        type: "list",
+        ordered: true,
+        items: [
+          "Selecione a aba **Modo B — Comparar dois payloads**.",
+          "Cole o **MT** no textarea esquerdo e a **MX** no direito.",
+          "Clique **Comparar**. O ISOLeaf casa os campos pela tabela de mapeamento CBPR+ e produz o diff.",
+        ],
+      },
+      { type: "heading", level: 3, text: "Como resolver campos ambíguos" },
+      {
+        type: "paragraph",
+        text:
+          "Quando o Comparador encontra um campo com nível de confiança **Ambiguous**, ele destaca a linha em amarelo e traz uma lista de candidatos. Ambiguidade acontece porque a mesma informação pode aparecer em posições diferentes na MX conforme a variação do cenário — por exemplo, um endereço de beneficiário no MT pode virar `Cdtr/PstlAdr/AdrLine` ou `Cdtr/PstlAdr/StrtNm+PstCd+TwnNm` na MX, dependendo se o CBPR+ exige endereço estruturado (post-2025) ou aceita linhas livres (pré-2025).",
+      },
+      {
+        type: "list",
+        items: [
+          "Clique na linha ambígua para expandir os candidatos.",
+          "Compare o valor do MT com o de cada candidato — normalmente um deles bate exatamente com o texto que você esperaria ver.",
+          "Escolha o candidato clicando no chip **Aceitar mapeamento**. O ISOLeaf grava a decisão localmente para as próximas comparações da sessão (não é persistente entre reloads — o objetivo é acelerar batches).",
+          "Se nenhum candidato bater, o problema geralmente é anterior ao Comparador: o Builder pode ter escrito o campo em uma posição não esperada, ou o MT original está fora de padrão. Volte um passo (Builder ou Parser MT) para investigar.",
+        ],
+      },
+      { type: "heading", level: 3, text: "Níveis de confiança" },
+      {
+        type: "table",
+        headers: ["Nível", "Cor", "Significado", "Ação típica"],
+        rows: [
+          ["Automatic", "Verde", "Mapeamento CBPR+ direto, sem ambiguidade. O ISOLeaf casou o campo do MT com um único destino na MX com base na tabela oficial.", "Nenhuma — o diff está confiável."],
+          ["Ambiguous", "Amarelo", "Existe mais de um destino candidato na MX. O ISOLeaf lista as opções e não escolhe automaticamente.", "Expandir, comparar valores e aceitar o candidato correto."],
+          ["NoMapping", "Cinza", "O campo existe em um dos formatos e não tem equivalente no outro. Comum em campos ISO 20022 novos (UETR, dados estruturados de endereço, códigos de propósito ISO) e em campos MT legados (Sender's Reference, Related Reference).", "Registrar como \"perda controlada\" na migração — nem sempre há problema; nem tudo do MT precisa vir para o MX e vice-versa."],
+        ],
+      },
+      {
+        type: "callout",
+        tone: "info",
+        text:
+          "Regra prática: se a soma de \"Ambiguous\" + \"NoMapping\" for pequena e concentrada em campos previsíveis (endereço estruturado vs livre, sender reference), a migração está saudável. Se aparecerem campos financeiros críticos (valor, moeda, contas, BICs) em \"NoMapping\", investigue — provavelmente o parser não pegou o campo do MT por algum desvio de formatação.",
+      },
+
+      { type: "divider" },
+
+      { type: "heading", level: 2, text: "Comunidade e suporte" },
+      {
+        type: "list",
+        items: [
+          "💬 [Discussions no GitHub](https://github.com/isoleaf-io/isoleaf/discussions) — dúvidas, ideias e feedback",
+          "🐛 [Issues no GitHub](https://github.com/isoleaf-io/isoleaf/issues) — bugs e solicitações de features",
+          "📧 Email: **contato@isoleaf.dev** — para parcerias e consultas enterprise",
+        ],
+      },
+    ],
+  },
+
   iso8583: {
     id: "iso8583",
     blocks: [
@@ -1349,905 +2320,6 @@ Exemplo (pacs.008 versão 13):
           ["targetNamespace", "Atributo do XSD que define o namespace do schema. É o valor exato que aparece no xmlns do Document da mensagem correspondente."],
           ["UETR", "Unique End-to-end Transaction Reference — UUID v4 gerado pelo banco ordenante em CBPR+/SWIFT gpi. Acompanha a transação em todos os hops e é a chave do rastreamento gpi Tracker."],
           ["XSD", "XML Schema Definition — arquivo que define a estrutura, os tipos e as regras de um XML ISO 20022. Cada mensagem tem seu XSD versionado; o Validador do ISOLeaf compara uma mensagem contra o XSD para apontar erros."],
-        ],
-      },
-    ],
-  },
-
-  guides: {
-    id: "guides",
-    blocks: [
-      // ── Guia amigável para iniciantes em Docker ──────────────────
-      { type: "heading", level: 2, text: "Self-host com Docker — guia para iniciantes" },
-      {
-        type: "paragraph",
-        text:
-          "Cinco passos para rodar o ISOLeaf inteiro na sua máquina, mesmo se você nunca abriu um terminal antes. Nada de `git clone`, nada de compilar código, nada de editor. Só o Docker Desktop e um comando de uma linha.",
-      },
-      { type: "heading", level: 3, text: "O que você precisa" },
-      {
-        type: "list",
-        items: [
-          "**Docker Desktop** instalado — Windows, Mac ou Linux. É o único requisito.",
-          "**Um navegador** — Chrome, Firefox, Safari ou Edge, qualquer versão recente.",
-          "**Zero configuração adicional** — não precisa criar conta, gerar chaves, instalar Node, .NET, git ou qualquer coisa além do Docker.",
-        ],
-      },
-
-      { type: "heading", level: 3, text: "Passo 1 — Instalar o Docker Desktop" },
-      {
-        type: "paragraph",
-        text:
-          "Baixe o instalador do [site oficial da Docker](https://www.docker.com/products/docker-desktop/) e siga o assistente até o fim (é o mesmo fluxo Next → Next → Instalar). Depois de instalar, abra o **Docker Desktop** — na primeira execução ele mostra uma tela de boas-vindas com aceite de termos.",
-      },
-      {
-        type: "paragraph",
-        text:
-          "Confirme que está tudo pronto: na parte de baixo da janela do Docker Desktop deve aparecer o indicador verde com o texto **\"Engine running\"** (ou equivalente em português: \"Motor em execução\"). Se aparecer \"starting\" ou vermelho, aguarde alguns segundos ou reinicie o app.",
-      },
-      {
-        type: "callout",
-        tone: "info",
-        text:
-          "No Windows, o Docker Desktop pode pedir para habilitar o WSL 2 (Subsistema Windows para Linux) na primeira execução — aceite. É automático, só demora 1-2 minutos.",
-      },
-
-      { type: "heading", level: 3, text: "Passo 2 — Abrir um terminal e colar o comando" },
-      {
-        type: "paragraph",
-        text:
-          "**Onde encontrar o terminal:** no Windows, procure por \"PowerShell\" ou \"Prompt de Comando\" no menu Iniciar. No Mac, abra o app \"Terminal\" via Spotlight (⌘+Space, digite \"terminal\"). No Linux, ele geralmente já está no seu dock com o nome \"Terminal\" ou \"Console\".",
-      },
-      {
-        type: "paragraph",
-        text:
-          "Cole o comando abaixo no terminal e pressione Enter. A primeira execução baixa a imagem (~200 MB), aguarde de 30s a 2 minutos dependendo da sua conexão. Depois disso, o container inicia em poucos segundos:",
-      },
-      {
-        type: "code",
-        lang: "bash",
-        text:
-          "docker run -d --name isoleaf -p 8080:8080 ghcr.io/isoleaf-io/isoleaf:latest",
-      },
-      {
-        type: "paragraph",
-        text:
-          "Se aparecer uma linha longa com letras e números (o ID do container), deu certo. Se aparecer erro, veja a seção **Problemas comuns** no final deste guia.",
-      },
-
-      { type: "heading", level: 3, text: "Passo 3 — Abrir no navegador" },
-      {
-        type: "paragraph",
-        text:
-          "Abra o navegador e vá para **[http://localhost:8080](http://localhost:8080)**. A aplicação aparece imediatamente — é exatamente a mesma que você usa em isoleaf.dev, só que rodando 100% localmente.",
-      },
-      {
-        type: "callout",
-        tone: "success",
-        text:
-          "Diferença prática vs. a versão online: no self-hosted todas as features do Simulador TCP e da criptografia EMV ficam habilitadas — sessões TCP reais, ARQC/ARPC com IMK configurável, upload de XSDs ISO 20022 personalizados, tudo sem restrições.",
-      },
-
-      { type: "heading", level: 3, text: "Passo 4 (opcional) — Persistir XSDs entre atualizações" },
-      {
-        type: "paragraph",
-        text:
-          "Se você planeja fazer upload de XSDs ISO 20022 personalizados (via **Workspace → Schemas ISO 20022**) e quer que eles sobrevivam a `docker pull` de novas versões do ISOLeaf, use um volume Docker nomeado. Pare o container atual e rode com a flag `-v`:",
-      },
-      {
-        type: "code",
-        lang: "bash",
-        text:
-          "docker stop isoleaf\ndocker rm isoleaf\ndocker run -d --name isoleaf -p 8080:8080 \\\n  -v isoleaf-schemas:/app/data/schemas \\\n  ghcr.io/isoleaf-io/isoleaf:latest",
-      },
-      {
-        type: "paragraph",
-        text:
-          "Na primeira vez, o Docker copia automaticamente o catálogo de 44 XSDs padrão para dentro do volume `isoleaf-schemas`. Uploads posteriores ficam ao lado deles e persistem entre reinícios e atualizações da imagem. Sem essa flag, uploads valem só pela vida do container atual (mas o catálogo padrão está sempre disponível de novo).",
-      },
-
-      { type: "heading", level: 3, text: "Passo 5 — Parar e atualizar" },
-      {
-        type: "paragraph",
-        text:
-          "**Parar o container** (não desinstala — só desliga):",
-      },
-      {
-        type: "code",
-        lang: "bash",
-        text:
-          "docker stop isoleaf\ndocker rm isoleaf",
-      },
-      {
-        type: "paragraph",
-        text:
-          "**Atualizar para a versão mais recente:** puxe a nova imagem, remova o container antigo e rode de novo com o mesmo comando do Passo 2 (ou do Passo 4 se você usa volume):",
-      },
-      {
-        type: "code",
-        lang: "bash",
-        text:
-          "docker pull ghcr.io/isoleaf-io/isoleaf:latest\ndocker stop isoleaf && docker rm isoleaf\ndocker run -d --name isoleaf -p 8080:8080 ghcr.io/isoleaf-io/isoleaf:latest",
-      },
-
-      { type: "heading", level: 3, text: "Problemas comuns" },
-      {
-        type: "callout",
-        tone: "warning",
-        text:
-          "**Erro \"port is already allocated\" ou \"bind: address already in use\"** — a porta 8080 já está sendo usada por outro programa (talvez outra instância do próprio ISOLeaf, ou um servidor local). Troque a porta local pra 8081 (ou qualquer outra livre): `-p 8081:8080` no comando. Depois abra `http://localhost:8081` em vez de 8080.",
-      },
-      {
-        type: "callout",
-        tone: "warning",
-        text:
-          "**Docker Desktop não inicia / aparece \"Docker daemon is not running\"** — reinicie o Docker Desktop pelo app (menu → Restart). Se persistir, reinicie a máquina e abra o Docker Desktop antes de qualquer outra coisa. Em último caso, reinstale o Docker Desktop pelo instalador oficial.",
-      },
-      {
-        type: "callout",
-        tone: "info",
-        text:
-          "**Como saber que o container está rodando?** Rode `docker ps` no terminal — se aparecer uma linha com `isoleaf` e `Up X minutes`, tudo certo. Se não aparecer, rode `docker ps -a` (com `-a`) para ver containers parados e reveja o output do `docker run` para eventuais erros.",
-      },
-
-      { type: "divider" },
-
-      { type: "heading", level: 2, text: "Arquitetura do ISOLeaf" },
-      {
-        type: "paragraph",
-        text:
-          "O ISOLeaf é uma aplicação standalone que roda inteiramente na sua máquina. Nenhum dado sai do seu ambiente.",
-      },
-      { type: "svg", text: ISOHUB_ARCHITECTURE_SVG },
-      { type: "heading", level: 3, text: "Segurança" },
-      { type: "callout", tone: "success", text: "Dados ficam na sua máquina — zero telemetria, sem conexões externas além das que você configurar." },
-      { type: "callout", tone: "warning", text: "Sem autenticação JWT — acesso livre em localhost. Se expor a porta 8080 na rede (0.0.0.0), qualquer máquina da rede pode acessar sem senha. Use apenas em redes confiáveis ou com firewall." },
-      { type: "heading", level: 3, text: "Dados armazenados localmente" },
-      {
-        type: "list",
-        items: [
-          "Workspace (IMK, ZPK, configurações): arquivo JSON local",
-          "Templates: localStorage do browser",
-          "Histórico EMV: memória da sessão (limpo ao reiniciar)",
-        ],
-      },
-
-      // ── Primeiros passos — visão geral dos módulos ─────────────────
-      { type: "heading", level: 2, text: "Primeiros passos — conhecendo os módulos" },
-      {
-        type: "paragraph",
-        text:
-          "O ISOLeaf é organizado em seis módulos. Antes de mergulhar em um guia específico, vale conhecer rapidamente o que cada um faz.",
-      },
-
-      { type: "heading", level: 3, text: "Parser" },
-      {
-        type: "paragraph",
-        text:
-          "O módulo mais usado. Cole qualquer mensagem ISO 8583 (ASCII wire ou binary-hex, com ou sem TPDU) e veja todos os campos decodificados automaticamente. Clique em qualquer campo para copiar, revelar valores mascarados ou navegar para outros módulos.",
-      },
-      {
-        type: "image",
-        src: "/screenshots/parse1.png",
-        alt: "Tela do Parser",
-        caption: "Parser — decodifica qualquer mensagem ISO 8583",
-      },
-
-      { type: "heading", level: 3, text: "Builder" },
-      {
-        type: "paragraph",
-        text:
-          "Gera mensagens ISO 8583 completas sem precisar conhecer cada campo. Selecione o contexto (papel, bandeira, canal, tipo de transação) e o ISOLeaf preenche automaticamente os campos corretos — incluindo o Bit 55 com ARQC real quando a IMK está configurada no Workspace.",
-      },
-      {
-        type: "image",
-        src: "/screenshots/builder2.png",
-        alt: "Builder com mensagem gerada",
-        caption: "Builder — mensagem gerada com campos preenchidos automaticamente",
-      },
-      {
-        type: "image",
-        src: "/screenshots/builder3.png",
-        alt: "Painel de adição de bits adicionais no Builder",
-        caption: "Builder — adicione bits extras à mensagem gerada",
-      },
-
-      { type: "heading", level: 3, text: "Simulador" },
-      {
-        type: "paragraph",
-        text:
-          "Suba um Rebatedor para receber mensagens TCP e responder automaticamente — simulando um autorizador/emissor. Ou use o Injetor para enviar mensagens ao seu sistema e acompanhar as respostas em tempo real.",
-      },
-      {
-        type: "image",
-        src: "/screenshots/simulator.png",
-        alt: "Tela do Simulador",
-        caption: "Simulador — 4 sessões ativas com mensagem rebatida com sucesso",
-      },
-
-      { type: "heading", level: 3, text: "Dados EMV" },
-      {
-        type: "paragraph",
-        text:
-          "Seis tabs para trabalhar com criptografia EMV: Parse Bit 55, Validate ARQC, Generate ARQC, Generate ARPC, Build Response e Full Flow.",
-      },
-      {
-        type: "image",
-        src: "/screenshots/emv1.png",
-        alt: "Tela de Dados EMV",
-        caption: "Dados EMV — Parse Bit 55 com tags decodificadas",
-      },
-
-      { type: "heading", level: 3, text: "Cartão de teste" },
-      {
-        type: "paragraph",
-        text:
-          "Gera PANs válidos com trilhas e CVV por bandeira para usar em testes sem precisar de cartões reais.",
-      },
-      {
-        type: "image",
-        src: "/screenshots/testcard.png",
-        alt: "Tela de Cartão de teste",
-        caption: "Cartão de teste — gera dados válidos por bandeira",
-      },
-
-      { type: "heading", level: 3, text: "Workspace" },
-      {
-        type: "paragraph",
-        text:
-          "Configure valores padrão (Terminal ID, Merchant ID, NIIs) e chaves criptográficas (IMK, ZPK) que são usadas automaticamente pelo Builder e pelo Simulador.",
-      },
-      {
-        type: "image",
-        src: "/screenshots/workspace.png",
-        alt: "Tela do Workspace",
-        caption: "Workspace — configurações e chaves criptográficas",
-      },
-      {
-        type: "image",
-        src: "/screenshots/workspace2.png",
-        alt: "Templates salvos no Workspace",
-        caption: "Workspace — templates salvos para reutilização no Builder",
-      },
-
-      { type: "divider" },
-
-      // ── Tour ISO 20022 ────────────────────────────────────────────
-      { type: "heading", level: 2, text: "Primeiros passos — módulos ISO 20022" },
-      {
-        type: "paragraph",
-        text:
-          "O bloco ISO 20022 do ISOLeaf reúne oito módulos que cobrem o ciclo completo de leitura, produção e visualização de mensagens. A ideia desta seção é apresentar cada um em uma linha para você saber para onde ir; o passo-a-passo profundo dos casos mais comuns vem no bloco \"Guias práticos — ISO 20022\" mais adiante.",
-      },
-
-      { type: "heading", level: 3, text: "Parser XML" },
-      {
-        type: "paragraph",
-        text:
-          "Cole qualquer XML ISO 20022 (com ou sem AppHdr) e veja a árvore de campos decodificada. O parser detecta a família e a versão pelo namespace, aplica o XSD certo automaticamente e traz um resumo semântico (tipo de operação, atores, valor, chave Pix quando existir). Botão \"Gerar Return\" produz a mensagem de resposta correlata (pacs.008 → pacs.002/pacs.004).",
-      },
-      {
-        type: "image",
-        src: "/screenshots/iso20022/parser-xml.png",
-        alt: "Tela do Parser XML ISO 20022",
-        caption: "Parser XML — árvore de campos decodificada + resumo semântico",
-      },
-
-      { type: "heading", level: 3, text: "Referência de Campos" },
-      {
-        type: "paragraph",
-        text:
-          "Árvore navegável da estrutura de qualquer mensagem suportada. Aba \"Por mensagem\" mostra o XSD inteiro em formato de tree; aba \"Busca por campo\" cruza um nome (ex: EndToEndId, Dbtr, RmtInf) contra todas as versões e famílias, útil para entender onde um campo aparece em diferentes tipos e como sua cardinalidade evoluiu entre versões.",
-      },
-      {
-        type: "image",
-        src: "/screenshots/iso20022/referencia-campos.png",
-        alt: "Tela da Referência de Campos ISO 20022",
-        caption: "Referência de Campos — árvore por mensagem + busca cruzada",
-      },
-
-      { type: "heading", level: 3, text: "Validador XSD + Comparador de Versões" },
-      {
-        type: "paragraph",
-        text:
-          "O Validador (botão dentro do Parser) roda o XML contra o XSD e devolve erros com mensagens curtas em português — o texto verboso do parser .NET é reformulado por família de erro (elemento inválido, valor fora do facet, cardinalidade errada, namespace errado). O Comparador de Versões diffa duas versões do mesmo tipo (ex: pacs.008.001.09 vs pacs.008.001.13) listando campos adicionados, removidos e alterados; quando aberto a partir de uma mensagem específica, filtra o diff pelos campos que a sua mensagem usa.",
-      },
-      {
-        type: "image",
-        src: "/screenshots/iso20022/validador-comparador.png",
-        alt: "Tela do Validador XSD e do Comparador de Versões",
-        caption: "Validador + Comparador — erros de schema traduzidos e diff entre versões",
-      },
-
-      { type: "heading", level: 3, text: "Builder" },
-      {
-        type: "paragraph",
-        text:
-          "Compõe mensagens ISO 20022 completas a partir de um Ecossistema → Cenário → Versão. Suporta 5 ecossistemas: **Brazilian Pix** (SPI/BCB, com formatos regulamentados de EndToEndId, ISPB, TxId), **SEPA** (crédito e status na área do euro), **SWIFT CBPR+** (cover payments, retornos, cancelamentos, status inquiry), **TARGET/T2** (câmara do Eurosistema) e **Generic** (para explorar qualquer XSD carregado). O split Formulário/XML deixa ver a mensagem sendo escrita em tempo real; abaixo do breakpoint md a interface vira abas para caber no mobile.",
-      },
-      {
-        type: "image",
-        src: "/screenshots/iso20022/builder.png",
-        alt: "Tela do Builder ISO 20022 com formulário e XML lado a lado",
-        caption: "Builder — cascata Ecossistema → Cenário → Versão com split Formulário/XML",
-      },
-
-      { type: "heading", level: 3, text: "QR Code Pix" },
-      {
-        type: "paragraph",
-        text:
-          "Decodifica e gera payloads EMV do Pix Copia e Cola (BR Code). Aceita QR estático (chave + valor) e dinâmico (POI com TXID). Serve tanto para inspecionar um QR alheio quanto para produzir QRs de teste — com validação inline dos campos obrigatórios do padrão BR Code.",
-      },
-      {
-        type: "image",
-        src: "/screenshots/iso20022/qrcode-pix.png",
-        alt: "Tela do módulo QR Code Pix",
-        caption: "QR Code Pix — decode e geração de BR Code (Pix Copia e Cola)",
-      },
-
-      { type: "heading", level: 3, text: "Flow Visualizer" },
-      {
-        type: "paragraph",
-        text:
-          "Diagrama de sequência multi-mensagem. Quatro abas de protocolo (Brazilian Pix, SWIFT CBPR+ MX, SWIFT CBPR+ MT, ISO 8583) — cada uma com seu conjunto de fluxos pré-definidos (crédito direto, cover payment, retorno, cancelamento, transferência com stand-in, etc.). Clicar em uma seta abre o payload correspondente em uma linha abaixo, com parse + botão de \"abrir no Parser\" quando o step for XML.",
-      },
-      {
-        type: "image",
-        src: "/screenshots/iso20022/flow-visualizer.png",
-        alt: "Tela do Flow Visualizer com diagrama de sequência",
-        caption: "Flow Visualizer — sequência multi-mensagem por protocolo",
-      },
-
-      { type: "heading", level: 3, text: "Parser MT" },
-      {
-        type: "paragraph",
-        text:
-          "Parseia mensagens SWIFT MT (formato legado, blocos {1:...}{2:...}{3:...}{4:...}). Reconhece MT103 (crédito de cliente), MT202 e MT202COV (crédito interbancário e cover). Complementa o Comparador MT↔MX quando a integração precisa suportar os dois formatos durante a migração CBPR+.",
-      },
-      {
-        type: "image",
-        src: "/screenshots/iso20022/parser-mt.png",
-        alt: "Tela do Parser MT com mensagem SWIFT decodificada",
-        caption: "Parser MT — decodifica MT103/MT202/MT202COV bloco a bloco",
-      },
-
-      { type: "heading", level: 3, text: "Comparador MT↔MX" },
-      {
-        type: "paragraph",
-        text:
-          "Diffa uma mensagem MT contra uma MX equivalente (ex: MT103 vs pacs.008). Modo A gera a MX a partir do MT via o Builder e mostra os dois lado a lado; Modo B compara duas mensagens já existentes campo a campo. Cada linha do diff traz um nível de confiança (Automatic quando o mapeamento CBPR+ é direto, Ambiguous quando há mais de uma opção equivalente, NoMapping quando o campo não tem correspondente no outro formato).",
-      },
-      {
-        type: "image",
-        src: "/screenshots/iso20022/comparador-mt-mx.png",
-        alt: "Tela do Comparador MT↔MX com diff entre MT103 e pacs.008",
-        caption: "Comparador MT↔MX — diff campo a campo com níveis de confiança",
-      },
-
-      { type: "heading", level: 3, text: "Workspace" },
-      {
-        type: "paragraph",
-        text:
-          "O Workspace consolida a configuração persistente do ISOLeaf. Abriu três abas:",
-      },
-      {
-        type: "list",
-        items: [
-          "**Configuração** — valores padrão aplicados ao Builder e ao Simulador: identificação da instituição, ISPB, BIC, contas-teste, chaves criptográficas (IMK, ZPK) do lado ISO 8583. Um lugar só, aplicado em todos os módulos.",
-          "**Templates** — mensagens salvas e reutilizáveis. Cada template guarda contexto + campos preenchidos; um clique traz de volta o estado exato do Builder. Aceita importação/exportação em JSON para compartilhar entre máquinas.",
-          "**Schemas ISO 20022** — inventário dos XSDs que o Agent conhece, agrupado por família (camt/head/pacs/pain). Um botão de upload permite adicionar um novo XSD; o schema é validado, gravado em disco e o registro é recarregado no ato — sem restart. Sprint 10.1 introduziu persistência híbrida via volume Docker: o volume `schemas-data` (montado em `/app/data/Schemas`) preserva os XSDs importados entre reinícios do container, enquanto o catálogo base continua embutido na imagem.",
-        ],
-      },
-      {
-        type: "callout",
-        tone: "info",
-        text:
-          "Após um upload de XSD, a Referência, o Comparador e o Builder passam a enxergar a nova versão imediatamente — o ReferenceService é recarregado em cadeia pelo SchemaUploadService.",
-      },
-
-      { type: "divider" },
-
-      // ── Guias práticos ────────────────────────────────────────────
-      { type: "heading", level: 2, text: "Guias práticos" },
-      {
-        type: "paragraph",
-        text:
-          "Passo a passo dos fluxos mais comuns no ISOLeaf. Cada guia parte de um cenário concreto e mostra os cliques exatos.",
-      },
-
-      {
-        type: "heading",
-        level: 3,
-        text: "Parsear uma mensagem ISO 8583",
-        subtitle: "Cenário: você recebeu uma mensagem ISO 8583 e precisa entender o que ela contém.",
-      },
-      {
-        type: "image",
-        src: "/screenshots/parse1.png",
-        alt: "Tela do Parser com mensagem ISO 8583 decodificada",
-        caption: "Parser — cole uma mensagem e veja todos os campos decodificados",
-      },
-      {
-        type: "image",
-        src: "/screenshots/parse2.png",
-        alt: "Parser com mensagem parseada",
-        caption: "Parser — mensagem decodificada com todos os campos",
-      },
-      {
-        type: "image",
-        src: "/screenshots/parse3.png",
-        alt: "Parser exibindo o bitmap",
-        caption: "Parser — visualização dos bits ativos no bitmap",
-      },
-      {
-        type: "list",
-        ordered: true,
-        items: [
-          "Abra o módulo **Parser**.",
-          "Cole a mensagem no campo de texto (aceita ASCII wire, binary-hex ou com TPDU).",
-          "Clique **Parsear →** ou pressione `Ctrl+Enter`. O ISOLeaf detecta o formato automaticamente.",
-        ],
-      },
-      { type: "callout", tone: "info", text: "Colar uma mensagem já dispara o parse automaticamente (300 ms de debounce)." },
-
-      { type: "divider" },
-
-      {
-        type: "heading",
-        level: 3,
-        text: "Gerar uma mensagem ISO 8583",
-        subtitle: "Cenário: você precisa de uma mensagem pronta para testar uma integração.",
-      },
-      {
-        type: "image",
-        src: "/screenshots/builder2.png",
-        alt: "Builder com mensagem gerada e campos preenchidos",
-        caption: "Builder — selecione o contexto e gere a mensagem completa",
-      },
-      {
-        type: "list",
-        ordered: true,
-        items: [
-          "Abra o módulo **Builder**.",
-          "Selecione **MTI**, **Papel**, **Bandeira**, **Canal** e **Tipo de transação**.",
-          "Clique **Gerar →**. Os campos são preenchidos automaticamente.",
-          "Edite os valores que precisar na tabela.",
-          "Copie a mensagem gerada (ASCII wire ou binary-hex).",
-        ],
-      },
-      { type: "callout", tone: "info", text: "Configure a IMK no **Workspace** para gerar **ARQC** real em vez de aleatório." },
-
-      { type: "divider" },
-
-      {
-        type: "heading",
-        level: 3,
-        text: "Validar ARQC de uma transação",
-        subtitle: "Cenário: você recebeu uma mensagem com Bit 55 e quer confirmar que o criptograma é legítimo.",
-      },
-      {
-        type: "image",
-        src: "/screenshots/emv2.png",
-        alt: "Tela de validação de ARQC no módulo Dados EMV",
-        caption: "Dados EMV — Validação de ARQC com resultado detalhado",
-      },
-      { type: "paragraph", text: "Pré-requisito: ter o Bit 55 em hex e a IMK do emissor." },
-      {
-        type: "list",
-        ordered: true,
-        items: [
-          "Abra **Dados EMV** → aba **Validate ARQC**.",
-          "Cole o Bit 55 em hex.",
-          "Informe a Issuer Master Key (**IMK-AC**).",
-          "Informe o **PAN** e o **PAN Sequence Number** (geralmente `00`).",
-          "Selecione o perfil da bandeira.",
-          "Clique **Validar ARQC**.",
-        ],
-      },
-      { type: "callout", tone: "info", text: "Use **Validar no EMV** diretamente no **Parser** — o PAN e a bandeira são preenchidos automaticamente após parsear uma mensagem com Bit 55." },
-
-      { type: "divider" },
-
-      {
-        type: "heading",
-        level: 3,
-        text: "Simular um autorizador (Rebatedor)",
-        subtitle: "Cenário: você tem um terminal/sistema que envia transações e quer simular o autorizador.",
-      },
-      {
-        type: "image",
-        src: "/screenshots/simulator.png",
-        alt: "Tela do Simulador com 4 sessões rebatedoras ativas",
-        caption: "Simulador — 4 sessões ativas com mensagem rebatida com sucesso",
-      },
-      {
-        type: "list",
-        ordered: true,
-        items: [
-          "Abra **Simulador** e clique **+ Nova sessão**.",
-          "Configure: **Porta TCP** (ex.: `9100`), **Papel** = `Emissor`, **RC padrão** = `00`, **Resposta automática** ligada.",
-          "Clique **Confirmar**.",
-          "Aponte seu terminal para `localhost:9100`.",
-          "O ISOLeaf responde automaticamente a cada mensagem recebida.",
-        ],
-      },
-      { type: "callout", tone: "info", text: "Clique no ícone de log no card da sessão para filtrar o log apenas dessa sessão." },
-
-      { type: "heading", level: 4, text: "Rebatedor (Listener)" },
-      {
-        type: "paragraph",
-        text:
-          "Abre uma porta TCP local e aguarda conexões. Quando recebe uma mensagem, responde automaticamente conforme as configurações da sessão.",
-      },
-      { type: "paragraph", text: "Campos de configuração:" },
-      {
-        type: "list",
-        items: [
-          "**Porta TCP**: porta local onde vai escutar (ex.: `9100`).",
-          "**Papel**: define o contexto da resposta automática — `Adquirente` (simula uma credenciadora), `Bandeira` (simula a rede) ou `Emissor` (simula o banco emissor, mais comum).",
-          "**RC padrão**: código de resposta padrão (`00` = aprovar tudo).",
-          "**Modo TPDU**: como tratar o prefixo TPDU — `Opcional` (aceita com ou sem), `Obrigatório` (rejeita sem TPDU) ou `Remover` (strip antes de processar).",
-          "**MTI desconhecido**: como responder a MTIs não mapeados — `Derivar` (tenta `0100`→`0110` automaticamente), `Rejeitar` (não responde), `Ecoar` (responde com o mesmo MTI) ou `Customizado` (MTI específico).",
-          "**Resposta automática**: toggle para ligar/desligar.",
-          "**Validar ARQC**: verifica o criptograma EMV (requer IMK configurada no **Workspace**).",
-        ],
-      },
-      {
-        type: "image",
-        src: "/screenshots/new_session.png",
-        alt: "Formulário de nova sessão do Simulador",
-        caption: "Criação de sessão — configurações do Rebatedor incluindo modo de framing (Length prefix)",
-      },
-
-      { type: "heading", level: 4, text: "Configurar resposta EMV (Rebatedor Emissor)" },
-      {
-        type: "paragraph",
-        text:
-          "No modo Emissor, o Rebatedor pode ser configurado para definir como o Bit 55 é tratado na resposta. Clique no botão ⚙️ no card da sessão para acessar as opções.",
-      },
-      {
-        type: "image",
-        src: "/screenshots/simulator2.png",
-        alt: "Configuração da resposta EMV no Rebatedor Emissor",
-        caption: "Config EMV — escolha entre Echo (cópia do Bit 55) ou Gerar ARPC (simular emissor real)",
-      },
-      {
-        type: "list",
-        items: [
-          "**Echo** (padrão): copia o Bit 55 recebido diretamente na resposta. Funciona com qualquer formato, incluindo mensagens com header proprietário antes do TLV.",
-          "**Gerar ARPC**: deriva o ARPC usando a IMK e retorna o Bit 55 de resposta com as tags `91` e `8A`. Permite configurar o tamanho do header proprietário (se houver) e a IMK (usa o Workspace se não informada).",
-          "**Validar ARQC**: quando ativado junto com **Gerar ARPC**, valida o ARQC antes de gerar a resposta. ARQC inválido resulta em RC=05 na resposta.",
-        ],
-      },
-
-      { type: "heading", level: 4, text: "Injetor (Connector)" },
-      {
-        type: "paragraph",
-        text:
-          "Conecta a um sistema TCP externo e envia mensagens. Use para testar seu autorizador enviando transações e verificando as respostas.",
-      },
-      { type: "paragraph", text: "Campos de configuração:" },
-      {
-        type: "list",
-        items: [
-          "**Host destino**: IP ou hostname do sistema alvo.",
-          "**Porta destino**: porta TCP do sistema alvo (ex.: `8583`).",
-          "**Mensagem**: a ISO 8583 a enviar (hex ou ASCII wire).",
-          "**Modo contínuo**: envia em loop (1 msg/s). Marque **Variar identificadores** para STAN/RRN/DateTime mudarem a cada envio; **Variar valor** para Amount aleatório dentro de um range.",
-        ],
-      },
-
-      { type: "heading", level: 4, text: "Log ao vivo" },
-      {
-        type: "paragraph",
-        text:
-          "Mostra em tempo real todas as mensagens recebidas e enviadas pelos Rebatedores. Clique no ícone de log em cada sessão para filtrar apenas aquela sessão.",
-      },
-
-      { type: "divider" },
-
-      {
-        type: "heading",
-        level: 3,
-        text: "Injetar mensagens (Injetor)",
-        subtitle: "Cenário: você tem um autorizador rodando e quer enviar transações para testá-lo.",
-      },
-      {
-        type: "list",
-        ordered: true,
-        items: [
-          "Abra **Simulador** → seção **Injetor**.",
-          "Configure **Host destino** e **Porta destino** (ex.: `localhost:8583`).",
-          "Cole a mensagem ISO 8583 no campo de texto (pode usar uma gerada pelo **Builder**).",
-          "Clique **Injetar →** para enviar uma única mensagem ou **Iniciar contínuo** para loop (1 msg/s).",
-        ],
-      },
-      { type: "callout", tone: "info", text: "Marque **Variar identificadores** para que cada envio tenha STAN/RRN diferente — evita rejeição por duplicata." },
-
-      { type: "divider" },
-
-      { type: "heading", level: 2, text: "As 6 tabs do módulo Dados EMV" },
-      {
-        type: "paragraph",
-        text:
-          "O módulo **Dados EMV** organiza os fluxos de criptografia em seis tabs encadeáveis. Você pode usar cada uma isolada ou combiná-las no **Full Flow**.",
-      },
-
-      { type: "heading", level: 4, text: "Parse Bit 55" },
-      {
-        type: "paragraph",
-        text:
-          "Cole um Bit 55 em hex e veja todas as tags BER-TLV decodificadas. Suporta parse parcial — se encontrar uma tag inválida, mostra o que conseguiu parsear até aquele ponto.",
-      },
-      {
-        type: "image",
-        src: "/screenshots/emv1.png",
-        alt: "Parse Bit 55 — tela inicial sem dados",
-        caption: "Parse Bit 55 — cole o Bit 55 em hex para decodificar as tags",
-      },
-
-      { type: "heading", level: 4, text: "Validate ARQC" },
-      {
-        type: "paragraph",
-        text:
-          "Valide se um ARQC recebido é legítimo. Informe o Bit 55, a IMK e o PAN. O ISOLeaf recalcula a cadeia de derivação e compara com o ARQC recebido.",
-      },
-      {
-        type: "image",
-        src: "/screenshots/emv3.png",
-        alt: "Validate ARQC — tela de validação",
-        caption: "Validate ARQC — informe o Bit 55, IMK e PAN para validar",
-      },
-
-      { type: "heading", level: 4, text: "Generate ARQC" },
-      {
-        type: "paragraph",
-        text:
-          "Gere um ARQC real a partir de dados de transação. Útil para criar dados de teste realistas ou verificar sua implementação de derivação.",
-      },
-      {
-        type: "image",
-        src: "/screenshots/emv4.png",
-        alt: "Generate ARQC — tela de geração",
-        caption: "Generate ARQC — gere um ARQC real a partir dos dados da transação",
-      },
-
-      { type: "heading", level: 4, text: "Generate ARPC" },
-      {
-        type: "paragraph",
-        text:
-          "Gere o ARPC (resposta do emissor) a partir do ARQC recebido. Suporta **Method 1** (Visa/Elo) e **Method 2** (Mastercard).",
-      },
-      {
-        type: "image",
-        src: "/screenshots/emv5.png",
-        alt: "Generate ARPC — tela de geração da resposta",
-        caption: "Generate ARPC — gere a resposta do emissor (Method 1 ou 2)",
-      },
-
-      { type: "heading", level: 4, text: "Build Response" },
-      {
-        type: "paragraph",
-        text:
-          "Monte o Bit 55 de resposta (tags `91` + `8A`) que o emissor deve retornar na mensagem de resposta.",
-      },
-      {
-        type: "image",
-        src: "/screenshots/emv6.png",
-        alt: "Build Response — montar Bit 55 de resposta",
-        caption: "Build Response — monte o Bit 55 de resposta com ARPC e ARC",
-      },
-
-      { type: "heading", level: 4, text: "Full Flow" },
-      {
-        type: "paragraph",
-        text:
-          "Executa os 4 passos em sequência automática — **Parse Bit 55** → **Validate ARQC** → **Generate ARPC** → **Build Response**. O fluxo completo do emissor em um único clique.",
-      },
-      {
-        type: "image",
-        src: "/screenshots/emv7.png",
-        alt: "Full Flow EMV com resultado completo",
-        caption: "Full Flow — ARQC validado, ARPC gerado, Bit 55 montado",
-      },
-
-      { type: "divider" },
-
-      {
-        type: "heading",
-        level: 3,
-        text: "Full Flow EMV",
-        subtitle: "Cenário: receber uma transação com chip e responder corretamente com ARPC.",
-      },
-      {
-        type: "list",
-        ordered: true,
-        items: [
-          "Abra **Dados EMV** → aba **Full Flow**.",
-          "Preencha: **Bit 55** hex da mensagem recebida, **IMK-AC**, **PAN**, **PAN Sequence Number**, **Auth Response Code**.",
-          "Clique **Run Full EMV Flow**.",
-          "O ISOLeaf parseia o Bit 55, valida o ARQC, gera o ARPC e monta o Bit 55 de resposta (tags `91` + `8A`).",
-          "Copie o Bit 55 de resposta para incluir na sua `0110` / `0210`.",
-        ],
-      },
-
-      { type: "divider" },
-
-      // ── Guias práticos — ISO 20022 ───────────────────────────────
-      { type: "heading", level: 2, text: "Guias práticos — ISO 20022" },
-      {
-        type: "paragraph",
-        text:
-          "Três fluxos cobrem 90% do que analistas fazem no dia a dia com o bloco ISO 20022 do ISOLeaf: montar uma mensagem multi-ecossistema no Builder, ler um diagrama de sequência no Flow Visualizer e entender o relatório do Comparador MT↔MX. Cada guia parte do zero e assume que você acabou de abrir o módulo.",
-      },
-
-      // ── Guia: Builder multi-ecossistema ──────────────────────────
-      {
-        type: "heading",
-        level: 4,
-        text: "Builder multi-ecossistema",
-        subtitle: "Cenário: você precisa gerar uma mensagem ISO 20022 pronta para testar uma integração — sem escrever XML na mão.",
-      },
-      {
-        type: "paragraph",
-        text:
-          "O Builder trabalha em uma cascata Ecossistema → Cenário → Versão → Gerar. Cada ecossistema traz seu próprio conjunto de cenários (com placeholders realistas de nomes, contas, BICs) e obriga apenas os campos que a rede em questão exige — o que evita a explosão de campos opcionais que o XSD puro do ISO 20022 traz por padrão.",
-      },
-      {
-        type: "list",
-        ordered: true,
-        items: [
-          "Abra o módulo **Builder**.",
-          "Selecione um **Ecossistema**. As opções são: **Brazilian Pix** (regras do SPI/BCB), **SEPA** (área do euro), **SWIFT CBPR+** (cross-border com BIC), **TARGET/T2** (câmara do Eurosistema) e **Generic** (permite escolher qualquer XSD carregado, sem regras de negócio locais).",
-          "Selecione um **Cenário**. O cenário determina o tipo de mensagem (pacs.008, pain.001, pacs.004, camt.056, etc.) e traz um conjunto de defaults por ecossistema — Debtor, Creditor, agentes intermediários, códigos de propósito.",
-          "Selecione uma **Versão**. Só as versões suportadas pelo cenário aparecem — para pacs.008 no Pix, por exemplo, o Builder traz `001.13` como padrão (a versão vigente no SPI hoje). Se você precisar de uma versão antiga para testar compatibilidade, escolha na lista.",
-          "Clique **↺ Dados de teste** para preencher automaticamente Debtor/Creditor com nomes e contas de um gerador de dados fake do ecossistema (locale pt_BR para Pix, de/en para SEPA/CBPR+/T2).",
-          "Clique **Gerar**. O Builder chama o backend, monta o Document e renderiza o XML em tempo real ao lado do formulário.",
-          "Edite qualquer campo diretamente no formulário — o XML da direita reage. Campos regulados (EndToEndId 32 chars no Pix, UETR UUID v4 no CBPR+) têm um botão **⟳** para regerar o valor conforme o formato oficial.",
-          "Use a barra de busca no topo do formulário para promover um campo opcional. O Builder inclui automaticamente os ancestrais (adicionar `PmtId/InstrId` abre `PmtId`, ganhando o `InstrId` dentro).",
-          "**Copiar XML** para colar no seu integrador ou **Abrir no Parser** para inspecionar imediatamente o resultado com validação.",
-        ],
-      },
-      {
-        type: "callout",
-        tone: "info",
-        text:
-          "Diferença entre os 5 ecossistemas. Brazilian Pix impõe o Manual de Padrões do BCB (formatos regulados de EndToEndId, ISPB no lugar de BIC). SEPA joga com IBAN e códigos de propósito da área do euro. SWIFT CBPR+ exige BIC + UETR e traz cover payments (pacs.009). TARGET/T2 é a variante europeia do interbancário de alto valor. Generic serve para explorar qualquer XSD (inclusive schemas custom que você fez upload no Workspace) sem regras adicionais — útil para testes de conformidade puramente estrutural.",
-      },
-      {
-        type: "callout",
-        tone: "info",
-        text:
-          "Como interpretar o XML gerado. O topo do Document define o namespace (identifica tipo + versão). GrpHdr traz os metadados do lote (MsgId, CreDtTm, NbOfTxs, SttlmInf). O corpo específico da mensagem (FIToFICstmrCdtTrf em pacs.008, CstmrCdtTrfInitn em pain.001) contém uma ou mais transações — cada transação tem sua PmtId (identificadores), o par Debtor/Creditor com seus agentes e o RmtInf com as informações da remessa.",
-      },
-
-      { type: "divider" },
-
-      // ── Guia: Flow Visualizer ────────────────────────────────────
-      {
-        type: "heading",
-        level: 4,
-        text: "Flow Visualizer",
-        subtitle: "Cenário: você precisa entender como uma sequência de mensagens flui entre os participantes de um protocolo.",
-      },
-      {
-        type: "paragraph",
-        text:
-          "O Flow Visualizer desenha diagramas de sequência clássicos: colunas para cada ator, setas verticais para cada mensagem, uma linha do tempo descendo. É útil tanto para aprender um protocolo novo quanto para depurar uma integração real — cada seta abre o payload correspondente e você consegue ver o XML que efetivamente circula em cada hop.",
-      },
-      {
-        type: "list",
-        ordered: true,
-        items: [
-          "Abra **Flow Visualizer**. O topo da tela traz quatro abas de protocolo: **🇧🇷 Pix** (BR), **⚡ CBPR+ MX** (SWIFT XML), **📄 CBPR+ MT** (SWIFT legado) e **💳 ISO 8583** (mundo de cartão).",
-          "Escolha a aba do protocolo que quer estudar. Cada aba tem seu próprio catálogo de fluxos e sua própria coluna de atores — no Pix são \"Pagador → PSP Pagador → SPI/BCB → PSP Recebedor → Recebedor\"; no CBPR+ MX é \"Banco Originador → SWIFT/Correspondente → Banco Intermediário → Banco Beneficiário\".",
-          "Escolha o **Fluxo** no dropdown do topo. Exemplos por aba: no Pix — Transferência, Transferência com return, Open Finance, Rejeitada, Pix Automático; no CBPR+ — Direct Payment, Cover Payment, Return, Cancellation, Status Inquiry.",
-          "Clique **Gerar Fluxo**. O ISOLeaf produz mensagens fictícias válidas para cada step do fluxo escolhido e desenha o diagrama.",
-          "Interprete o diagrama. Cada seta é um step; o rótulo em cima da seta identifica a mensagem (ex: `pacs.008.001.13`). Setas contínuas são hops principais; **setas tracejadas** representam relay do BCB/correspondente; **setas vermelhas** representam timeout (issuer não respondeu, stand-in).",
-          "Clique em uma seta. Uma segunda linha aparece abaixo mostrando o **payload XML** desse step + um **resumo** parseado ao lado. Se o step for MT (legado) ou ISO 8583, o painel adaptativo troca para o formato correto.",
-          "Use **Abrir no Parser** dentro do painel do step para aprofundar a inspeção — o Parser abre com o XML já preenchido e pronto para validação.",
-        ],
-      },
-      {
-        type: "callout",
-        tone: "info",
-        text:
-          "Atores e setas — leitura rápida. Cada coluna vertical é um ator (PSP, banco, SPI, network). Uma seta da coluna A para a coluna B representa uma mensagem indo de A para B. A ordem descendente das setas é a linha do tempo do fluxo. Um step \"clicável\" é qualquer seta — sempre corresponde a um payload real gerado (não é ilustração vazia).",
-      },
-      {
-        type: "callout",
-        tone: "warning",
-        text:
-          "O diagrama é escalado automaticamente para caber na largura disponível — em mobile ele reduz sem exigir arraste horizontal. Se o texto de rótulo ficar pequeno, gire o dispositivo ou abra em uma tela maior para leitura confortável.",
-      },
-
-      { type: "divider" },
-
-      // ── Guia: Comparador MT↔MX ──────────────────────────────────
-      {
-        type: "heading",
-        level: 4,
-        text: "Comparador MT↔MX",
-        subtitle: "Cenário: sua integração precisa suportar SWIFT MT e ISO 20022 (MX) em paralelo durante a migração CBPR+.",
-      },
-      {
-        type: "paragraph",
-        text:
-          "O Comparador MT↔MX confronta uma mensagem SWIFT MT (formato legado) com sua correspondente ISO 20022 (MX). O objetivo é responder três perguntas: (a) esses dois XMLs representam a mesma operação? (b) quais campos foram traduzidos automaticamente e quais precisaram de heurística? (c) o que fazer com os que não têm equivalente do outro lado?",
-      },
-      { type: "heading", level: 3, text: "Modo A — Geração MT→MX via Builder" },
-      {
-        type: "paragraph",
-        text:
-          "No Modo A você cola apenas o MT (por exemplo, um MT103) e o ISOLeaf gera a MX correspondente automaticamente, reaproveitando o BuilderService. É o modo indicado quando você tem os MTs originais e quer ver o resultado esperado da migração para MX.",
-      },
-      {
-        type: "list",
-        ordered: true,
-        items: [
-          "Abra **Comparador MT↔MX**.",
-          "Selecione a aba **Modo A — Gerar MX a partir do MT**.",
-          "Cole o **MT** no textarea (formato SWIFT clássico com blocos `{1:...}{2:...}{3:...}{4:...}`).",
-          "Escolha a **família MX de destino** (pacs.008 para MT103, pacs.009 para MT202/MT202COV).",
-          "Clique **Gerar & comparar**. O ISOLeaf parseia o MT, chama o Builder com o cenário CBPR+ apropriado e produz a MX; o painel de resultado mostra os dois lado a lado com o diff campo a campo.",
-        ],
-      },
-      { type: "heading", level: 3, text: "Modo B — Comparação de duas mensagens existentes" },
-      {
-        type: "paragraph",
-        text:
-          "No Modo B você já tem o par MT e MX e quer confirmar equivalência ou apontar divergências. Este é o modo típico de conciliação: uma integração que já produz MX precisa ser validada contra os MTs históricos.",
-      },
-      {
-        type: "list",
-        ordered: true,
-        items: [
-          "Selecione a aba **Modo B — Comparar dois payloads**.",
-          "Cole o **MT** no textarea esquerdo e a **MX** no direito.",
-          "Clique **Comparar**. O ISOLeaf casa os campos pela tabela de mapeamento CBPR+ e produz o diff.",
-        ],
-      },
-      { type: "heading", level: 3, text: "Como resolver campos ambíguos" },
-      {
-        type: "paragraph",
-        text:
-          "Quando o Comparador encontra um campo com nível de confiança **Ambiguous**, ele destaca a linha em amarelo e traz uma lista de candidatos. Ambiguidade acontece porque a mesma informação pode aparecer em posições diferentes na MX conforme a variação do cenário — por exemplo, um endereço de beneficiário no MT pode virar `Cdtr/PstlAdr/AdrLine` ou `Cdtr/PstlAdr/StrtNm+PstCd+TwnNm` na MX, dependendo se o CBPR+ exige endereço estruturado (post-2025) ou aceita linhas livres (pré-2025).",
-      },
-      {
-        type: "list",
-        items: [
-          "Clique na linha ambígua para expandir os candidatos.",
-          "Compare o valor do MT com o de cada candidato — normalmente um deles bate exatamente com o texto que você esperaria ver.",
-          "Escolha o candidato clicando no chip **Aceitar mapeamento**. O ISOLeaf grava a decisão localmente para as próximas comparações da sessão (não é persistente entre reloads — o objetivo é acelerar batches).",
-          "Se nenhum candidato bater, o problema geralmente é anterior ao Comparador: o Builder pode ter escrito o campo em uma posição não esperada, ou o MT original está fora de padrão. Volte um passo (Builder ou Parser MT) para investigar.",
-        ],
-      },
-      { type: "heading", level: 3, text: "Níveis de confiança" },
-      {
-        type: "table",
-        headers: ["Nível", "Cor", "Significado", "Ação típica"],
-        rows: [
-          ["Automatic", "Verde", "Mapeamento CBPR+ direto, sem ambiguidade. O ISOLeaf casou o campo do MT com um único destino na MX com base na tabela oficial.", "Nenhuma — o diff está confiável."],
-          ["Ambiguous", "Amarelo", "Existe mais de um destino candidato na MX. O ISOLeaf lista as opções e não escolhe automaticamente.", "Expandir, comparar valores e aceitar o candidato correto."],
-          ["NoMapping", "Cinza", "O campo existe em um dos formatos e não tem equivalente no outro. Comum em campos ISO 20022 novos (UETR, dados estruturados de endereço, códigos de propósito ISO) e em campos MT legados (Sender's Reference, Related Reference).", "Registrar como \"perda controlada\" na migração — nem sempre há problema; nem tudo do MT precisa vir para o MX e vice-versa."],
-        ],
-      },
-      {
-        type: "callout",
-        tone: "info",
-        text:
-          "Regra prática: se a soma de \"Ambiguous\" + \"NoMapping\" for pequena e concentrada em campos previsíveis (endereço estruturado vs livre, sender reference), a migração está saudável. Se aparecerem campos financeiros críticos (valor, moeda, contas, BICs) em \"NoMapping\", investigue — provavelmente o parser não pegou o campo do MT por algum desvio de formatação.",
-      },
-
-      { type: "divider" },
-
-      { type: "heading", level: 2, text: "Comunidade e suporte" },
-      {
-        type: "list",
-        items: [
-          "💬 [Discussions no GitHub](https://github.com/isoleaf-io/isoleaf/discussions) — dúvidas, ideias e feedback",
-          "🐛 [Issues no GitHub](https://github.com/isoleaf-io/isoleaf/issues) — bugs e solicitações de features",
-          "📧 Email: **contato@isoleaf.dev** — para parcerias e consultas enterprise",
         ],
       },
     ],
