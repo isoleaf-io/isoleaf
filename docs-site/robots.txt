@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://docs.isoleaf.dev/sitemap.xml
