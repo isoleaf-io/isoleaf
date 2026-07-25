@@ -100,6 +100,6 @@ ENV ASPNETCORE_URLS=http://+:8080 \
 
 # Container-level liveness — hits the /api/health endpoint added to Program.cs.
 HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
-    CMD wget --quiet --tries=1 --spider http://localhost:8080/api/health || exit 1
+    CMD wget --quiet --tries=1 -O /dev/null http://localhost:8080/api/health || exit 1
 
 ENTRYPOINT ["dotnet", "Iso8583Toolkit.Agent.dll"]
