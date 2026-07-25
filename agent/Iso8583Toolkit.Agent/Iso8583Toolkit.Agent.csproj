@@ -40,26 +40,4 @@
     <Exec Command="npm run build" WorkingDirectory="../../frontend/isohub" />
   </Target>
 
-  <!--
-    The static landing page (frontend/landing/) is served by the Agent at
-    "/" while the React SPA lives under "/app". Vite only builds the SPA,
-    so the landing files never land in wwwroot/ on their own; the Docker
-    build has always copied them via an explicit `COPY` step. To keep the
-    `dotnet publish` output self-contained too — so the portable zip
-    ships with the landing intact — mirror that copy here. Runs on every
-    Release publish; the Condition on SkipFrontend + Release matches
-    BuildFrontend above so `dotnet build -c Debug` stays untouched.
-  -->
-  <Target Name="CopyLandingToWwwroot"
-          AfterTargets="BuildFrontend"
-          Condition="'$(Configuration)' == 'Release' AND '$(SkipFrontend)' != 'true'">
-    <ItemGroup>
-      <_LandingFiles Include="..\..\frontend\landing\**\*.*" />
-    </ItemGroup>
-    <Copy SourceFiles="@(_LandingFiles)"
-          DestinationFiles="@(_LandingFiles->'wwwroot\landing\%(RecursiveDir)%(Filename)%(Extension)')"
-          SkipUnchangedFiles="true" />
-    <Message Importance="high" Text="Copied @(_LandingFiles->Count()) landing file(s) into wwwroot/landing/" />
-  </Target>
-
 </Project>
