@@ -2,7 +2,6 @@ using System.ComponentModel;
 using System.Reflection;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.OpenApi;
-using Microsoft.Extensions.FileProviders;
 using Microsoft.OpenApi.Models;
 using Iso8583Toolkit.Agent.Hubs;
 using Iso8583Toolkit.Agent.OpenApi;
@@ -219,8 +218,10 @@ _ = app.Services.GetRequiredService<ReferenceService>();
 // ── Pipeline ───────────────────────────────────────────────────────────
 app.UseCors();
 app.UseResponseCaching();
-// Serve physical files from wwwroot: the React SPA assets (/assets/*, /favicon.svg,
-// /logo*.svg) and the static landing page assets (/landing/assets/*).
+// Serve physical files from wwwroot: the React SPA assets (/assets/*,
+// /favicon.svg, /logo*.svg). The landing page is no longer hosted here —
+// it now lives at isoleaf.dev, served by GitHub Pages from the standalone
+// isoleaf-io/landing repo.
 // NOTE: no UseDefaultFiles() — "/" must NOT auto-resolve to the React index.html.
 // The "/" and "/app" routes are mapped explicitly below.
 app.UseStaticFiles();
@@ -230,18 +231,13 @@ var webRoot = app.Environment.WebRootPath
               ?? Path.Combine(app.Environment.ContentRootPath, "wwwroot");
 var contentRoot = app.Environment.ContentRootPath;
 
-// HTML entry points live in wwwroot after a Docker/Release build, but in local
-// dev (`dotnet run` without copying the frontend) they only exist in the source
-// tree. Each page therefore resolves across an ordered list of candidates:
-//   1. wwwroot/...                       (production / Docker)
-//   2. ../../frontend/...  (repo source) (dev local)
+// The React SPA's HTML entry lives in wwwroot after a Docker/Release build,
+// but in local dev (`dotnet run` without copying the frontend) it only
+// exists in the source tree. Resolve across an ordered list of candidates:
+//   1. wwwroot/index.html                              (production / Docker)
+//   2. ../../frontend/isohub/dist/index.html           (dev local, vite build)
 // Resolution is per-request so a frontend (re)build is picked up without
 // restarting the host; a clear 404 is returned when no candidate exists.
-string[] landingCandidates =
-{
-    Path.Combine(webRoot, "landing", "index.html"),                                 // prod / Docker
-    Path.Combine(contentRoot, "..", "..", "frontend", "landing", "index.html"),     // dev local
-};
 string[] spaCandidates =
 {
     Path.Combine(webRoot, "index.html"),                                            // prod / Docker (vite outDir)
@@ -258,19 +254,6 @@ static IResult ServePage(string label, string[] candidates)
             title: $"{label} not found",
             detail: "Looked in: " + string.Join(" | ", resolved),
             statusCode: StatusCodes.Status404NotFound);
-}
-
-// Dev local only: the landing's assets (/landing/assets/*) are copied into
-// wwwroot only by the Docker build, so serve them straight from the source tree
-// when wwwroot/landing is absent. No-op in production / Docker.
-var devLandingDir = Path.GetFullPath(Path.Combine(contentRoot, "..", "..", "frontend", "landing"));
-if (!Directory.Exists(Path.Combine(webRoot, "landing")) && Directory.Exists(devLandingDir))
-{
-    app.UseStaticFiles(new StaticFileOptions
-    {
-        FileProvider = new PhysicalFileProvider(devLandingDir),
-        RequestPath = "/landing",
-    });
 }
 
 // ── ISOHUB_MODE=online: block crypto/simulator routes ─────────────────
@@ -350,11 +333,12 @@ if (configuredMode != "online")
 }
 
 // ── Page routing ───────────────────────────────────────────────────────
-//   GET /            → static landing page (wwwroot/landing/index.html)
+//   GET /            → 302 redirect to /app (the landing now lives at
+//                      isoleaf.dev via GitHub Pages, off this host)
 //   GET /app         → React SPA shell  (wwwroot/index.html)
 //   GET /app/{**}    → React SPA shell  (so client-side routing deep links work)
 //   /api/* , /hubs/* → handled above by controllers / SignalR
-app.MapGet("/", () => ServePage("Landing page", landingCandidates));
+app.MapGet("/", () => Results.Redirect("/app"));
 app.MapGet("/app", () => ServePage("App shell", spaCandidates));
 app.MapGet("/app/{**path}", () => ServePage("App shell", spaCandidates));
 
@@ -378,32 +362,12 @@ app.MapFallback(context =>
     return result.ExecuteAsync(context);
 });
 
-// ── SEO: sitemap.xml + robots.txt (served from the landing folder) ───────
-app.MapGet("/sitemap.xml", () =>
-{
-    var candidates = new[]
-    {
-        Path.Combine(webRoot, "landing", "sitemap.xml"),
-        Path.GetFullPath(Path.Combine(contentRoot, "..", "..", "frontend", "landing", "sitemap.xml")),
-    };
-    var file = candidates.Select(Path.GetFullPath).FirstOrDefault(File.Exists);
-    return file is not null
-        ? Results.File(file, "application/xml; charset=utf-8")
-        : Results.NotFound();
-});
-
-app.MapGet("/robots.txt", () =>
-{
-    var candidates = new[]
-    {
-        Path.Combine(webRoot, "landing", "robots.txt"),
-        Path.GetFullPath(Path.Combine(contentRoot, "..", "..", "frontend", "landing", "robots.txt")),
-    };
-    var file = candidates.Select(Path.GetFullPath).FirstOrDefault(File.Exists);
-    return file is not null
-        ? Results.File(file, "text/plain; charset=utf-8")
-        : Results.NotFound();
-});
+// sitemap.xml + robots.txt used to be served here from frontend/landing/;
+// they now live in the standalone isoleaf-io/landing repo, served by
+// GitHub Pages at isoleaf.dev directly. Requests hitting /sitemap.xml or
+// /robots.txt on the Agent host now 404 via the fallback above (their
+// path contains a dot). That's fine — search engines don't crawl this
+// host; the canonical entry point is isoleaf.dev.
 
 app.Run();
 
