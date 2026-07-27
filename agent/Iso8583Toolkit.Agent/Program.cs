@@ -333,14 +333,22 @@ if (configuredMode != "online")
 }
 
 // ── Page routing ───────────────────────────────────────────────────────
-//   GET /            → 302 redirect to /app (the landing now lives at
-//                      isoleaf.dev via GitHub Pages, off this host)
-//   GET /app         → React SPA shell  (wwwroot/index.html)
-//   GET /app/{**}    → React SPA shell  (so client-side routing deep links work)
-//   /api/* , /hubs/* → handled above by controllers / SignalR
-app.MapGet("/", () => Results.Redirect("/app"));
-app.MapGet("/app", () => ServePage("App shell", spaCandidates));
-app.MapGet("/app/{**path}", () => ServePage("App shell", spaCandidates));
+//   GET|HEAD /            → 302 redirect to /app (the landing now lives at
+//                           isoleaf.dev via GitHub Pages, off this host)
+//   GET|HEAD /app         → React SPA shell  (wwwroot/index.html)
+//   GET|HEAD /app/{**}    → React SPA shell  (so client-side routing deep links work)
+//   /api/* , /hubs/*      → handled above by controllers / SignalR
+//
+// Both GET and HEAD are wired explicitly: ASP.NET's minimal routing does not
+// auto-pair HEAD with MapGet, so without HEAD in the accept list HEAD
+// requests fall through to MapFallback (which serves the SPA shell for
+// anything non-.api). That was misleading for uptime probes / `curl -I`.
+// Results.Redirect and Results.File (used inside ServePage) both handle
+// HEAD natively — the problem was just the route not accepting the verb.
+var pageMethods = new[] { HttpMethods.Get, HttpMethods.Head };
+app.MapMethods("/", pageMethods, () => Results.Redirect("/app"));
+app.MapMethods("/app", pageMethods, () => ServePage("App shell", spaCandidates));
+app.MapMethods("/app/{**path}", pageMethods, () => ServePage("App shell", spaCandidates));
 
 
 app.MapFallback(context =>
