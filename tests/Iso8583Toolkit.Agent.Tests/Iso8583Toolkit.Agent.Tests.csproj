@@ -22,7 +22,7 @@
     <ProjectReference Include="..\..\src\Iso8583Toolkit.IsoCore\Iso8583Toolkit.IsoCore.csproj" />
     <ProjectReference Include="..\..\src\Iso8583Toolkit.Cards\Iso8583Toolkit.Cards.csproj" />
     <ProjectReference Include="..\..\src\Iso8583Toolkit.Simulator\Iso8583Toolkit.Simulator.csproj" />
-    <ProjectReference Include="..\..\src\Iso8583Toolkit.Api\Iso8583Toolkit.Api.csproj" />
+    <ProjectReference Include="..\..\src\Iso8583Toolkit.Application\Iso8583Toolkit.Application.csproj" />
   </ItemGroup>
 
   <ItemGroup>

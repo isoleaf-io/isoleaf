@@ -2,7 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using FluentAssertions;
-using Iso8583Toolkit.Api.DTOs;
+using Iso8583Toolkit.Application.DTOs;
 
 namespace Iso8583Toolkit.Agent.Tests.Functional;
 
