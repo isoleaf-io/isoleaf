@@ -17,12 +17,22 @@
     <NoWarn>$(NoWarn);CS1591</NoWarn>
   </PropertyGroup>
 
+  <!-- OpenAPI + Scalar packages used to arrive transitively via the old
+       Iso8583Toolkit.Api (Web SDK) project reference. Sprint 12.1 stripped
+       the Api project down to a class library (renamed Application) with
+       no ASP.NET packages, so the Agent host must now declare them itself.
+       Versions pinned to the same ones the old Application csproj shipped. -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.9" />
+    <PackageReference Include="Scalar.AspNetCore" Version="2.13.22" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\..\src\Iso8583Toolkit.IsoCore\Iso8583Toolkit.IsoCore.csproj" />
     <ProjectReference Include="..\..\src\Iso8583Toolkit.Cards\Iso8583Toolkit.Cards.csproj" />
     <ProjectReference Include="..\..\src\Iso8583Toolkit.Cryptography\Iso8583Toolkit.Cryptography.csproj" />
     <ProjectReference Include="..\..\src\Iso8583Toolkit.Simulator\Iso8583Toolkit.Simulator.csproj" />
-    <ProjectReference Include="..\..\src\Iso8583Toolkit.Api\Iso8583Toolkit.Api.csproj" />
+    <ProjectReference Include="..\..\src\Iso8583Toolkit.Application\Iso8583Toolkit.Application.csproj" />
     <ProjectReference Include="..\..\src\Iso8583Toolkit.Iso20022\Iso8583Toolkit.Iso20022.csproj" />
   </ItemGroup>
 

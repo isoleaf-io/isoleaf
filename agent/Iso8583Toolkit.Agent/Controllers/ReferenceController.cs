@@ -1,4 +1,4 @@
-using Iso8583Toolkit.Api.Models.Iso20022;
+using Iso8583Toolkit.Application.Models.Iso20022;
 using Iso8583Toolkit.Iso20022.Schema;
 using Iso8583Toolkit.Iso20022.Services;
 using Microsoft.AspNetCore.Mvc;

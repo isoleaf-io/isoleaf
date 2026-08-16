@@ -6,7 +6,7 @@ using Microsoft.OpenApi.Models;
 using Iso8583Toolkit.Agent.Hubs;
 using Iso8583Toolkit.Agent.OpenApi;
 using Iso8583Toolkit.Agent.Services;
-using Iso8583Toolkit.Api.Services;
+using Iso8583Toolkit.Application.Services;
 using Iso8583Toolkit.Cards;
 using Iso8583Toolkit.Cryptography.Emv;
 using Iso8583Toolkit.Iso20022.Builder;
@@ -40,7 +40,11 @@ builder.Services
     })
     .ConfigureApplicationPartManager(apm =>
     {
-        // Only expose Agent's controllers — referenced API project's controllers are excluded.
+        // Only expose Agent's controllers. The Application class library
+        // no longer ships controllers (Sprint 12.1 stripped the dead
+        // parallel Web API), but the ApplicationPart filter stays as a
+        // safety net so a future referenced project can't accidentally
+        // register controllers on this host.
         var foreign = apm.ApplicationParts
             .Where(p => p.Name != typeof(Program).Assembly.GetName().Name)
             .ToList();

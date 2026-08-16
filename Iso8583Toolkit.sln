@@ -5,7 +5,7 @@ VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{827E0CD3-B72D-47B6-A68D-7590B98EB39B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Iso8583Toolkit.Api", "src\Iso8583Toolkit.Api\Iso8583Toolkit.Api.csproj", "{E3C3C269-096D-417A-A07A-CDB555EF0765}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Iso8583Toolkit.Application", "src\Iso8583Toolkit.Application\Iso8583Toolkit.Application.csproj", "{E3C3C269-096D-417A-A07A-CDB555EF0765}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Iso8583Toolkit.IsoCore", "src\Iso8583Toolkit.IsoCore\Iso8583Toolkit.IsoCore.csproj", "{F2E68F29-C74F-4E84-A531-E2961CE3A186}"
 EndProject
