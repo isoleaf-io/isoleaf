@@ -23,6 +23,7 @@ import clsx from "clsx";
 import { StatusDot } from "@/components/ui/StatusDot";
 import { useHealth } from "@/hooks/useHealth";
 import { useAppConfig } from "@/contexts/AppConfigContext";
+import { useAgentConnectionStore } from "@/store/agentConnection";
 import { FEATURES, type FeatureKey } from "@/config/features";
 import { APP_VERSION } from "@/version";
 
@@ -501,15 +502,29 @@ export function Sidebar({ isOpen = false, onNavigate }: SidebarProps = {}) {
         <NavRow item={FOOTER_NAV} onNavigate={onNavigate} />
       </div>
 
-      {/* Agent status — only meaningful in standalone mode. In online mode
-          the Agent is always running on the demo server and the user has no
-          control over it, so the row would only add noise. */}
+      {/* Host status — only meaningful in standalone mode. In online mode
+          both hosts are always running on the demo server and the user has
+          no control over them, so the block would only add noise. */}
       {!isOnlineMode && (
-        <div className="px-4 py-3 border-t border-[var(--border)] flex items-center gap-2">
-          <StatusDot status={online ? "online" : "offline"} />
-          <span className="text-xs text-text-secondary">
-            {online ? t("common.agentOnline") : t("common.agentOffline")}
-          </span>
+        <div className="px-4 py-3 border-t border-[var(--border)] flex flex-col gap-2">
+          {/* Row 1: Backend health. Reflects /api/health of the Backend
+              process (SPA host + utility APIs). Renamed from the legacy
+              "Agent" label in Sprint 12.4 to stop overlapping with the
+              new Simulator Agent indicator below — the label was
+              misleading after the Sprint 12.2 split. */}
+          <div className="flex items-center gap-2">
+            <StatusDot status={online ? "online" : "offline"} />
+            <span className="text-xs text-text-secondary">
+              {online ? t("common.backendOnline") : t("common.backendOffline")}
+            </span>
+          </div>
+          {/* Row 2 (Sprint 12.4 P1): Simulator Agent indicator. Reads
+              the shared agentConnection store — no polling of its own; the
+              status is written by the Workspace "Conectar" flow and by the
+              Simulator page's connectivity gate. Clickable → jumps to the
+              Simulator tab in Workspace so the fix (configure / reconnect)
+              is one click away. */}
+          <SimulatorAgentIndicator />
         </div>
       )}
 
@@ -530,5 +545,53 @@ export function Sidebar({ isOpen = false, onNavigate }: SidebarProps = {}) {
         </span>
       </div>
     </aside>
+  );
+}
+
+/**
+ * Sprint 12.4 P1 — visual status of the Simulator Agent (separate host
+ * from the Backend since Sprint 12.2). Deliberately distinct from the
+ * "Backend online/offline" row above (which reflects the Backend's
+ * /api/health): this one reads the shared <c>agentConnection</c> store,
+ * which the Workspace "Conectar" flow and the Simulator page's gate
+ * keep up to date.
+ *
+ * No polling of its own — the store is a Zustand global, so a status
+ * change in the Workspace or on the Simulator page propagates instantly
+ * across every subscriber (including this dot).
+ *
+ * Clickable: jumps to Workspace → Simulator tab so a "disconnected" or
+ * "error" state can be fixed in one click.
+ */
+function SimulatorAgentIndicator() {
+  const { t } = useTranslation();
+  const agentUrl = useAgentConnectionStore((s) => s.agentUrl);
+  const status = useAgentConnectionStore((s) => s.status);
+
+  let dot: "online" | "offline" | "warning" | "neutral";
+  let label: string;
+  if (status === "connected") {
+    dot = "online";
+    label = t("common.simulatorAgent.connected");
+  } else if (status === "error") {
+    dot = "warning";
+    label = t("common.simulatorAgent.error");
+  } else {
+    // idle / testing / no URL yet → neutral (we don't know)
+    dot = "neutral";
+    label = t("common.simulatorAgent.disconnected");
+  }
+
+  return (
+    <Link
+      to="/workspace?tab=agent"
+      data-testid="sidebar-simulator-agent-indicator"
+      data-status={status}
+      data-has-url={agentUrl ? "true" : "false"}
+      className="flex items-center gap-2 -mx-1 px-1 py-0.5 rounded hover:bg-bg-tertiary/40 transition-colors"
+    >
+      <StatusDot status={dot} />
+      <span className="text-xs text-text-secondary">{label}</span>
+    </Link>
   );
 }

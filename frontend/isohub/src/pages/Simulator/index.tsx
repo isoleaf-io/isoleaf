@@ -22,12 +22,15 @@ import { Badge } from "@/components/ui/Badge";
 import { Input, Label, Select, Toggle } from "@/components/ui/Field";
 import { MonoText } from "@/components/ui/MonoText";
 import { listSessions, startSession, stopSession, getLog, clearLog } from "@/api/simulator";
+import { probeAgentHealth } from "@/api/agent";
 import { useSimulatorHub } from "@/hooks/useSimulatorHub";
 import { useAppConfig } from "@/contexts/AppConfigContext";
 import { InjectorPanel } from "./InjectorPanel";
 import { SimulatorLockedPanel } from "./SimulatorLockedPanel";
+import { AgentNotConfiguredPanel } from "./AgentNotConfiguredPanel";
 import { EmvResponseConfigModal } from "./EmvResponseConfigModal";
 import { useInjectorStore } from "@/store/injector";
+import { useAgentConnectionStore } from "@/store/agentConnection";
 import type { MessageLogEntry, SimulatorSession } from "@/types";
 
 const STATUS_TONE: Record<string, "accent" | "success" | "warning" | "danger" | "neutral"> = {
@@ -39,10 +42,42 @@ const STATUS_TONE: Record<string, "accent" | "success" | "warning" | "danger" | 
 
 export default function SimulatorPage() {
   const { t } = useTranslation();
-  const qc = useQueryClient();
   const { simulatorEnabled } = useAppConfig();
-  const [filter, setFilter] = useState<"all" | "received" | "sent" | "errors" | "rejected">("all");
-  const [showForm, setShowForm] = useState(false);
+  // Sprint 12.2 P5+: the Simulator Agent runs in a separate process at a
+  // URL the operator configures on the Workspace page.
+  const agentUrl = useAgentConnectionStore((s) => s.agentUrl);
+  const setAgentStatus = useAgentConnectionStore((s) => s.setStatus);
+  const setAgentError = useAgentConnectionStore((s) => s.setError);
+
+  // Sprint 12.4: even when a URL is saved in localStorage, the Agent
+  // process may be down (e.g. dev tore it down and reloaded the page).
+  // Actively probe /api/health once on mount before rendering the live UI
+  // so the "not reachable" empty state wins over the form + error banner
+  // that we used to show. No polling — subsequent failures surface inline
+  // via listSessions' 5s refetch and the SignalR hub's onclose.
+  const agentHealthQuery = useQuery({
+    queryKey: ["agent-health-gate", agentUrl],
+    queryFn: () => probeAgentHealth(agentUrl!),
+    enabled: Boolean(agentUrl),
+    retry: false,
+    // A single check on entry is the contract — Radix rerender shouldn't
+    // trigger a second probe. Keep the result fresh for the tab lifetime.
+    staleTime: Infinity,
+  });
+
+  // Mirror the probe outcome into the global agentConnection store so the
+  // Sidebar indicator (Sprint 12.4 P1) reflects reality without polling
+  // itself. Store status is intentionally UI-derived, not persisted.
+  useEffect(() => {
+    if (!agentUrl) return;
+    if (agentHealthQuery.isSuccess) {
+      setAgentStatus("connected");
+      setAgentError(null);
+    } else if (agentHealthQuery.isError) {
+      setAgentStatus("error");
+      setAgentError((agentHealthQuery.error as Error)?.message ?? null);
+    }
+  }, [agentUrl, agentHealthQuery.isSuccess, agentHealthQuery.isError, agentHealthQuery.error, setAgentStatus, setAgentError]);
 
   // Online mode: backend blocks /api/simulator/* with 403. Render the locked
   // panel instead of the live UI so users see why the feature isn't running
@@ -54,6 +89,46 @@ export default function SimulatorPage() {
       </AppShell>
     );
   }
+
+  // Standalone but Agent URL not yet configured: every /api/simulator/*
+  // call would fail with AGENT_NOT_CONFIGURED and the SignalR hub can't
+  // dial. Point the user at the Workspace to configure it.
+  if (!agentUrl) {
+    return (
+      <AppShell title={t("simulator.title")} subtitle={t("simulator.subtitle")}>
+        <AgentNotConfiguredPanel />
+      </AppShell>
+    );
+  }
+
+  // URL saved but the Agent isn't responding right now: same empty-state
+  // shape, different message ("not reachable" instead of "not configured").
+  // Never show the form + a banner on top; the user's next click would
+  // just produce another network error.
+  if (agentHealthQuery.isError) {
+    return (
+      <AppShell title={t("simulator.title")} subtitle={t("simulator.subtitle")}>
+        <AgentNotConfiguredPanel
+          reason="unreachable"
+          attemptedUrl={agentUrl}
+          errorMessage={(agentHealthQuery.error as Error)?.message ?? null}
+        />
+      </AppShell>
+    );
+  }
+
+  // Gate passed. Render the live UI as a subcomponent so its hooks live
+  // in a stable, always-mounted call site — otherwise React sees a
+  // different hook count between "gate blocked" and "gate open" renders
+  // and throws "Rendered fewer hooks than expected". Sprint 12.4 P3.
+  return <SimulatorPageBody />;
+}
+
+function SimulatorPageBody() {
+  const { t } = useTranslation();
+  const qc = useQueryClient();
+  const [filter, setFilter] = useState<"all" | "received" | "sent" | "errors" | "rejected">("all");
+  const [showForm, setShowForm] = useState(false);
 
   // Live log is collapsed by default — most users only care about the Injector
   // panel above. Persist the choice so it survives a reload.
@@ -613,7 +688,14 @@ function SessionForm({
   const { t } = useTranslation();
   const [cfg, setCfg] = useState({
     sessionId: "",
-    tcpPort: 8583,
+    // 9100 is a common lab-simulator TCP port and, more importantly, does
+    // NOT collide with the Agent host's own HTTP port (8583) — reusing
+    // that value here was a Sprint 12.2-era carry-over from when the
+    // Simulator and the "Agent" were the same process. Do NOT revert to
+    // 8583: it would suggest a false relationship with the Agent URL the
+    // user configured in Workspace and risks a bind conflict on the
+    // operator's machine.
+    tcpPort: 9100,
     // Mode is locked to Rebatedor — the new design has a single, always-on Injector
     // panel below the rebatedor list, so the session creator never picks a mode.
     mode: "Rebatedor",

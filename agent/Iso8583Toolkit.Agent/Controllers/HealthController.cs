@@ -1,5 +1,6 @@
 using System.Reflection;
-using Iso8583Toolkit.Agent.Services;
+using Iso8583Toolkit.Simulator.Logging;
+using Iso8583Toolkit.Simulator.Sessions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
@@ -10,23 +11,22 @@ namespace Iso8583Toolkit.Agent.Controllers;
 public sealed class HealthController : ControllerBase
 {
     private static readonly DateTime StartedAt = DateTime.UtcNow;
-    private readonly LocalSessionStore _store;
+    private readonly IMessageLog _log;
+    private readonly ISessionStore _sessions;
 
-    public HealthController(LocalSessionStore store)
+    public HealthController(IMessageLog log, ISessionStore sessions)
     {
-        _store = store;
+        _log = log;
+        _sessions = sessions;
     }
 
     [HttpGet]
-    [EndpointSummary("Liveness probe + agent runtime metadata")]
-    [EndpointDescription("Returns a constant `status=ok` plus the running assembly version, process uptime, active simulator session count and total messages processed since startup. Designed for container HEALTHCHECKs and for the frontend's Agent badge.")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
     public IActionResult Get()
     {
         var version = Assembly.GetExecutingAssembly()
             .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
             ?? Assembly.GetExecutingAssembly().GetName().Version?.ToString()
-            ?? "2.1.0";
+            ?? "3.0.0";
 
         var uptime = DateTime.UtcNow - StartedAt;
 
@@ -35,8 +35,8 @@ public sealed class HealthController : ControllerBase
             status = "ok",
             version,
             uptime = uptime.ToString(@"hh\:mm\:ss"),
-            activeSessions = _store.GetActiveSessions().Count(),
-            totalMessagesProcessed = _store.TotalMessagesProcessed,
+            activeSessions = _sessions.GetActiveSessions().Count(),
+            totalMessagesProcessed = _log.TotalMessagesProcessed,
         });
     }
 }

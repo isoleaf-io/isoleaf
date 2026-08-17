@@ -100,20 +100,31 @@ describe("AppConfig — online vs standalone mode", () => {
     expect(hrefs).toContain("/parser");
   });
 
-  it("Agent status row hidden in online mode", () => {
-    // The "Agent online/offline" row is only meaningful when the user is
-    // running the Agent themselves — hide it on the public demo.
+  it("Host status block hidden in online mode", () => {
+    // The Backend + Simulator Agent indicator block is only meaningful
+    // when the user is running the hosts themselves — hide it on the
+    // public demo where both hosts are always up on the demo server.
+    // Post-Sprint-12.4 the label is "Backend online/offline"; the
+    // Simulator Agent row renders separately below it.
     renderApp(withConfig(<Sidebar />, ONLINE_CONFIG));
     expect(
-      screen.queryByText(/Agent online|Agent offline|Agente online|Agente offline/i),
+      screen.queryByText(/Backend online|Backend offline/i),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("sidebar-simulator-agent-indicator"),
     ).not.toBeInTheDocument();
   });
 
-  it("Agent status row visible in standalone mode", () => {
+  it("Host status block visible in standalone mode", () => {
     renderApp(withConfig(<Sidebar />, STANDALONE_CONFIG));
-    // jsdom can't reach the live agent so it renders "offline" — either label is fine.
+    // jsdom can't reach the live Backend so it renders "offline" — either label is fine.
     expect(
-      screen.getByText(/Agent online|Agent offline|Agente online|Agente offline/i),
+      screen.getByText(/Backend online|Backend offline/i),
+    ).toBeInTheDocument();
+    // The Sprint 12.4 Simulator Agent indicator is a sibling row inside
+    // the same block, so it must be visible in standalone mode too.
+    expect(
+      screen.getByTestId("sidebar-simulator-agent-indicator"),
     ).toBeInTheDocument();
   });
 

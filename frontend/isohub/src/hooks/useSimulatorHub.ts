@@ -5,10 +5,11 @@ import {
   HubConnectionState,
   LogLevel,
 } from "@microsoft/signalr";
-import { HUB_URL } from "@/api/client";
+import { getSimulatorHubUrl } from "@/api/client";
+import { useAgentConnectionStore } from "@/store/agentConnection";
 import type { MessageLogEntry, SimulatorSession } from "@/types";
 
-export type ConnectionStatus = "connecting" | "connected" | "disconnected" | "error";
+export type ConnectionStatus = "connecting" | "connected" | "disconnected" | "error" | "unconfigured";
 
 interface SimulatorHubEvents {
   onMessageReceived?: (entry: MessageLogEntry) => void;
@@ -21,18 +22,33 @@ interface SimulatorHubEvents {
 /**
  * SignalR client for the simulator hub. Auto-reconnects with exponential backoff
  * and exposes joinSession/leaveSession for per-session subscriptions.
+ *
+ * Sprint 12.2 P5+ — the hub URL is derived from the operator-configured Agent
+ * base URL (Workspace page). While unconfigured the hook stays in status
+ * "unconfigured" without attempting a connection; once the URL changes we
+ * tear down the old connection and reconnect to the new host.
  */
 export function useSimulatorHub(events: SimulatorHubEvents = {}) {
-  const [status, setStatus] = useState<ConnectionStatus>("connecting");
+  const agentUrl = useAgentConnectionStore((s) => s.agentUrl);
+  const [status, setStatus] = useState<ConnectionStatus>(
+    agentUrl ? "connecting" : "unconfigured",
+  );
   const connectionRef = useRef<HubConnection | null>(null);
   const eventsRef = useRef(events);
   eventsRef.current = events;
 
   useEffect(() => {
+    // No Agent configured — skip the connect and reflect that in the badge.
+    const hubUrl = getSimulatorHubUrl();
+    if (!hubUrl) {
+      setStatus("unconfigured");
+      return;
+    }
+
     let stopped = false;
 
     const conn = new HubConnectionBuilder()
-      .withUrl(HUB_URL)
+      .withUrl(hubUrl)
       .withAutomaticReconnect([0, 2_000, 5_000, 10_000, 30_000])
       .configureLogging(LogLevel.Warning)
       .build();
@@ -70,7 +86,8 @@ export function useSimulatorHub(events: SimulatorHubEvents = {}) {
       conn.stop().catch(() => {});
       connectionRef.current = null;
     };
-  }, []);
+    // Re-run when the operator changes the Agent URL from the Workspace.
+  }, [agentUrl]);
 
   const joinSession = useCallback(async (sessionId: string) => {
     const conn = connectionRef.current;

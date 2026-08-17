@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { screen, within } from "@testing-library/react";
+import { act, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { renderApp } from "@/test/renderApp";
 
@@ -30,6 +30,7 @@ vi.mock("@/contexts/AppConfigContext", () => ({
 }));
 
 import { Sidebar } from "@/components/layout/Sidebar";
+import { useAgentConnectionStore } from "@/store/agentConnection";
 
 const STORAGE_KEY = "isoleaf.sidebar.expandedGroups";
 
@@ -218,5 +219,98 @@ describe("Sidebar — two-mother-group layout", () => {
     expect(cross.className).toContain("pt-2");
     // Explicitly NOT the mother-group pt-4 — that's what makes it subtler.
     expect(cross.className).not.toContain("pt-4");
+  });
+});
+
+describe("Sidebar — Simulator Agent indicator (Sprint 12.4 P1)", () => {
+  beforeEach(() => {
+    // Reset the store so each case starts from a known baseline.
+    useAgentConnectionStore.setState({
+      agentUrl: null,
+      status: "idle",
+      errorMessage: null,
+    });
+    localStorage.clear();
+  });
+
+  it("renders the Backend health badge (renamed from 'Agent' in Sprint 12.4)", () => {
+    renderApp(<Sidebar />);
+    // Sprint 12.4 renamed the label — was "Agent online/offline",
+    // now "Backend online/offline" so it stops overlapping semantically
+    // with the Simulator Agent indicator right below. The dot + row
+    // stay where they were.
+    expect(screen.getByText(/Backend online|Backend offline/i)).toBeInTheDocument();
+    // And the old label must NOT resurface — a regression here would
+    // put us back to two conflicting "Agent" signals.
+    expect(screen.queryByText(/^Agent online$|^Agent offline$/i)).not.toBeInTheDocument();
+  });
+
+  it("renders NEUTRAL (Simulador desconectado) when status is idle and no URL saved", () => {
+    renderApp(<Sidebar />);
+    const indicator = screen.getByTestId("sidebar-simulator-agent-indicator");
+    expect(indicator).toHaveAttribute("data-status", "idle");
+    expect(indicator).toHaveAttribute("data-has-url", "false");
+    // Localised label — matches both EN and PT-BR variants.
+    expect(indicator).toHaveTextContent(/Simulador desconectado|Simulator disconnected/);
+    // Neutral dot: no bg-success / bg-danger / bg-warning class.
+    const dot = indicator.querySelector("span.inline-block.w-2.h-2");
+    expect(dot?.className).toMatch(/bg-text-tertiary/);
+  });
+
+  it("renders GREEN (Simulador conectado) when status is connected", () => {
+    useAgentConnectionStore.setState({
+      agentUrl: "http://localhost:8583",
+      status: "connected",
+      errorMessage: null,
+    });
+    renderApp(<Sidebar />);
+    const indicator = screen.getByTestId("sidebar-simulator-agent-indicator");
+    expect(indicator).toHaveAttribute("data-status", "connected");
+    expect(indicator).toHaveTextContent(/Simulador conectado|Simulator connected/);
+    const dot = indicator.querySelector("span.inline-block.w-2.h-2");
+    expect(dot?.className).toMatch(/bg-success/);
+  });
+
+  it("renders WARNING (Simulador com erro) when status is error", () => {
+    useAgentConnectionStore.setState({
+      agentUrl: "http://localhost:8583",
+      status: "error",
+      errorMessage: "boom",
+    });
+    renderApp(<Sidebar />);
+    const indicator = screen.getByTestId("sidebar-simulator-agent-indicator");
+    expect(indicator).toHaveAttribute("data-status", "error");
+    expect(indicator).toHaveTextContent(/Simulador com erro|Simulator error/);
+    const dot = indicator.querySelector("span.inline-block.w-2.h-2");
+    expect(dot?.className).toMatch(/bg-warning/);
+  });
+
+  it("indicator navigates to /workspace?tab=agent when clicked", () => {
+    renderApp(<Sidebar />);
+    const indicator = screen.getByTestId("sidebar-simulator-agent-indicator");
+    expect(indicator.getAttribute("href")).toBe("/workspace?tab=agent");
+  });
+
+  it("reacts to store changes without a component re-mount (Zustand reactivity)", async () => {
+    // Prove the indicator picks up an out-of-band status change (e.g.
+    // Workspace 'Conectar' completes on another page) without needing
+    // an explicit re-render trigger from the Sidebar's own state.
+    renderApp(<Sidebar />);
+    let indicator = screen.getByTestId("sidebar-simulator-agent-indicator");
+    expect(indicator).toHaveAttribute("data-status", "idle");
+
+    // Wrapping in act() lets React's concurrent scheduler flush the
+    // subscriber re-render before the assertion below reads the DOM.
+    act(() => {
+      useAgentConnectionStore.setState({
+        agentUrl: "http://localhost:8583",
+        status: "connected",
+        errorMessage: null,
+      });
+    });
+
+    indicator = screen.getByTestId("sidebar-simulator-agent-indicator");
+    expect(indicator).toHaveAttribute("data-status", "connected");
+    expect(indicator).toHaveTextContent(/Simulador conectado|Simulator connected/);
   });
 });

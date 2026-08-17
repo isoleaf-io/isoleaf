@@ -68,6 +68,19 @@ body {
 }
 * { border-color: var(--border); }
 
+/* Editable fields: disable programming ligatures that JetBrains Mono
+   (the app's `font-mono`) enables by default. Sequences like `://`,
+   `!=`, `>=`, `->` render as a single fused glyph — visually pretty
+   for reading code, actively confusing while editing a URL / hex /
+   ISO 8583 wire (the cursor sits between characters that the glyph
+   collapses into one, and the user sees `http: /localhost` when they
+   type `http://localhost`). Same trade-off VSCode makes for `<input>`
+   fields in its own UI. Only ligatures are turned off — character
+   variants (font-feature-settings `cv11` on body, etc.) still apply. */
+input, textarea, [contenteditable] {
+  font-variant-ligatures: none;
+}
+
 /* PixFlow visualizer: gentle fade-in when the user lands on a step. The
    keyframe is keyed off the step id (via React `key=`) so switching
    steps re-triggers the animation in place — no scroll, no layout jump. */

@@ -2,43 +2,49 @@ using System.Diagnostics;
 using System.Net.Sockets;
 using System.Text;
 using Iso8583Toolkit.Agent.Hubs;
-using Iso8583Toolkit.Agent.Models;
 using Iso8583Toolkit.IsoCore.Domain.Exceptions;
 using Iso8583Toolkit.IsoCore.Layouts;
 using Iso8583Toolkit.IsoCore.Parsing;
 using Iso8583Toolkit.Simulator.Protocol;
+using Iso8583Toolkit.Simulator.Framing;
+using Iso8583Toolkit.Simulator.Logging;
 using Iso8583Toolkit.Simulator.Responder;
+using Iso8583Toolkit.Simulator.Sessions;
 using Microsoft.AspNetCore.SignalR;
 
 namespace Iso8583Toolkit.Agent.Services;
 
 /// <summary>
 /// Handles ISO 8583 message processing for a single TCP connection.
-/// Logs every message into <see cref="LocalSessionStore"/> and emits real-time
-/// events through <see cref="SimulatorHub"/>.
+/// Appends every message to the injected <see cref="IMessageLog"/> (audit
+/// trail) and reads/mutates session state via <see cref="ISessionStore"/>.
+/// Emits real-time events through <see cref="SimulatorHub"/>.
 /// </summary>
 public sealed class IsoSessionHandler
 {
     private readonly ILogger _logger;
     private readonly SessionConfig _config;
-    private readonly LocalSessionStore _store;
+    private readonly IMessageLog _log;
+    private readonly ISessionStore _sessions;
     private readonly IHubContext<SimulatorHub> _hub;
     private readonly IsoParser _parser = new();
     private readonly AutoResponder _responder = new();
-    private readonly MessageFramer _framer;
+    private readonly IMessageFramer _framer;
     private readonly IsoLayout _layout = IsoLayout.Default();
 
     public IsoSessionHandler(
         ILogger logger,
         SessionConfig config,
-        LocalSessionStore store,
+        IMessageLog log,
+        ISessionStore sessions,
         IHubContext<SimulatorHub> hub)
     {
         _logger = logger;
         _config = config;
-        _store = store;
+        _log = log;
+        _sessions = sessions;
         _hub = hub;
-        _framer = new MessageFramer(config.HeaderSize);
+        _framer = new LengthPrefixMessageFramer(config.HeaderSize);
     }
 
     /// <summary>
@@ -118,7 +124,7 @@ public sealed class IsoSessionHandler
                 ValidationSummary = "Message rejected: TPDU required for this session",
                 ProcessingMs = sw.ElapsedMilliseconds,
             };
-            _store.LogMessage(rejectedEntry);
+            _log.LogMessage(rejectedEntry);
             IncrementSession("rejected");
             await SimulatorHubEvents.MessageReceived(_hub, rejectedEntry);
             await SimulatorHubEvents.Error(_hub, _config.SessionId,
@@ -160,7 +166,7 @@ public sealed class IsoSessionHandler
             ValidationSummary = parseError,
             ProcessingMs = sw.ElapsedMilliseconds,
         };
-        _store.LogMessage(inEntry);
+        _log.LogMessage(inEntry);
         IncrementSession(parseError is null ? "received" : "rejected");
         await SimulatorHubEvents.MessageReceived(_hub, inEntry);
 
@@ -205,7 +211,7 @@ public sealed class IsoSessionHandler
                     ValidationSummary = resolution.ActionDescription,
                     ProcessingMs = sw.ElapsedMilliseconds,
                 };
-                _store.LogMessage(rejected);
+                _log.LogMessage(rejected);
                 IncrementSession("rejected");
                 await SimulatorHubEvents.MessageReceived(_hub, rejected);
                 await SimulatorHubEvents.Error(_hub, _config.SessionId,
@@ -222,7 +228,7 @@ public sealed class IsoSessionHandler
             // frontend's PATCH endpoint affects the NEXT message without
             // requiring session restart. Other fields on _config are static
             // for the connection's lifetime.
-            var liveSession = _store.GetSession(_config.SessionId);
+            var liveSession = _sessions.GetSession(_config.SessionId);
             var effectiveConfig = liveSession is null
                 ? _config
                 : _config with { EmvResponse = liveSession.EmvResponse };
@@ -295,7 +301,7 @@ public sealed class IsoSessionHandler
                 UnknownMtiAction = mtiWasUnmapped ? resolution.ActionDescription : null,
                 ProcessingMs = sw.ElapsedMilliseconds,
             };
-            _store.LogMessage(outEntry);
+            _log.LogMessage(outEntry);
             await SimulatorHubEvents.MessageSent(_hub, outEntry);
             return outEntry;
         }
@@ -355,7 +361,7 @@ public sealed class IsoSessionHandler
 
     private void IncrementSession(string kind)
     {
-        var s = _store.GetSession(_config.SessionId);
+        var s = _sessions.GetSession(_config.SessionId);
         if (s is null) return;
         if (kind == "received") s.MessagesProcessed++;
         else s.MessagesRejected++;

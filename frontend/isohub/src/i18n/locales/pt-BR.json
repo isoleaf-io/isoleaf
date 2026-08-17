@@ -23,8 +23,13 @@
     "online": "Online",
     "offline": "Offline",
     "agentStatus": "Agent · porta {{port}}",
-    "agentOnline": "Agent online",
-    "agentOffline": "Agent offline",
+    "backendOnline": "Backend online",
+    "backendOffline": "Backend offline",
+    "simulatorAgent": {
+      "connected": "Simulador conectado",
+      "disconnected": "Simulador desconectado",
+      "error": "Simulador com erro"
+    },
     "theme": {
       "light": "Tema claro",
       "dark": "Tema escuro",
@@ -663,7 +668,34 @@
     "defaultChannel": "Canal padrão",
     "saveChanges": "Salvar alterações",
     "saved": "Salvo!",
-    "noTemplates": "Nenhum template salvo"
+    "noTemplates": "Nenhum template salvo",
+    "agent": {
+      "tab": "Simulador",
+      "title": "Agent do Simulador",
+      "description": "O Simulador (sessões TCP + injetor + log ao vivo) roda em um processo separado na sua máquina. Aponte o frontend para ele aqui.",
+      "urlLabel": "URL base do Agent",
+      "urlPlaceholder": "http://localhost:8583",
+      "urlHint": "Inclua o esquema (http/https) e a porta. Barras finais são removidas automaticamente.",
+      "urlRequired": "Informe a URL base do Agent primeiro.",
+      "connect": "Conectar",
+      "connecting": "Testando conexão…",
+      "connected": "Conectado",
+      "edit": "Alterar URL",
+      "disconnect": "Desconectar",
+      "activeSessions_one": "{{count}} sessão ativa",
+      "activeSessions_other": "{{count}} sessões ativas",
+      "totalMessages_one": "{{count}} mensagem processada",
+      "totalMessages_other": "{{count}} mensagens processadas",
+      "notConfigured": {
+        "title": "Agent não configurado",
+        "description": "O Simulador roda em um processo separado. Configure a URL dele no Workspace para habilitar sessões, injetor e log ao vivo.",
+        "cta": "Abrir Workspace"
+      },
+      "notReachable": {
+        "title": "Agent inalcançável",
+        "description": "O Agent do Simulador não respondeu na URL configurada. Verifique se ele foi iniciado ou ajuste a URL no Workspace."
+      }
+    }
   },
   "online": {
     "banner": {

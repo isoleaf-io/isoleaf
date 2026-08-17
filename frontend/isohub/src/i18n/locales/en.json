@@ -23,8 +23,13 @@
     "online": "Online",
     "offline": "Offline",
     "agentStatus": "Agent · port {{port}}",
-    "agentOnline": "Agent online",
-    "agentOffline": "Agent offline",
+    "backendOnline": "Backend online",
+    "backendOffline": "Backend offline",
+    "simulatorAgent": {
+      "connected": "Simulator connected",
+      "disconnected": "Simulator disconnected",
+      "error": "Simulator error"
+    },
     "theme": {
       "light": "Light mode",
       "dark": "Dark mode",
@@ -663,7 +668,34 @@
     "defaultChannel": "Default channel",
     "saveChanges": "Save changes",
     "saved": "Saved!",
-    "noTemplates": "No saved templates yet"
+    "noTemplates": "No saved templates yet",
+    "agent": {
+      "tab": "Simulator",
+      "title": "Simulator Agent",
+      "description": "The Simulator (TCP sessions + injector + live log) runs in a separate process on your machine. Point the frontend at it here.",
+      "urlLabel": "Agent base URL",
+      "urlPlaceholder": "http://localhost:8583",
+      "urlHint": "Include the scheme (http/https) and port. Trailing slashes are stripped automatically.",
+      "urlRequired": "Enter the Agent's base URL first.",
+      "connect": "Connect",
+      "connecting": "Testing connection…",
+      "connected": "Connected",
+      "edit": "Change URL",
+      "disconnect": "Disconnect",
+      "activeSessions_one": "{{count}} active session",
+      "activeSessions_other": "{{count}} active sessions",
+      "totalMessages_one": "{{count}} message processed",
+      "totalMessages_other": "{{count}} messages processed",
+      "notConfigured": {
+        "title": "Agent not configured",
+        "description": "The Simulator lives in a separate process. Set its URL in the Workspace to enable the sessions, injector and live log.",
+        "cta": "Open Workspace"
+      },
+      "notReachable": {
+        "title": "Agent not reachable",
+        "description": "The Simulator Agent didn't respond at the configured URL. Check that it's running or adjust the URL in the Workspace."
+      }
+    }
   },
   "online": {
     "banner": {

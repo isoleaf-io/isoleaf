@@ -41,7 +41,13 @@ export const DOCS_PT: Record<string, DocSection> = {
           "No Windows, o Docker Desktop pode pedir para habilitar o WSL 2 (Subsistema Windows para Linux) na primeira execução — aceite. É automático, só demora 1-2 minutos.",
       },
 
-      { type: "heading", level: 3, text: "Passo 2 — Abrir um terminal e colar o comando" },
+      { type: "heading", level: 3, text: "Passo 2 — Clonar o repositório e subir com Docker Compose" },
+      {
+        type: "callout",
+        tone: "info",
+        text:
+          "**Novidade na v3.0:** o ISOLeaf agora roda como **dois containers** — o Backend (que serve a interface + APIs utilitárias na porta 8080) e o Agent (que roda o Simulador TCP na porta 8583). O `docker-compose.standalone.yml` versionado no repositório sobe os dois de uma vez e cuida da rede entre eles. Se você já tinha a imagem única `isoleaf:latest` (v2.x), veja a seção **Migrar da v2** mais abaixo.",
+      },
       {
         type: "paragraph",
         text:
@@ -50,25 +56,30 @@ export const DOCS_PT: Record<string, DocSection> = {
       {
         type: "paragraph",
         text:
-          "Cole o comando abaixo no terminal e pressione Enter. A primeira execução baixa a imagem (~200 MB), aguarde de 30s a 2 minutos dependendo da sua conexão. Depois disso, o container inicia em poucos segundos:",
+          "Cole os comandos abaixo, um de cada vez. A primeira execução do `up` baixa as duas imagens (~300 MB no total), aguarde de 30s a 2 minutos dependendo da sua conexão. Depois disso, os containers iniciam em poucos segundos:",
       },
       {
         type: "code",
         lang: "bash",
         text:
-          "docker run -d --name isoleaf -p 8080:8080 ghcr.io/isoleaf-io/isoleaf:latest",
+          "git clone https://github.com/isoleaf-io/isoleaf.git\ncd isoleaf\ndocker compose -f docker-compose.standalone.yml up -d",
       },
       {
         type: "paragraph",
         text:
-          "Se aparecer uma linha longa com letras e números (o ID do container), deu certo. Se aparecer erro, veja a seção **Problemas comuns** no final deste guia.",
+          "Se aparecerem dois containers `isoleaf-backend` e `isoleaf-agent` marcados como `Started` ou `Healthy`, deu certo. Se aparecer erro, veja a seção **Problemas comuns** no final deste guia.",
       },
 
-      { type: "heading", level: 3, text: "Passo 3 — Abrir no navegador" },
+      { type: "heading", level: 3, text: "Passo 3 — Abrir no navegador e apontar para o Agent" },
       {
         type: "paragraph",
         text:
-          "Abra o navegador e vá para **[http://localhost:8080](http://localhost:8080)**. A aplicação aparece imediatamente — é exatamente a mesma que você usa em isoleaf.dev, só que rodando 100% localmente.",
+          "Abra o navegador e vá para **[http://localhost:8080](http://localhost:8080)**. A interface aparece imediatamente — é exatamente a mesma que você usa em isoleaf.dev.",
+      },
+      {
+        type: "paragraph",
+        text:
+          "**Passo extra (uma vez por navegador):** clique em **Workspace** no menu, abra a aba **Simulador** e clique em **Conectar** — o campo já vem pré-preenchido com `http://localhost:8583` (a URL do Agent). Isso é necessário porque, desde a v3.0, o Simulador é um processo separado; o navegador precisa saber onde ele está.",
       },
       {
         type: "callout",
@@ -77,46 +88,56 @@ export const DOCS_PT: Record<string, DocSection> = {
           "Diferença prática vs. a versão online: no self-hosted todas as features do Simulador TCP e da criptografia EMV ficam habilitadas — sessões TCP reais, ARQC/ARPC com IMK configurável, upload de XSDs ISO 20022 personalizados, tudo sem restrições.",
       },
 
-      { type: "heading", level: 3, text: "Passo 4 (opcional) — Persistir XSDs entre atualizações" },
+      { type: "heading", level: 3, text: "Passo 4 — Persistência automática dos XSDs" },
       {
         type: "paragraph",
         text:
-          "Se você planeja fazer upload de XSDs ISO 20022 personalizados (via **Workspace → Schemas ISO 20022**) e quer que eles sobrevivam a `docker pull` de novas versões do ISOLeaf, use um volume Docker nomeado. Pare o container atual e rode com a flag `-v`:",
+          "O `docker-compose.standalone.yml` já define um volume Docker nomeado `isoleaf-data` montado em `/app/data` do Backend. Isso significa que qualquer XSD ISO 20022 que você fizer upload (via **Workspace → Schemas ISO 20022**) fica preservado entre `docker compose pull` de novas versões e entre reinícios do container. Sem configuração adicional.",
       },
       {
-        type: "code",
-        lang: "bash",
+        type: "callout",
+        tone: "info",
         text:
-          "docker stop isoleaf\ndocker rm isoleaf\ndocker run -d --name isoleaf -p 8080:8080 \\\n  -v isoleaf-schemas:/app/data/schemas \\\n  ghcr.io/isoleaf-io/isoleaf:latest",
-      },
-      {
-        type: "paragraph",
-        text:
-          "Na primeira vez, o Docker copia automaticamente o catálogo de 44 XSDs padrão para dentro do volume `isoleaf-schemas`. Uploads posteriores ficam ao lado deles e persistem entre reinícios e atualizações da imagem. Sem essa flag, uploads valem só pela vida do container atual (mas o catálogo padrão está sempre disponível de novo).",
+          "Na primeira execução, o Docker copia automaticamente o catálogo de 44 XSDs padrão para dentro do volume. Uploads posteriores ficam ao lado deles.",
       },
 
       { type: "heading", level: 3, text: "Passo 5 — Parar e atualizar" },
       {
         type: "paragraph",
         text:
-          "**Parar o container** (não desinstala — só desliga):",
+          "**Parar os containers** (não desinstala — só desliga; o volume `isoleaf-data` fica intacto):",
       },
       {
         type: "code",
         lang: "bash",
         text:
-          "docker stop isoleaf\ndocker rm isoleaf",
+          "docker compose -f docker-compose.standalone.yml down",
       },
       {
         type: "paragraph",
         text:
-          "**Atualizar para a versão mais recente:** puxe a nova imagem, remova o container antigo e rode de novo com o mesmo comando do Passo 2 (ou do Passo 4 se você usa volume):",
+          "**Atualizar para a versão mais recente:** puxa as duas imagens novas e sobe de novo. O compose faz `docker compose pull` das duas de uma vez:",
       },
       {
         type: "code",
         lang: "bash",
         text:
-          "docker pull ghcr.io/isoleaf-io/isoleaf:latest\ndocker stop isoleaf && docker rm isoleaf\ndocker run -d --name isoleaf -p 8080:8080 ghcr.io/isoleaf-io/isoleaf:latest",
+          "docker compose -f docker-compose.standalone.yml pull\ndocker compose -f docker-compose.standalone.yml up -d",
+      },
+
+      { type: "heading", level: 3, text: "Migrar da v2 (imagem única)" },
+      {
+        type: "paragraph",
+        text:
+          "Se você já tinha a imagem única `ghcr.io/isoleaf-io/isoleaf:latest` (v2.x), o caminho de upgrade é:",
+      },
+      {
+        type: "list",
+        items: [
+          "Parar e remover o container antigo (`docker stop isoleaf && docker rm isoleaf`) — a imagem antiga não é mais publicada a partir da v3.",
+          "Clonar o repositório (`git clone https://github.com/isoleaf-io/isoleaf.git`) e usar o `docker-compose.standalone.yml` versionado (Passo 2 acima).",
+          "Se você tinha um volume `isoleaf-schemas` da v2, ele pode ser reaproveitado renomeando o mount no compose (ou copiando o conteúdo para o novo volume `isoleaf-data`).",
+        ],
       },
 
       { type: "heading", level: 3, text: "Problemas comuns" },
@@ -2364,7 +2385,7 @@ Exemplo (pacs.008 versão 13):
         type: "callout",
         tone: "info",
         text:
-          "Documentação interativa completa (todos os endpoints, schemas, painel \"Try it out\") está em [http://localhost:8080/api/docs](http://localhost:8080/api/docs) — powered by Scalar. Suba o Agent local antes: `docker run -p 8080:8080 ghcr.io/isoleaf-io/isoleaf:latest`.",
+          "Documentação interativa completa (todos os endpoints, schemas, painel \"Try it out\") está em [http://localhost:8080/api/docs](http://localhost:8080/api/docs) — powered by Scalar. Suba o Agent local antes: `docker compose -f docker-compose.standalone.yml up -d`.",
       },
       { type: "divider" },
 

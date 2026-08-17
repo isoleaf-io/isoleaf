@@ -1,4 +1,5 @@
-using Iso8583Toolkit.Agent.Models;
+using Iso8583Toolkit.Simulator.Logging;
+using Iso8583Toolkit.Simulator.Protocol;
 using Microsoft.AspNetCore.SignalR;
 
 namespace Iso8583Toolkit.Agent.Hubs;

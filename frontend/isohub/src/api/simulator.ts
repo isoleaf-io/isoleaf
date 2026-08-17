@@ -1,15 +1,15 @@
-import { api } from "./client";
+import { agentApi } from "./client";
 import type { EmvResponseConfig, MessageLogEntry, SimulatorSession } from "@/types";
 
-export const listSessions = () => api.get<SimulatorSession[]>("/simulator/sessions").then((r) => r.data);
+export const listSessions = () => agentApi.get<SimulatorSession[]>("/simulator/sessions").then((r) => r.data);
 
 export const startSession = (config: Record<string, unknown>) =>
-  api.post<SimulatorSession>("/simulator/sessions", { config }).then((r) => r.data);
+  agentApi.post<SimulatorSession>("/simulator/sessions", { config }).then((r) => r.data);
 
-export const stopSession = (id: string) => api.delete(`/simulator/sessions/${id}`).then((r) => r.data);
+export const stopSession = (id: string) => agentApi.delete(`/simulator/sessions/${id}`).then((r) => r.data);
 
 export const updateEmvConfig = (id: string, config: EmvResponseConfig) =>
-  api.put(`/simulator/sessions/${id}/emv-config`, config).then((r) => r.data);
+  agentApi.put(`/simulator/sessions/${id}/emv-config`, config).then((r) => r.data);
 
 export interface InjectDirectRequest {
   targetHost: string;
@@ -54,11 +54,11 @@ export interface InjectDirectResponse {
 }
 
 export const injectDirect = (req: InjectDirectRequest) =>
-  api.post<InjectDirectResponse>("/simulator/inject-direct", req).then((r) => r.data);
+  agentApi.post<InjectDirectResponse>("/simulator/inject-direct", req).then((r) => r.data);
 
 export const getLog = (sessionId?: string, limit = 100) =>
-  api
+  agentApi
     .get<MessageLogEntry[]>(sessionId ? `/simulator/log/${sessionId}` : "/simulator/log", { params: { limit } })
     .then((r) => r.data);
 
-export const clearLog = () => api.delete("/simulator/log").then((r) => r.data);
+export const clearLog = () => agentApi.delete("/simulator/log").then((r) => r.data);

@@ -12,6 +12,17 @@ vi.mock("@/api/simulator", () => ({
   injectMessage: vi.fn(),
   injectDirect: vi.fn(),
 }));
+vi.mock("@/api/agent", () => ({
+  // Default: gate probe succeeds. Individual tests can override with
+  // mockRejectedValueOnce to exercise the "not reachable" empty state.
+  probeAgentHealth: vi.fn().mockResolvedValue({
+    status: "ok",
+    version: "2.1.3",
+    uptime: "00:00:01",
+    activeSessions: 0,
+    totalMessagesProcessed: 0,
+  }),
+}));
 vi.mock("@/api/workspace", () => ({
   getHealth: vi.fn().mockResolvedValue({ status: "ok" }),
   getWorkspace: vi.fn(),
@@ -32,7 +43,9 @@ vi.mock("@/hooks/useSimulatorHub", () => ({
 
 import SimulatorPage from "@/pages/Simulator";
 import { listSessions, injectDirect, getLog, startSession } from "@/api/simulator";
+import { probeAgentHealth } from "@/api/agent";
 import { useInjectorStore, DEFAULTS as INJECTOR_DEFAULTS, isValidTpduOverride } from "@/store/injector";
+import { useAgentConnectionStore } from "@/store/agentConnection";
 
 async function openNewSessionForm() {
   const user = userEvent.setup();
@@ -49,6 +62,17 @@ describe("Simulator page — redesigned layout", () => {
     (listSessions as unknown as ReturnType<typeof vi.fn>).mockResolvedValue([]);
     (getLog as unknown as ReturnType<typeof vi.fn>).mockReset();
     (getLog as unknown as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+    // Sprint 12.4: probe defaults to success so happy-path tests keep
+    // exercising the live UI; the "gate blocks the form when the Agent
+    // is offline" case overrides with mockRejectedValueOnce.
+    (probeAgentHealth as unknown as ReturnType<typeof vi.fn>).mockReset();
+    (probeAgentHealth as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      status: "ok",
+      version: "2.1.3",
+      uptime: "00:00:01",
+      activeSessions: 0,
+      totalMessagesProcessed: 0,
+    });
     try {
       window.localStorage.removeItem("isoleaf-injector");
       window.localStorage.removeItem("simulator-logExpanded");
@@ -56,6 +80,15 @@ describe("Simulator page — redesigned layout", () => {
     // The zustand store survives across tests in the same module — reset
     // its in-memory state too, otherwise mocks leak between cases.
     useInjectorStore.setState({ ...INJECTOR_DEFAULTS });
+    // Sprint 12.2 P5+: the Simulator page shows a "not configured" empty
+    // state when agentUrl is null. Pre-populate a URL so the existing
+    // happy-path tests keep exercising the live UI. The dedicated
+    // "shows not-configured empty state" case below clears it again.
+    useAgentConnectionStore.setState({
+      agentUrl: "http://localhost:8583",
+      status: "connected",
+      errorMessage: null,
+    });
   });
 
   it("renders the three sections (Rebatedores, Injector, Live log)", () => {
@@ -106,6 +139,24 @@ describe("Simulator page — redesigned layout", () => {
     expect(
       screen.getByText(/credenciadora\/adquirente|Simulates the acquirer/i)
     ).toBeInTheDocument();
+  });
+
+  it("Nova sessão form defaults TCP port to 9100 (must NOT collide with Agent's 8583)", async () => {
+    // Sprint 12.4 P5: the TCP port default was 8583 pre-split, which
+    // coincidentally matched the Agent host's HTTP port after Sprint 12.2.
+    // The default is now 9100 — a common lab-simulator port that carries
+    // no false association with the Agent URL and avoids bind conflicts.
+    const user = await openNewSessionForm();
+    const mock = startSession as unknown as ReturnType<typeof vi.fn>;
+    mock.mockReset();
+    mock.mockResolvedValueOnce({});
+
+    await user.click(screen.getByRole("button", { name: /^Confirmar$|^Confirm$/i }));
+
+    expect(mock).toHaveBeenCalledTimes(1);
+    expect(mock.mock.calls[0][0].tcpPort).toBe(9100);
+    // Regression guard: 8583 belongs to the Agent host, not the Simulator listener.
+    expect(mock.mock.calls[0][0].tcpPort).not.toBe(8583);
   });
 
   it("Nova sessão form defaults Esperar Length prefix to ON (headerSize=2)", async () => {
@@ -995,5 +1046,87 @@ describe("InjectorPanel", () => {
 
     const injectBtn = screen.getByRole("button", { name: /^(Injetar|Inject)\s*→/i });
     expect(injectBtn).toBeDisabled();
+  });
+});
+
+describe("Simulator page — Agent not configured (Sprint 12.2 P5+)", () => {
+  it("shows the 'not configured' empty state when agentUrl is null", () => {
+    // Clear the URL so the Simulator page short-circuits with the panel
+    // that points the user at the Workspace.
+    useAgentConnectionStore.setState({
+      agentUrl: null,
+      status: "idle",
+      errorMessage: null,
+    });
+
+    renderApp(<SimulatorPage />);
+
+    expect(screen.getByTestId("simulator-agent-not-configured")).toBeInTheDocument();
+    // The three regular sections must NOT render — no API calls should
+    // fire while the Agent URL is unconfigured.
+    expect(screen.queryByText(/^Rebatedores$|^Listeners$/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^Injetor$|^Injector$/i)).not.toBeInTheDocument();
+  });
+
+  it("hides the empty state once an agentUrl is configured", () => {
+    useAgentConnectionStore.setState({
+      agentUrl: "http://localhost:8583",
+      status: "connected",
+      errorMessage: null,
+    });
+
+    renderApp(<SimulatorPage />);
+
+    expect(screen.queryByTestId("simulator-agent-not-configured")).not.toBeInTheDocument();
+    // The three normal sections are back.
+    expect(screen.getByText(/^Rebatedores$|^Listeners$/i)).toBeInTheDocument();
+  });
+});
+
+describe("Simulator page — connectivity gate (Sprint 12.4 P3)", () => {
+  it("shows 'not reachable' when URL is saved but the Agent health probe fails", async () => {
+    // Simulate a stale-URL scenario: previous session persisted an Agent
+    // URL, but the process is gone now. The gate MUST NOT render the form
+    // + a banner on top; it must render the empty state alone.
+    useAgentConnectionStore.setState({
+      agentUrl: "http://localhost:8583",
+      status: "connected", // deliberately stale — the gate must overwrite this
+      errorMessage: null,
+    });
+    (probeAgentHealth as unknown as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
+      new Error("Não foi possível alcançar o Agent. Verifique se ele foi iniciado e está acessível na rede."),
+    );
+
+    renderApp(<SimulatorPage />);
+
+    // Wait for the gate query to settle.
+    const panel = await screen.findByTestId("simulator-agent-not-configured");
+    expect(panel).toHaveAttribute("data-reason", "unreachable");
+    // The three sections must not render alongside the empty state.
+    expect(screen.queryByText(/^Rebatedores$|^Listeners$/i)).not.toBeInTheDocument();
+    // The attempted URL is surfaced so the user can spot a wrong host.
+    expect(screen.getByTestId("simulator-agent-attempted-url"))
+      .toHaveTextContent("http://localhost:8583");
+    // The error message goes verbatim (via the shared interceptor).
+    expect(screen.getByTestId("simulator-agent-error-message"))
+      .toHaveTextContent(/N[aã]o foi poss[ií]vel alcan[çc]ar/);
+  });
+
+  it("proxies the probe outcome into the agentConnection store (status=error)", async () => {
+    useAgentConnectionStore.setState({
+      agentUrl: "http://localhost:8583",
+      status: "connected",
+      errorMessage: null,
+    });
+    (probeAgentHealth as unknown as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
+      new Error("Não foi possível alcançar o Agent. Verifique se ele foi iniciado e está acessível na rede."),
+    );
+
+    renderApp(<SimulatorPage />);
+    await screen.findByTestId("simulator-agent-not-configured");
+
+    // Sidebar indicator relies on this — the mirror must fire on failure.
+    expect(useAgentConnectionStore.getState().status).toBe("error");
+    expect(useAgentConnectionStore.getState().errorMessage).toMatch(/alcan[çc]ar/);
   });
 });

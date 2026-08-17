@@ -1,9 +1,10 @@
 using System.Net.Sockets;
 using System.Text;
 using Iso8583Toolkit.Agent.Hubs;
-using Iso8583Toolkit.Agent.Models;
 using Iso8583Toolkit.Agent.Services;
+using Iso8583Toolkit.Simulator.Logging;
 using Iso8583Toolkit.Simulator.Protocol;
+using Iso8583Toolkit.Simulator.Sessions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
@@ -13,16 +14,18 @@ namespace Iso8583Toolkit.Agent.Controllers;
 [Route("api/simulator")]
 public sealed class SimulatorController : ControllerBase
 {
-    private readonly LocalSessionStore _store;
+    private readonly IMessageLog _log;
+    private readonly ISessionStore _sessions;
     private readonly TcpSessionManager _manager;
     private readonly IHostApplicationLifetime _lifetime;
     private readonly ILogger<SimulatorController> _logger;
 
     public SimulatorController(
-        LocalSessionStore store, TcpSessionManager manager,
+        IMessageLog log, ISessionStore sessions, TcpSessionManager manager,
         IHostApplicationLifetime lifetime, ILogger<SimulatorController> logger)
     {
-        _store = store;
+        _log = log;
+        _sessions = sessions;
         _manager = manager;
         _lifetime = lifetime;
         _logger = logger;
@@ -32,7 +35,7 @@ public sealed class SimulatorController : ControllerBase
     [EndpointSummary("List every running simulator TCP session")]
     [EndpointDescription("Returns each Injetor/Rebatedor session the agent currently has open — TCP port, mode, role, layout, response policy and per-session counters. Empty list when no sessions are active.")]
     [ProducesResponseType(typeof(IEnumerable<object>), StatusCodes.Status200OK)]
-    public IActionResult ListSessions() => Ok(_store.GetActiveSessions());
+    public IActionResult ListSessions() => Ok(_sessions.GetActiveSessions());
 
     [HttpPost("sessions")]
     [EndpointSummary("Start a new simulator session (Injetor or Rebatedor)")]
@@ -57,7 +60,7 @@ public sealed class SimulatorController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public IActionResult GetSession(string id)
     {
-        var s = _store.GetSession(id);
+        var s = _sessions.GetSession(id);
         return s is null ? NotFound() : Ok(s);
     }
 
@@ -78,7 +81,7 @@ public sealed class SimulatorController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public IActionResult UpdateEmvConfig(string id, [FromBody] EmvResponseConfig config)
     {
-        var session = _store.GetSession(id);
+        var session = _sessions.GetSession(id);
         if (session is null) return NotFound(new { error = $"Session '{id}' not found." });
         session.EmvResponse = config ?? EmvResponseConfig.Default;
         return Ok(new { sessionId = id, emvResponse = session.EmvResponse });
@@ -95,7 +98,7 @@ public sealed class SimulatorController : ControllerBase
         if (string.IsNullOrWhiteSpace(request.HexMessage))
             return BadRequest(new { error = "HexMessage is required." });
 
-        var session = _store.GetSession(id);
+        var session = _sessions.GetSession(id);
         if (session is null) return NotFound(new { error = $"Session '{id}' not found." });
 
         try
@@ -440,20 +443,20 @@ public sealed class SimulatorController : ControllerBase
     [EndpointSummary("Read the cross-session simulator log")]
     [EndpointDescription("Returns the most recent messages observed across all sessions in chronological order — each entry carries the raw bytes, decoded MTI, decoded fields and any validation/error metadata. Capped at `limit` (default 100). The store keeps the last few hundred entries; older ones roll off.")]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    public IActionResult GetLog([FromQuery] int limit = 100) => Ok(_store.GetLog(null, limit));
+    public IActionResult GetLog([FromQuery] int limit = 100) => Ok(_log.GetLog(null, limit));
 
     [HttpGet("log/{sessionId}")]
     [EndpointSummary("Read the simulator log filtered to a single session")]
     [EndpointDescription("Same shape as `/api/simulator/log` but only includes entries tied to `sessionId`. Powers the per-session log panel in the Simulator page.")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     public IActionResult GetLogBySession(string sessionId, [FromQuery] int limit = 100) =>
-        Ok(_store.GetLog(sessionId, limit));
+        Ok(_log.GetLog(sessionId, limit));
 
     [HttpDelete("log")]
     [EndpointSummary("Clear the simulator log")]
     [EndpointDescription("Wipes every persisted log entry. Idempotent — always returns 204 No Content. Sessions themselves are untouched.")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
-    public IActionResult ClearLog() { _store.ClearLog(); return NoContent(); }
+    public IActionResult ClearLog() { _log.ClearLog(); return NoContent(); }
 }
 
 public sealed record StartSessionRequest(SessionConfig? Config = null);
