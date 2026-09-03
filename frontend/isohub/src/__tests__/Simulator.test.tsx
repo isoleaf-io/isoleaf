@@ -54,6 +54,24 @@ async function openNewSessionForm() {
   return user;
 }
 
+/**
+ * Seeds the agentConnection store with a healthy connection so
+ * <SimulatorPage /> renders its live UI instead of the
+ * <AgentNotConfiguredPanel />. Every describe that renders the page
+ * MUST call this in its beforeEach — the store is a module-level
+ * Zustand singleton and its state leaks between describes and between
+ * test files. Sprint 12.10: extracted from a copy-paste to close the
+ * race that showed up when --sequence.shuffle put agentConnection.test.ts
+ * (which leaves agentUrl: null) immediately before this file.
+ */
+function seedConnectedAgent() {
+  useAgentConnectionStore.setState({
+    agentUrl: "http://localhost:8583",
+    status: "connected",
+    errorMessage: null,
+  });
+}
+
 describe("Simulator page — redesigned layout", () => {
   // Reset API mocks between tests so a `mockResolvedValueOnce` from one case
   // can't leak sessions/log entries into another (and break role/button counts).
@@ -80,15 +98,11 @@ describe("Simulator page — redesigned layout", () => {
     // The zustand store survives across tests in the same module — reset
     // its in-memory state too, otherwise mocks leak between cases.
     useInjectorStore.setState({ ...INJECTOR_DEFAULTS });
-    // Sprint 12.2 P5+: the Simulator page shows a "not configured" empty
-    // state when agentUrl is null. Pre-populate a URL so the existing
-    // happy-path tests keep exercising the live UI. The dedicated
-    // "shows not-configured empty state" case below clears it again.
-    useAgentConnectionStore.setState({
-      agentUrl: "http://localhost:8583",
-      status: "connected",
-      errorMessage: null,
-    });
+    // The Simulator page short-circuits into <AgentNotConfiguredPanel />
+    // when agentUrl is null; seed a healthy connection so happy-path tests
+    // exercise the live UI. The dedicated "shows not-configured empty
+    // state" case below clears it again.
+    seedConnectedAgent();
   });
 
   it("renders the three sections (Rebatedores, Injector, Live log)", () => {
@@ -685,6 +699,12 @@ describe("InjectorPanel", () => {
     try { window.localStorage.removeItem("isoleaf-injector"); } catch { /* ignore */ }
     // Zustand store survives across tests — reset its in-memory state too.
     useInjectorStore.setState({ ...INJECTOR_DEFAULTS });
+    // Sprint 12.10: this describe renders <SimulatorPage /> too and needs
+    // the same "gate open" seed as the redesigned-layout describe above.
+    // Missing this call is what let a shuffled ordering leave agentUrl:null
+    // (from agentConnection.test.ts's beforeEach) and blow up all 22 cases
+    // here in cascade.
+    seedConnectedAgent();
   });
 
 

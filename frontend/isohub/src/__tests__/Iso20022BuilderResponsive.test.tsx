@@ -63,7 +63,16 @@ vi.mock("@/hooks/useSimulatorHub", () => ({ useSimulatorHub: () => {} }));
 import Iso20022BuilderPage from "@/pages/Iso20022Builder";
 
 async function generateAndWait(user: ReturnType<typeof userEvent.setup>) {
+  // Sprint 12.10: findByRole surfaces the button as soon as it mounts, but
+  // BuilderPage disables it (line ~430 in Iso20022Builder/index.tsx) while
+  // the ecosystem/scenario defaults are still being seeded by their useEffect
+  // chain (listEcosystems -> listScenarios -> setScenarioId -> setVersion ->
+  // fullMessageType). Clicking a disabled button is a userEvent no-op —
+  // handleGenerate never fires, waitFor(builder-result) times out. Wait for
+  // the button to be actually enabled before clicking; that's the honest
+  // signal that fullMessageType + scenarioId are both truthy.
   const generate = await screen.findByRole("button", { name: /Gerar/i });
+  await waitFor(() => expect(generate).not.toBeDisabled());
   await user.click(generate);
   await waitFor(() =>
     expect(screen.getByTestId("builder-result")).toBeInTheDocument(),
