@@ -222,6 +222,36 @@ describe("Sidebar — two-mother-group layout", () => {
   });
 });
 
+describe("Sidebar — Reference section links (Sprint 12.7 P2)", () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it("renders the GitHub link pointing at the repo, opening in a new tab", () => {
+    renderApp(<Sidebar />);
+    const link = screen.getByRole("link", { name: /^GitHub$/i }) as HTMLAnchorElement;
+    expect(link).toBeInTheDocument();
+    expect(link.getAttribute("href")).toBe("https://github.com/isoleaf-io/isoleaf");
+    expect(link.getAttribute("target")).toBe("_blank");
+    expect(link.getAttribute("rel")).toContain("noopener");
+  });
+
+  it("renders the Contact link as a mailto to the project inbox", () => {
+    renderApp(<Sidebar />);
+    const link = screen.getByRole("link", { name: /^Contato$|^Contact$/i }) as HTMLAnchorElement;
+    expect(link).toBeInTheDocument();
+    expect(link.getAttribute("href")).toBe("mailto:contato@isoleaf.dev");
+  });
+
+  it("keeps the existing Documentação link intact next to the new items", () => {
+    renderApp(<Sidebar />);
+    // Guard the pre-existing item — the Sprint 12.7 additions must NOT
+    // displace it or rename its label.
+    const docs = screen.getByRole("link", { name: /Documenta[çc][ãa]o|Documentation/i }) as HTMLAnchorElement;
+    expect(docs.getAttribute("href")).toBe("https://docs.isoleaf.dev");
+  });
+});
+
 describe("Sidebar — Simulator Agent indicator (Sprint 12.4 P1)", () => {
   beforeEach(() => {
     // Reset the store so each case starts from a known baseline.
@@ -233,31 +263,30 @@ describe("Sidebar — Simulator Agent indicator (Sprint 12.4 P1)", () => {
     localStorage.clear();
   });
 
-  it("renders the Backend health badge (renamed from 'Agent' in Sprint 12.4)", () => {
+  it("Sprint 12.6 P2 removed the standalone 'Backend online' badge from the Sidebar", () => {
     renderApp(<Sidebar />);
-    // Sprint 12.4 renamed the label — was "Agent online/offline",
-    // now "Backend online/offline" so it stops overlapping semantically
-    // with the Simulator Agent indicator right below. The dot + row
-    // stay where they were.
-    expect(screen.getByText(/Backend online|Backend offline/i)).toBeInTheDocument();
-    // And the old label must NOT resurface — a regression here would
-    // put us back to two conflicting "Agent" signals.
+    // The Backend badge is gone in v3 — if the Backend is down the SPA
+    // can't load at all, so the indicator was noise. Guard against a
+    // regression that re-adds it. The Simulator Agent indicator below
+    // stays and is exercised by the tests further down.
+    expect(screen.queryByText(/Backend online|Backend offline/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/^Agent online$|^Agent offline$/i)).not.toBeInTheDocument();
   });
 
-  it("renders NEUTRAL (Simulador desconectado) when status is idle and no URL saved", () => {
+  it("renders DISCONNECTED (Simulador desconectado) when status is idle and no URL saved", () => {
     renderApp(<Sidebar />);
     const indicator = screen.getByTestId("sidebar-simulator-agent-indicator");
     expect(indicator).toHaveAttribute("data-status", "idle");
+    expect(indicator).toHaveAttribute("data-visual-state", "disconnected");
     expect(indicator).toHaveAttribute("data-has-url", "false");
     // Localised label — matches both EN and PT-BR variants.
     expect(indicator).toHaveTextContent(/Simulador desconectado|Simulator disconnected/);
-    // Neutral dot: no bg-success / bg-danger / bg-warning class.
+    // Neutral dot: no bg-success class.
     const dot = indicator.querySelector("span.inline-block.w-2.h-2");
     expect(dot?.className).toMatch(/bg-text-tertiary/);
   });
 
-  it("renders GREEN (Simulador conectado) when status is connected", () => {
+  it("renders CONNECTED (Simulador conectado) when status is connected", () => {
     useAgentConnectionStore.setState({
       agentUrl: "http://localhost:8583",
       status: "connected",
@@ -266,12 +295,16 @@ describe("Sidebar — Simulator Agent indicator (Sprint 12.4 P1)", () => {
     renderApp(<Sidebar />);
     const indicator = screen.getByTestId("sidebar-simulator-agent-indicator");
     expect(indicator).toHaveAttribute("data-status", "connected");
+    expect(indicator).toHaveAttribute("data-visual-state", "connected");
     expect(indicator).toHaveTextContent(/Simulador conectado|Simulator connected/);
     const dot = indicator.querySelector("span.inline-block.w-2.h-2");
     expect(dot?.className).toMatch(/bg-success/);
   });
 
-  it("renders WARNING (Simulador com erro) when status is error", () => {
+  it("Sprint 12.6 P3: status=error collapses into DISCONNECTED (same neutral visual as idle)", () => {
+    // The store still tracks error internally so the Workspace can show
+    // the specific failure message inline, but the sidebar dot no longer
+    // has a distinct "warning" visual — one signal in one place.
     useAgentConnectionStore.setState({
       agentUrl: "http://localhost:8583",
       status: "error",
@@ -279,10 +312,15 @@ describe("Sidebar — Simulator Agent indicator (Sprint 12.4 P1)", () => {
     });
     renderApp(<Sidebar />);
     const indicator = screen.getByTestId("sidebar-simulator-agent-indicator");
+    // The store's status is preserved for other consumers (e.g. workspace
+    // inline error banner), but the collapsed visual state is "disconnected".
     expect(indicator).toHaveAttribute("data-status", "error");
-    expect(indicator).toHaveTextContent(/Simulador com erro|Simulator error/);
+    expect(indicator).toHaveAttribute("data-visual-state", "disconnected");
+    expect(indicator).toHaveTextContent(/Simulador desconectado|Simulator disconnected/);
     const dot = indicator.querySelector("span.inline-block.w-2.h-2");
-    expect(dot?.className).toMatch(/bg-warning/);
+    // Neutral, not warning.
+    expect(dot?.className).toMatch(/bg-text-tertiary/);
+    expect(dot?.className).not.toMatch(/bg-warning/);
   });
 
   it("indicator navigates to /workspace?tab=agent when clicked", () => {

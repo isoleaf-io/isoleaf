@@ -1,5 +1,5 @@
 import type { DocSection } from "./types";
-import { TPDU_SVG, MESSAGE_STRUCTURE_SVG, EMV_BIT55_ORIGINS_SVG, EMV_DERIVATION_CHAIN_SVG, FOUR_LEGS_FLOW_SVG, ISOHUB_ARCHITECTURE_SVG, PIX_CREDIT_TRANSFER_FLOW_SVG, MT103_DIRECT_FLOW_SVG } from "./diagrams";
+import { TPDU_SVG, MESSAGE_STRUCTURE_SVG, EMV_BIT55_ORIGINS_SVG, EMV_DERIVATION_CHAIN_SVG, FOUR_LEGS_FLOW_SVG, ISOHUB_DEPLOY_TOPOLOGY_SVG, PIX_CREDIT_TRANSFER_FLOW_SVG, MT103_DIRECT_FLOW_SVG } from "./diagrams";
 
 /** Long-form documentation in English. Mirror of content.pt.ts. */
 export const DOCS_EN: Record<string, DocSection> = {
@@ -7,6 +7,40 @@ export const DOCS_EN: Record<string, DocSection> = {
     id: "guides",
     blocks: [
       // ── Docker beginner-friendly guide ───────────────────────────
+      // ── Quick Start — comparative matrix for the 3 options (Sprint 12.7 P3) ──
+      // Sits ahead of the detailed guides so the reader picks the right
+      // path before diving into steps.
+      { type: "heading", level: 2, text: "Quick Start — three ways to run" },
+      {
+        type: "paragraph",
+        text:
+          "Three ways to run ISOLeaf locally — pick the one that fits your environment.",
+      },
+      {
+        type: "table",
+        headers: ["Option", "Requirement", "Best for", "See guide"],
+        rows: [
+          [
+            "Docker Compose",
+            "Docker Desktop installed",
+            "Quick setup, isolated environment, one-liner updates via `docker compose pull`",
+            "[Full guide below](#guides/self-hosting-with-docker-beginner-s-guide)",
+          ],
+          [
+            "Manual containers (`docker run`)",
+            "Docker Desktop installed",
+            "Users already living in Docker day-to-day who want fine-grained control per container",
+            "[README on the repo](https://github.com/isoleaf-io/isoleaf#option-2--docker-two-containers-no-compose)",
+          ],
+          [
+            "Portable (.zip)",
+            "Just the .NET 9 Runtime",
+            "Corporate environments where Docker is blocked (banks, insurers, regulated shops)",
+            "[Full guide below](#guides/portable-no-docker-no-git)",
+          ],
+        ],
+      },
+
       { type: "heading", level: 2, text: "Self-hosting with Docker — beginner's guide" },
       {
         type: "paragraph",
@@ -74,7 +108,7 @@ export const DOCS_EN: Record<string, DocSection> = {
       {
         type: "paragraph",
         text:
-          "Open your browser and go to **[http://localhost:8080](http://localhost:8080)**. The UI shows up immediately — it is exactly the same one you use at isoleaf.dev.",
+          "Open your browser and go to [http://localhost:8080](http://localhost:8080). The UI shows up immediately — it is exactly the same one you use at isoleaf.dev.",
       },
       {
         type: "paragraph",
@@ -145,7 +179,7 @@ export const DOCS_EN: Record<string, DocSection> = {
         type: "callout",
         tone: "warning",
         text:
-          "**Error \"port is already allocated\" or \"bind: address already in use\"** — port 8080 is already in use by another program (maybe another ISOLeaf instance, or a local server). Change the local port to 8081 (or any free one): `-p 8081:8080` in the command. Then open `http://localhost:8081` instead of 8080.",
+          "**Error \"port is already allocated\" or \"bind: address already in use\"** — one of the ports the compose file exposes is already in use on your machine. `docker-compose.standalone.yml` maps four: `8080` (Backend), `8583` (Agent), `9100` and `9200` (Simulator TCP listeners). Open the file, find the affected service and change only the left side of the mapping — e.g. if `8080` is taken, change `\"8080:8080\"` to `\"8081:8080\"` under the `backend` service (the container-internal port stays 8080; only the host side moves). Then open `http://localhost:8081`. If you change the Agent's port (`8583`), remember to reflect the new URL under Workspace → Simulator in the browser.",
       },
       {
         type: "callout",
@@ -216,14 +250,14 @@ export const DOCS_EN: Record<string, DocSection> = {
       {
         type: "paragraph",
         text:
-          "Go to **[http://localhost:8080](http://localhost:8080)**. The application appears — same screens, same features as Docker mode, including TCP Simulator, EMV cryptography and custom ISO 20022 XSD uploads.",
+          "Go to [http://localhost:8080](http://localhost:8080). The application appears — same screens, same features as Docker mode, including TCP Simulator, EMV cryptography and custom ISO 20022 XSD uploads.",
       },
 
       {
         type: "callout",
         tone: "info",
         text:
-          "**Changing port 8080** — if something else already uses that port on your machine, there are two ways to change it. **Option A:** edit `appsettings.json` inside the extracted folder, section `\"Agent\": { \"Port\": 9090 }`, and re-run the script. **Option B:** set the `ASPNETCORE_URLS=http://localhost:9090` environment variable before running (`set ASPNETCORE_URLS=…` on Windows CMD, `export ASPNETCORE_URLS=…` on Mac/Linux). Then open `http://localhost:9090`.",
+          "**Changing ports 8080 / 8583** — the portable zip expands into two subfolders (`backend/` and `agent/`), each with its own `appsettings.json` and both started by the same `run.bat`/`run.sh`. If something else already uses one of those ports, there are two ways to change it. **Option A:** edit the `appsettings.json` in the affected subfolder (Backend uses `\"Agent\": { \"Port\": 9090 }`; the Agent also uses `\"Agent\": { \"Port\": 9091 }` — the key is the same in both, a carry-over from the Sprint 12.2 rename). **Option B:** export `ASPNETCORE_URLS=http://localhost:9090` before running (`set` on Windows CMD, `export` on Mac/Linux). If you change the Agent's port, remember to reflect the new URL under Workspace → Simulator in the browser.",
       },
       {
         type: "callout",
@@ -234,24 +268,23 @@ export const DOCS_EN: Record<string, DocSection> = {
 
       { type: "divider" },
 
+      // Sprint 12.9 P1 — the H2 stays so the `isoleaf-architecture` slug
+      // remains addressable (external links out in the wild point at
+      // #guides/isoleaf-architecture). The former content (single-machine
+      // diagram + pre-split security callouts) moved to the top-level
+      // `architecture` section, which reflects the Sprint 12.2 Backend/
+      // Agent split and ships production manifests (K8s / ECS / VM).
       { type: "heading", level: 2, text: "ISOLeaf architecture" },
       {
         type: "paragraph",
         text:
-          "ISOLeaf is a standalone application that runs entirely on your machine. No data leaves your environment.",
+          "The detailed architecture material — topology diagram, security considerations, Kubernetes/ECS/VM deploy examples — moved to a dedicated top-level section. This placeholder stays here to keep external links to this anchor working.",
       },
-      { type: "svg", text: ISOHUB_ARCHITECTURE_SVG },
-      { type: "heading", level: 3, text: "Security" },
-      { type: "callout", tone: "success", text: "Data stays on your machine — zero telemetry, no external connections beyond what you configure." },
-      { type: "callout", tone: "warning", text: "No JWT authentication — open access on localhost. If you expose port 8080 to the network (0.0.0.0), any machine on the network can access it without a password. Use only on trusted networks or behind a firewall." },
-      { type: "heading", level: 3, text: "Data stored locally" },
       {
-        type: "list",
-        items: [
-          "Workspace (IMK, ZPK, settings): local JSON file",
-          "Templates: browser localStorage",
-          "EMV history: session memory (cleared on restart)",
-        ],
+        type: "callout",
+        tone: "info",
+        text:
+          "→ [Architecture & Deployment](#architecture) — post-split Backend/Agent topology, updated security callouts and paste-ready production manifests.",
       },
 
       // ── First steps — module overview ─────────────────────────────
@@ -990,6 +1023,342 @@ export const DOCS_EN: Record<string, DocSection> = {
           "💬 [GitHub Discussions](https://github.com/isoleaf-io/isoleaf/discussions) — questions, ideas and feedback",
           "🐛 [GitHub Issues](https://github.com/isoleaf-io/isoleaf/issues) — bug reports and feature requests",
           "📧 Email: **contato@isoleaf.dev** — for partnerships and enterprise inquiries",
+        ],
+      },
+    ],
+  },
+
+  // ═══════════════════════════════════════════════════════════════════
+  // Sprint 12.7 P4 — "Architecture & Deployment". Top-level section
+  // dedicated to production topology post Backend/Agent split
+  // (Sprint 12.2). This is the sole architecture reference in the
+  // docs today; the same-named H2 inside `guides` (Sprint 12.9 P1)
+  // became a short redirect preserving the #guides/isoleaf-architecture
+  // anchor without duplicating the content.
+  // ═══════════════════════════════════════════════════════════════════
+  architecture: {
+    id: "architecture",
+    blocks: [
+      // ── 1. Topology overview ────────────────────────────────────────
+      { type: "heading", level: 2, text: "Topology overview" },
+      {
+        type: "paragraph",
+        text:
+          "From v3 onwards, ISOLeaf runs as **two independent processes**: a **Backend** (one central instance serving the SPA + utility APIs on port 8080) and one or more Simulator **Agents** (each on port 8583). The Backend is the process that fits a traditional production deploy — behind a TLS proxy, with healthchecks, replicable if you want. The Agent has a different topology and is what this section will help you decide on.",
+      },
+      { type: "svg", text: ISOHUB_DEPLOY_TOPOLOGY_SVG },
+      {
+        type: "paragraph",
+        text:
+          "**Architectural key point:** the Backend never needs to know where the Agents live. Each browser stores the Agent URL in `localStorage` (configured under Workspace → Simulator) and calls the chosen process directly. That means the same Backend can serve, in parallel, one team where every dev points at their own local Agent, and another team pointing at a shared team-node in the cloud — with zero server-side coordination.",
+      },
+      {
+        type: "callout",
+        tone: "warning",
+        text:
+          "**Security — TLS mandatory for any shared Agent.** A local Agent (localhost:8583) can run in plain HTTP with no risk — nothing travels the real network. An Agent on a shared node (VM, container, cluster) **must** be fronted by a TLS reverse proxy (nginx/Caddy/ALB/Ingress — same pattern as the Backend). Furthermore, **the Agent has no native authentication today**: whoever reaches the URL can operate the Simulator. That's acceptable for individual local use; on a shared node, restrict access at the network layer (VPC/VPN/firewall) until a native auth solution ships. Don't rely on obscurity — put the Agent in a network only the intended users can reach.",
+      },
+
+      // ── 2. Deploying the Backend ────────────────────────────────────
+      { type: "heading", level: 2, text: "Deploying the Backend" },
+      {
+        type: "paragraph",
+        text:
+          "The Backend is a stateless .NET 9 API (the only persistent state is the XSDs volume mounted at `/app/data/schemas`, seeded from the image on first run). Three concrete patterns, from most managed to most hand-rolled — all referencing the official `ghcr.io/isoleaf-io/isoleaf-backend:3.0.0` image. **These examples are illustrative starting points, not paste-ready production config** — adjust replicas, resources, secrets management and observability to match your environment.",
+      },
+      {
+        type: "callout",
+        tone: "warning",
+        text:
+          "**Security — no native authentication.** The Backend has no built-in auth (no JWT, no API key) — any request reaching the configured port is served without verification. On localhost this is fine; when exposing it on a shared network interface (0.0.0.0), on the cloud, or behind a public Ingress/ALB — regardless of the port in use — restrict access at the network layer (VPN, security group, IP allowlist) or put auth in front (API Gateway, proxy with Basic Auth, etc.). Same limitation applies to the Agent, reinforced in the corresponding section below.",
+      },
+      {
+        type: "callout",
+        tone: "info",
+        text:
+          "**Ports in the examples.** The manifests below use `8080` (Backend) and further down `8583` (Agent) — those are the defaults, not fixed values. Each host resolves the port with priority `ASPNETCORE_URLS` (standard .NET env) → the `Agent:Port` config key (via the `Agent__Port` env or `appsettings.json`) → hardcoded default. To change it in a container, override the env var. E.g. `ASPNETCORE_URLS=http://+:9090` makes the Backend listen on 9090; adjust the matching `containerPort`/`portMappings` in the manifest to line up. The config key is `Agent:Port` in both hosts (carry-over from the Sprint 12.2 rename — not renamed to `Backend:Port` to preserve compat).",
+      },
+
+      { type: "heading", level: 3, text: "Kubernetes" },
+      {
+        type: "paragraph",
+        text:
+          "Deployment + Service (ClusterIP) + Ingress with TLS via `cert-manager`. One replica as a starting suggestion — the Backend keeps no session state, so horizontal scaling is safe (the `isoleaf-data` volume would need to become a `ReadWriteMany` PVC to be shared, or you accept that XSD uploads don't sync across pods).",
+      },
+      {
+        type: "code",
+        lang: "yaml",
+        text:
+`apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: isoleaf-backend
+  labels: { app: isoleaf-backend }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: isoleaf-backend }
+  template:
+    metadata:
+      labels: { app: isoleaf-backend }
+    spec:
+      containers:
+        - name: backend
+          image: ghcr.io/isoleaf-io/isoleaf-backend:3.0.0
+          ports:
+            - containerPort: 8080
+          env:
+            - name: ASPNETCORE_ENVIRONMENT
+              value: Production
+            - name: ASPNETCORE_URLS
+              value: http://+:8080
+            - name: ISOHUB_DATA_PATH
+              value: /app/data
+            # Pre-fills the "Agent URL" field on the Workspace tab.
+            # Optional — drop it if your team doesn't run a shared Agent.
+            - name: AGENT_URL_HINT
+              value: https://sim.internal.example.com
+          resources:
+            requests: { cpu: "100m", memory: "256Mi" }
+            limits:   { cpu: "500m", memory: "512Mi" }
+          volumeMounts:
+            - name: schemas
+              mountPath: /app/data
+          readinessProbe:
+            httpGet: { path: /api/health, port: 8080 }
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          livenessProbe:
+            httpGet: { path: /api/health, port: 8080 }
+            initialDelaySeconds: 30
+            periodSeconds: 30
+      volumes:
+        - name: schemas
+          persistentVolumeClaim:
+            claimName: isoleaf-schemas
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: isoleaf-backend
+spec:
+  type: ClusterIP
+  selector: { app: isoleaf-backend }
+  ports:
+    - port: 8080
+      targetPort: 8080
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: isoleaf-backend
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts: [isoleaf.example.com]
+      secretName: isoleaf-tls
+  rules:
+    - host: isoleaf.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: isoleaf-backend
+                port: { number: 8080 }`,
+      },
+
+      { type: "heading", level: 3, text: "AWS ECS (Fargate)" },
+      {
+        type: "paragraph",
+        text:
+          "Task Definition + Service with an Application Load Balancer in front for TLS termination via ACM. The ALB target-group healthcheck hits `/api/health` — same endpoint the Dockerfile `HEALTHCHECK` uses.",
+      },
+      {
+        type: "code",
+        lang: "json",
+        text:
+`{
+  "family": "isoleaf-backend",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "512",
+  "memory": "1024",
+  "executionRoleArn": "arn:aws:iam::<account>:role/ecsTaskExecutionRole",
+  "containerDefinitions": [
+    {
+      "name": "backend",
+      "image": "ghcr.io/isoleaf-io/isoleaf-backend:3.0.0",
+      "essential": true,
+      "portMappings": [
+        { "containerPort": 8080, "protocol": "tcp" }
+      ],
+      "environment": [
+        { "name": "ASPNETCORE_ENVIRONMENT", "value": "Production" },
+        { "name": "ASPNETCORE_URLS",        "value": "http://+:8080" },
+        { "name": "ISOHUB_DATA_PATH",       "value": "/app/data" }
+      ],
+      "healthCheck": {
+        "command": ["CMD-SHELL", "wget -q -O /dev/null http://localhost:8080/api/health || exit 1"],
+        "interval": 30,
+        "timeout": 10,
+        "retries": 3,
+        "startPeriod": 15
+      },
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group":         "/ecs/isoleaf-backend",
+          "awslogs-region":        "us-east-1",
+          "awslogs-stream-prefix": "backend"
+        }
+      }
+    }
+  ]
+}`,
+      },
+      {
+        type: "paragraph",
+        text:
+          "When creating the Service, point an HTTP :8080 ALB target group at it, with an HTTPS :443 listener on the ALB using an ACM certificate. XSD persistence (optional) needs EFS mounted into the container — omitted above to keep the example short; add a `mountPoints` + `volumes` entry referencing the EFS access point if your team uploads schemas.",
+      },
+
+      { type: "heading", level: 3, text: "Traditional VM (systemd + nginx + Certbot)" },
+      {
+        type: "paragraph",
+        text:
+          "The exact pattern isoleaf.dev itself runs on today. No orchestrator, no cluster — just systemd running the container and nginx doing TLS termination. Perfect for a $5-10/month VM.",
+      },
+      {
+        type: "code",
+        lang: "ini",
+        text:
+`# /etc/systemd/system/isoleaf-backend.service
+[Unit]
+Description=ISOLeaf Backend
+After=docker.service
+Requires=docker.service
+
+[Service]
+Restart=always
+RestartSec=5
+ExecStartPre=-/usr/bin/docker rm -f isoleaf-backend
+ExecStart=/usr/bin/docker run --rm --name isoleaf-backend \\
+  -p 127.0.0.1:8080:8080 \\
+  -v isoleaf-data:/app/data \\
+  -e ASPNETCORE_ENVIRONMENT=Production \\
+  ghcr.io/isoleaf-io/isoleaf-backend:3.0.0
+ExecStop=/usr/bin/docker stop isoleaf-backend
+
+[Install]
+WantedBy=multi-user.target`,
+      },
+      {
+        type: "code",
+        lang: "nginx",
+        text:
+`# /etc/nginx/sites-available/isoleaf.example.com
+server {
+  listen 443 ssl http2;
+  server_name isoleaf.example.com;
+
+  ssl_certificate     /etc/letsencrypt/live/isoleaf.example.com/fullchain.pem;
+  ssl_certificate_key /etc/letsencrypt/live/isoleaf.example.com/privkey.pem;
+
+  location / {
+    proxy_pass         http://127.0.0.1:8080;
+    proxy_http_version 1.1;
+    proxy_set_header   Host              $host;
+    proxy_set_header   X-Real-IP         $remote_addr;
+    proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
+    proxy_set_header   X-Forwarded-Proto $scheme;
+    # The Agent's SignalR (Sprint 12.2 P4) lives in another process/host —
+    # nothing outside the Backend flows through this server block.
+  }
+}
+
+server {
+  listen 80;
+  server_name isoleaf.example.com;
+  return 301 https://$host$request_uri;
+}`,
+      },
+      {
+        type: "paragraph",
+        text:
+          "Initial certificate issuance + auto-renewal via Certbot: `sudo certbot --nginx -d isoleaf.example.com` (once). The systemd timer renews every 12h. Enable the service with `sudo systemctl enable --now isoleaf-backend.service`.",
+      },
+
+      // ── 3. Deploying the Agent ──────────────────────────────────────
+      { type: "heading", level: 2, text: "Deploying the Agent" },
+      {
+        type: "paragraph",
+        text:
+          "The Agent has a deliberately simpler topology than the Backend. We don't recommend full Kubernetes/ECS manifests as the default — the process's nature (in-memory TCP sessions, one instance per operator or per team) doesn't benefit from multi-replica orchestration. Two scenarios cover 95% of cases.",
+      },
+
+      { type: "heading", level: 3, text: "Scenario A — Local Agent (recommended default)" },
+      {
+        type: "paragraph",
+        text:
+          "Every developer runs the Agent on their own machine. No production infra at all — Docker, portable `.zip`, or a raw `dotnet run` from source. It's how ISOLeaf was originally designed before the split, and it stays the lightest path for individual use.",
+      },
+      {
+        type: "code",
+        lang: "bash",
+        text:
+`# One-liner. Then configure http://localhost:8583
+# under Workspace → Simulator in your browser.
+docker run -d --name isoleaf-agent \\
+  -p 8583:8583 \\
+  -p 9100:9100 \\
+  ghcr.io/isoleaf-io/isoleaf-agent:3.0.0`,
+      },
+
+      { type: "heading", level: 3, text: "Scenario B — Shared team Agent" },
+      {
+        type: "paragraph",
+        text:
+          "One central instance reachable by the whole team over internal network / VPN. Can be a plain VM (same systemd + nginx pattern as the Backend above), or a standalone container in an internal cluster. Two **non-negotiable** constraints:",
+      },
+      {
+        type: "callout",
+        tone: "warning",
+        text:
+          "**TLS mandatory.** Never expose the Agent over plain HTTP on a shared network — even an internal one. Put a reverse proxy (nginx/Caddy/Ingress) doing TLS termination in front. **No native auth.** The Agent has no built-in login today; any request reaching it can operate the Simulator. Compensate at the network layer: run inside a VPC/VPN and firewall it down to just the team.",
+      },
+
+      { type: "heading", level: 3, text: "Scenario C — NOT recommended: multi-replica behind a load balancer" },
+      {
+        type: "paragraph",
+        text:
+          "Don't put the Agent behind a load balancer with multiple replicas. It'll look like it works, and break in subtle ways:",
+      },
+      {
+        type: "list",
+        items: [
+          "Each replica has its own in-memory `ISessionStore`. A client that creates a TCP session on replica R1 and then lists sessions via the LB might land on R2 — and see nothing.",
+          "Each replica has its own `IMessageLog` (Simulator message log). The live SignalR log only shows what the replica routed to at that moment happened to process.",
+          "TcpListener bindings on one replica live only in that container. If the LB steers traffic to another replica, the listener doesn't exist there.",
+        ],
+      },
+      {
+        type: "paragraph",
+        text:
+          "If you truly need Simulator high-availability, the path is running N independent Agents (one per team/environment), each with its own URL, and letting each dev/team point their Workspace at whichever fits.",
+      },
+
+      // ── 4. See also ─────────────────────────────────────────────────
+      { type: "heading", level: 2, text: "See also" },
+      {
+        type: "list",
+        items: [
+          "[Quick Start — three ways to run](#guides/quick-start-three-ways-to-run) — comparative matrix for the 3 basic install options.",
+          "[Self-hosting with Docker — beginner's guide](#guides/self-hosting-with-docker-beginner-s-guide) — `docker compose up` walkthrough for people who've never stood anything up.",
+          "[Portable — no Docker, no git](#guides/portable-no-docker-no-git) — framework-dependent `.zip` distribution, no Docker.",
         ],
       },
     ],

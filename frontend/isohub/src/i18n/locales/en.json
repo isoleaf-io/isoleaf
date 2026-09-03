@@ -23,12 +23,9 @@
     "online": "Online",
     "offline": "Offline",
     "agentStatus": "Agent · port {{port}}",
-    "backendOnline": "Backend online",
-    "backendOffline": "Backend offline",
     "simulatorAgent": {
       "connected": "Simulator connected",
-      "disconnected": "Simulator disconnected",
-      "error": "Simulator error"
+      "disconnected": "Simulator disconnected"
     },
     "theme": {
       "light": "Light mode",
@@ -47,6 +44,8 @@
       "simulator": "Simulator",
       "reference": "Reference",
       "docs": "Documentation",
+      "github": "GitHub",
+      "contact": "Contact",
       "workspace": "Workspace",
       "templates": "Templates",
       "iso20022": "ISO 20022",
@@ -506,6 +505,8 @@
       "targetHost": "Target host",
       "targetPort": "Port",
       "message": "ISO 8583 message (hex or ASCII wire)",
+      "clearMessage": "Clear message",
+      "clearMessageTitle": "Clear only the message field (keeps host, port and toggles)",
       "includeTpdu": "Include TPDU",
       "tpduValue": "TPDU value (10 hex)",
       "tpduHint": "Leave empty to use Workspace NIIs. Format: 5 bytes = identifier (60) + origin NII (2B) + destination NII (2B). Example: 6000000000.",
@@ -601,6 +602,10 @@
         "title": "Quick guides",
         "description": "ISOLeaf architecture and practical recipes: parse, build, validate ARQC, simulate authorizer and injector."
       },
+      "architecture": {
+        "title": "Architecture & Deployment",
+        "description": "Post-split production topology (Backend + Agent), plus copy-friendly Kubernetes, AWS ECS and VM manifests referencing the official images."
+      },
       "api": {
         "title": "API Reference",
         "description": "REST API covering ISO 8583, EMV cryptography and ISO 20022 (Pix, SEPA, CBPR+, TARGET/T2, MT ↔ MX). Available in self-hosted mode — interactive docs powered by Scalar."
@@ -673,10 +678,10 @@
       "tab": "Simulator",
       "title": "Simulator Agent",
       "description": "The Simulator (TCP sessions + injector + live log) runs in a separate process on your machine. Point the frontend at it here.",
-      "urlLabel": "Agent base URL",
+      "urlLabel": "Agent URL",
       "urlPlaceholder": "http://localhost:8583",
       "urlHint": "Include the scheme (http/https) and port. Trailing slashes are stripped automatically.",
-      "urlRequired": "Enter the Agent's base URL first.",
+      "urlRequired": "Enter the Agent URL first.",
       "connect": "Connect",
       "connecting": "Testing connection…",
       "connected": "Connected",
@@ -699,8 +704,8 @@
   },
   "online": {
     "banner": {
-      "text": "You are using ISOLeaf Online. Some features require local installation.",
-      "installLink": "→ How to install via Docker"
+      "text": "You are using ISOLeaf Online. Some features require running ISOLeaf on your own machine (Docker Compose, individual containers or the portable zip — pick whichever fits your environment).",
+      "installLink": "→ How to install"
     },
     "feature": {
       "unavailable": "This feature is not available in the online version",

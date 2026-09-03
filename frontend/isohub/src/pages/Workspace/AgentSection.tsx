@@ -15,6 +15,16 @@ import {
 import type { HealthStatus } from "@/types";
 
 /**
+ * Baseline URL a fresh install would use — matches the Agent's default
+ * <c>Agent:Port</c> and lives right alongside the same string used as
+ * the placeholder in i18n. Sprint 12.6 P1: this is now the real seed
+ * value of the input when nothing else is known, so the operator lands
+ * on a click-and-edit experience instead of an empty box that disappears
+ * hint-text on focus.
+ */
+const DEFAULT_AGENT_URL = "http://localhost:8583";
+
+/**
  * Sprint 12.2 P5+ — Agent (Simulator) connection panel. The Agent lives
  * in a separate process from the Backend (this Backend is what serves this
  * SPA) since the Simulator needs to be on the operator's own machine/network
@@ -38,11 +48,14 @@ export function AgentSection() {
   const status = useAgentConnectionStore((s) => s.status);
   const errorMessage = useAgentConnectionStore((s) => s.errorMessage);
 
-  // The URL currently in the text input. Seeded from the saved value if
-  // present; otherwise from the Backend's hint (env var AGENT_URL_HINT).
-  // Falls back to empty so the user always sees an editable field.
+  // The URL currently in the text input. Seed order (v3 UX):
+  //   1. Whatever was saved in localStorage on the last successful Conectar
+  //   2. The Backend's hint (AGENT_URL_HINT env var, exposed via /api/config)
+  //   3. The always-good local default (DEFAULT_AGENT_URL)
+  // The third fallback is what makes the input feel like a click-and-edit
+  // field instead of one that disappears its own suggestion on focus.
   const initialDraft = useMemo(
-    () => savedUrl ?? agentUrlHint ?? "",
+    () => savedUrl ?? agentUrlHint ?? DEFAULT_AGENT_URL,
     // We only care about the very first render — subsequent edits are local
     // to the input. If the saved URL changes elsewhere (e.g. a Clear), we
     // reset via the effect below.
@@ -53,9 +66,11 @@ export function AgentSection() {
 
   // When the saved URL is externally cleared (or when the hint arrives late
   // via /api/config), refresh the input so it stays coherent with the store.
+  // Same seed order as initialDraft — the operator should never see an
+  // empty input after a Disconnect.
   useEffect(() => {
     if (savedUrl === null && draft === "") {
-      setDraft(agentUrlHint ?? "");
+      setDraft(agentUrlHint ?? DEFAULT_AGENT_URL);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [savedUrl, agentUrlHint]);
@@ -99,7 +114,9 @@ export function AgentSection() {
   const onDisconnect = () => {
     clear();
     setLastHealth(null);
-    setDraft(agentUrlHint ?? "");
+    // Reset the input to the same seed order the mount uses — the
+    // operator ends up back at a click-and-edit URL, not an empty box.
+    setDraft(agentUrlHint ?? DEFAULT_AGENT_URL);
     setEditing(true);
   };
 

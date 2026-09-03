@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/Badge";
 import { getWorkspace, updateWorkspace } from "@/api/workspace";
 import { SchemasSection } from "./SchemasSection";
 import { AgentSection } from "./AgentSection";
+import { SimulatorLockedPanel } from "@/pages/Simulator/SimulatorLockedPanel";
 import { useTemplatesStore, type SavedTemplate } from "@/store/templates";
 import type { WorkspaceConfig } from "@/types";
 
@@ -28,15 +29,21 @@ export default function WorkspacePage() {
   const { t } = useTranslation();
   const qc = useQueryClient();
   const navigate = useNavigate();
-  const { workspaceKeysEnabled } = useAppConfig();
+  const { workspaceKeysEnabled, simulatorEnabled } = useAppConfig();
 
   // Deep-link into a specific tab via ?tab=agent (used by the Simulator
   // "not configured" empty state). Falls back to "config" if the param
-  // is missing or names a tab that doesn't exist.
+  // is missing or names a tab that doesn't exist. Sprint 12.6 P4: also
+  // falls back when the Simulator tab is server-gated (online mode) —
+  // otherwise Radix would land on a disabled trigger and the content
+  // would render invisible / behind an active header line.
   const [searchParams] = useSearchParams();
   const requestedTab = searchParams.get("tab");
+  const isValidRequestedTab =
+    requestedTab && (VALID_TABS as readonly string[]).includes(requestedTab);
+  const simulatorTabBlocked = !simulatorEnabled;
   const initialTab: WorkspaceTab =
-    requestedTab && (VALID_TABS as readonly string[]).includes(requestedTab)
+    isValidRequestedTab && !(requestedTab === "agent" && simulatorTabBlocked)
       ? (requestedTab as WorkspaceTab)
       : "config";
 
@@ -119,8 +126,17 @@ export default function WorkspacePage() {
           </Tabs.Trigger>
           <Tabs.Trigger
             value="agent"
-            className="px-4 py-2 text-sm text-text-secondary border-b-2 border-transparent data-[state=active]:border-accent data-[state=active]:text-text-primary"
+            disabled={simulatorTabBlocked}
+            title={simulatorTabBlocked ? t("online.feature.unavailable") : undefined}
+            data-testid="workspace-tab-agent"
+            className={clsx(
+              "px-4 py-2 text-sm border-b-2 border-transparent",
+              simulatorTabBlocked
+                ? "text-text-tertiary/60 cursor-not-allowed inline-flex items-center gap-1.5"
+                : "text-text-secondary data-[state=active]:border-accent data-[state=active]:text-text-primary",
+            )}
           >
+            {simulatorTabBlocked && <Lock size={12} aria-hidden="true" />}
             {t("workspace.agent.tab")}
           </Tabs.Trigger>
         </Tabs.List>
@@ -390,7 +406,12 @@ export default function WorkspacePage() {
         </Tabs.Content>
 
         <Tabs.Content value="agent">
-          <AgentSection />
+          {/* Sprint 12.6 P4: online-mode gate. Backend also 403s any
+              /api/simulator/* + /hubs/simulator call so an operator that
+              somehow flips this tab (browser extension, saved URL) still
+              gets the same "not available online" panel Simulator/EMV
+              show elsewhere in the app. */}
+          {simulatorTabBlocked ? <SimulatorLockedPanel /> : <AgentSection />}
         </Tabs.Content>
       </Tabs.Root>
     </AppShell>

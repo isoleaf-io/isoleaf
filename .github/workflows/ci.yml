@@ -413,6 +413,40 @@ jobs:
           The Agent URL is stored in your browser (localStorage) so this
           only has to be done once per browser profile.
 
+          ─────────────────────────────────────────────────────────────
+          Changing the default ports (8080 / 8583)
+          ─────────────────────────────────────────────────────────────
+
+          Each host reads its port with priority:
+            1. ASPNETCORE_URLS  (standard .NET env var)
+            2. "Agent:Port" key in appsettings.json  (fallback)
+            3. Hardcoded default  (8080 / 8583)
+
+          Option A (recommended for the portable) — edit appsettings.json
+          in each subfolder, then re-run the launcher:
+
+            backend/appsettings.json  ->  "Agent": { "Port": 9090 }
+            agent/appsettings.json    ->  "Agent": { "Port": 9091 }
+
+          The config key is "Agent:Port" in BOTH hosts — carry-over from
+          an earlier rename, not a typo.
+
+          Option B — set ASPNETCORE_URLS before launching. Because
+          run.bat / run.sh start both processes in the same shell, the
+          env var would collide (both hosts trying the same port), so
+          this only works if you launch each host manually:
+
+            Windows CMD:
+              cd backend && set ASPNETCORE_URLS=http://localhost:9090 && dotnet Iso8583Toolkit.Backend.dll
+              cd agent   && set ASPNETCORE_URLS=http://localhost:9091 && dotnet Iso8583Toolkit.Agent.dll
+
+            macOS / Linux (two terminals):
+              cd backend && ASPNETCORE_URLS=http://localhost:9090 dotnet Iso8583Toolkit.Backend.dll
+              cd agent   && ASPNETCORE_URLS=http://localhost:9091 dotnet Iso8583Toolkit.Agent.dll
+
+          If you change the Agent's port, remember to point
+          Workspace -> Simulador at the new URL in the browser.
+
           Same payload runs on Windows, macOS and Linux — no per-OS build.
           TXT
 

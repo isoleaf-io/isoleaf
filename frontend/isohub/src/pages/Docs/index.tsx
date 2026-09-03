@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { BookOpen, ChevronRight, Cpu, ExternalLink, FileCode, FileText, Layers, MessageCircle, Network, Sparkles, Terminal, Users } from "lucide-react";
+import { BookOpen, ChevronRight, Cpu, ExternalLink, FileCode, FileText, Layers, MessageCircle, Network, Server, Sparkles, Terminal, Users } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Card, CardBody } from "@/components/ui/Card";
 
@@ -26,6 +26,10 @@ const TOPICS: Topic[] = [
   { id: "iso20022Roles", icon: Users,         titleKey: "docs.cards.iso20022Roles.title", descriptionKey: "docs.cards.iso20022Roles.description" },
   { id: "glossary",      icon: BookOpen,      titleKey: "docs.cards.glossary.title",      descriptionKey: "docs.cards.glossary.description" },
   { id: "guides",        icon: Sparkles,      titleKey: "docs.cards.guides.title",        descriptionKey: "docs.cards.guides.description" },
+  // Sprint 12.7 P4 — production topology + K8s / ECS / VM manifests.
+  // Sits right after guides so operational content (install → deploy)
+  // reads as a group.
+  { id: "architecture",  icon: Server,        titleKey: "docs.cards.architecture.title",  descriptionKey: "docs.cards.architecture.description" },
   { id: "community",     icon: MessageCircle, titleKey: "docs.cards.community.title",     descriptionKey: "docs.cards.community.description" },
   { id: "apiDocs",       icon: Terminal,      titleKey: "docs.cards.api.title",           descriptionKey: "docs.cards.api.description" },
 ];

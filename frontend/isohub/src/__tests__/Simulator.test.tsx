@@ -827,6 +827,66 @@ describe("InjectorPanel", () => {
     expect((screen.getByPlaceholderText("localhost") as HTMLInputElement).value).toBe("localhost");
   });
 
+  // Sprint 12.6 P5 — "Limpar mensagem" (eraser next to the textarea label)
+  // clears ONLY the message field; host/port/toggles stay put. Different
+  // affordance from the big "Limpar" that resets everything.
+  it("Sprint 12.6 P5: clear-message button clears only the message, preserving host/port/toggles", async () => {
+    // Seed a non-default toggle in the store BEFORE render so we can then
+    // assert it survives the clear-message click. Interacting with the
+    // Toggle component through userEvent is finicky in jsdom (it's a
+    // custom span, not a native <input>); driving the store directly is
+    // both more stable and truer to what the field actually persists.
+    useInjectorStore.setState({
+      ...INJECTOR_DEFAULTS,
+      includeTpdu: true,
+      tpduOverride: "6001020304",
+      message: "0200F23C24",
+      targetHost: "1.2.3.4",
+      targetPort: 9500,
+    });
+
+    const user = userEvent.setup();
+    renderApp(<SimulatorPage />);
+
+    // Sanity — the store snapshot the panel renders shows all the values.
+    const textarea = screen.getByPlaceholderText("0200F23C...") as HTMLTextAreaElement;
+    const hostInput = screen.getByPlaceholderText("localhost") as HTMLInputElement;
+    expect(textarea.value).toBe("0200F23C24");
+    expect(hostInput.value).toBe("1.2.3.4");
+    // The TPDU literal field only renders when includeTpdu is ON — its
+    // presence is our proxy for "the toggle is set".
+    expect(screen.getByTestId("injector-tpdu-field")).toBeInTheDocument();
+
+    // Click the small eraser button next to the Message label.
+    await user.click(screen.getByTestId("injector-clear-message"));
+
+    // Message emptied.
+    expect(
+      (screen.getByPlaceholderText("0200F23C...") as HTMLTextAreaElement).value,
+    ).toBe("");
+    // Host + TPDU toggle preserved — the store still carries them.
+    expect(
+      (screen.getByPlaceholderText("localhost") as HTMLInputElement).value,
+    ).toBe("1.2.3.4");
+    expect(screen.getByTestId("injector-tpdu-field")).toBeInTheDocument();
+    // Direct store check for the belt: the reset must have touched ONLY
+    // the message key.
+    const state = useInjectorStore.getState();
+    expect(state.message).toBe("");
+    expect(state.targetHost).toBe("1.2.3.4");
+    expect(state.targetPort).toBe(9500);
+    expect(state.includeTpdu).toBe(true);
+    expect(state.tpduOverride).toBe("6001020304");
+  });
+
+  it("Sprint 12.6 P5: clear-message button is disabled when the message is already empty", () => {
+    // Fresh render, no message typed → the eraser is disabled so a stray
+    // click doesn't clobber anything.
+    renderApp(<SimulatorPage />);
+    const btn = screen.getByTestId("injector-clear-message") as HTMLButtonElement;
+    expect(btn).toBeDisabled();
+  });
+
   it("clear button stops continuous mode if running", async () => {
     const user = userEvent.setup();
     renderApp(<SimulatorPage />);

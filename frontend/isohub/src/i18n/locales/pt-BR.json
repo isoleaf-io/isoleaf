@@ -23,12 +23,9 @@
     "online": "Online",
     "offline": "Offline",
     "agentStatus": "Agent · porta {{port}}",
-    "backendOnline": "Backend online",
-    "backendOffline": "Backend offline",
     "simulatorAgent": {
       "connected": "Simulador conectado",
-      "disconnected": "Simulador desconectado",
-      "error": "Simulador com erro"
+      "disconnected": "Simulador desconectado"
     },
     "theme": {
       "light": "Tema claro",
@@ -47,6 +44,8 @@
       "simulator": "Simulador",
       "reference": "Referência",
       "docs": "Documentação",
+      "github": "GitHub",
+      "contact": "Contato",
       "workspace": "Workspace",
       "templates": "Templates",
       "iso20022": "ISO 20022",
@@ -506,6 +505,8 @@
       "targetHost": "Host destino",
       "targetPort": "Porta",
       "message": "Mensagem ISO 8583 (hex ou ASCII wire)",
+      "clearMessage": "Limpar mensagem",
+      "clearMessageTitle": "Limpa apenas o campo da mensagem (mantém host, porta e toggles)",
       "includeTpdu": "Incluir TPDU",
       "tpduValue": "Valor do TPDU (10 hex)",
       "tpduHint": "Deixe vazio para usar os NIIs do Workspace. Formato: 5 bytes = identificador (60) + NII origem (2B) + NII destino (2B). Ex.: 6000000000.",
@@ -601,6 +602,10 @@
         "title": "Guias rápidos",
         "description": "Arquitetura do ISOLeaf e receitas práticas: parsear, gerar mensagem, validar ARQC, simular autorizador e injetor."
       },
+      "architecture": {
+        "title": "Arquitetura & Deploy",
+        "description": "Topologia de produção pós-split (Backend + Agent) e manifestos prontos pra copiar de Kubernetes, AWS ECS e VM referenciando as imagens oficiais."
+      },
       "api": {
         "title": "Referência de API",
         "description": "API REST cobrindo ISO 8583, criptografia EMV e ISO 20022 (Pix, SEPA, CBPR+, TARGET/T2, MT ↔ MX). Disponível no modo self-hosted — documentação interativa via Scalar."
@@ -673,10 +678,10 @@
       "tab": "Simulador",
       "title": "Agent do Simulador",
       "description": "O Simulador (sessões TCP + injetor + log ao vivo) roda em um processo separado na sua máquina. Aponte o frontend para ele aqui.",
-      "urlLabel": "URL base do Agent",
+      "urlLabel": "URL do Agente",
       "urlPlaceholder": "http://localhost:8583",
       "urlHint": "Inclua o esquema (http/https) e a porta. Barras finais são removidas automaticamente.",
-      "urlRequired": "Informe a URL base do Agent primeiro.",
+      "urlRequired": "Informe a URL do Agente primeiro.",
       "connect": "Conectar",
       "connecting": "Testando conexão…",
       "connected": "Conectado",
@@ -699,8 +704,8 @@
   },
   "online": {
     "banner": {
-      "text": "Você está usando o ISOLeaf Online. Algumas funcionalidades requerem instalação local.",
-      "installLink": "→ Como instalar via Docker"
+      "text": "Você está usando o ISOLeaf Online. Algumas funcionalidades exigem rodar o ISOLeaf na sua própria máquina (Docker Compose, containers separados ou o pacote portable — use o que fizer sentido no seu ambiente).",
+      "installLink": "→ Como instalar"
     },
     "feature": {
       "unavailable": "Esta funcionalidade não está disponível na versão online",
