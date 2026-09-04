@@ -8,7 +8,7 @@ export default defineConfig({
     alias: { "@": path.resolve(__dirname, "src") },
   },
   build: {
-    outDir: path.resolve(__dirname, "../../agent/Iso8583Toolkit.Agent/wwwroot"),
+    outDir: path.resolve(__dirname, "../../agent/Iso8583Toolkit.Backend/wwwroot"),
     emptyOutDir: true,
     sourcemap: false,
     // Warn early — caps any single chunk at ~400 KB raw before we ship it.

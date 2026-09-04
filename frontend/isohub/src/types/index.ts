@@ -348,4 +348,10 @@ export interface AppConfig {
    * and Version Comparator screens keep working over the fixed catalogue.
    */
   schemaUploadEnabled: boolean;
+  /**
+   * Optional hint for the Workspace "Agent URL" field. Sourced from the
+   * Backend's <c>AGENT_URL_HINT</c> env var (Sprint 12.2 P5+). Null when
+   * unset — the field starts empty and the user configures the URL.
+   */
+  agentUrlHint?: string | null;
 }

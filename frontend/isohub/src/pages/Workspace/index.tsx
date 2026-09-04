@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 import * as Tabs from "@radix-ui/react-tabs";
 import { Download, Eye, EyeOff, Lock, Trash2, Upload } from "lucide-react";
 import clsx from "clsx";
@@ -13,6 +13,8 @@ import { Input, Label } from "@/components/ui/Field";
 import { Badge } from "@/components/ui/Badge";
 import { getWorkspace, updateWorkspace } from "@/api/workspace";
 import { SchemasSection } from "./SchemasSection";
+import { AgentSection } from "./AgentSection";
+import { SimulatorLockedPanel } from "@/pages/Simulator/SimulatorLockedPanel";
 import { useTemplatesStore, type SavedTemplate } from "@/store/templates";
 import type { WorkspaceConfig } from "@/types";
 
@@ -20,11 +22,30 @@ const HEX_32 = /^[0-9A-Fa-f]{32}$/;
 /** Empty is valid (optional). Anything else must be exactly 32 hex chars. */
 const isHex32OrEmpty = (v: string) => v.length === 0 || HEX_32.test(v);
 
+const VALID_TABS = ["config", "templates", "schemas", "agent"] as const;
+type WorkspaceTab = (typeof VALID_TABS)[number];
+
 export default function WorkspacePage() {
   const { t } = useTranslation();
   const qc = useQueryClient();
   const navigate = useNavigate();
-  const { workspaceKeysEnabled } = useAppConfig();
+  const { workspaceKeysEnabled, simulatorEnabled } = useAppConfig();
+
+  // Deep-link into a specific tab via ?tab=agent (used by the Simulator
+  // "not configured" empty state). Falls back to "config" if the param
+  // is missing or names a tab that doesn't exist. Sprint 12.6 P4: also
+  // falls back when the Simulator tab is server-gated (online mode) —
+  // otherwise Radix would land on a disabled trigger and the content
+  // would render invisible / behind an active header line.
+  const [searchParams] = useSearchParams();
+  const requestedTab = searchParams.get("tab");
+  const isValidRequestedTab =
+    requestedTab && (VALID_TABS as readonly string[]).includes(requestedTab);
+  const simulatorTabBlocked = !simulatorEnabled;
+  const initialTab: WorkspaceTab =
+    isValidRequestedTab && !(requestedTab === "agent" && simulatorTabBlocked)
+      ? (requestedTab as WorkspaceTab)
+      : "config";
 
   const wsQuery = useQuery({ queryKey: ["workspace"], queryFn: getWorkspace });
 
@@ -83,7 +104,7 @@ export default function WorkspacePage() {
 
   return (
     <AppShell title={t("workspace.title")} subtitle={t("workspace.subtitle")}>
-      <Tabs.Root defaultValue="config">
+      <Tabs.Root defaultValue={initialTab}>
         <Tabs.List className="flex gap-1 mb-4 border-b border-[var(--border)]">
           <Tabs.Trigger
             value="config"
@@ -102,6 +123,21 @@ export default function WorkspacePage() {
             className="px-4 py-2 text-sm text-text-secondary border-b-2 border-transparent data-[state=active]:border-accent data-[state=active]:text-text-primary"
           >
             {t("workspace.schemas.tab")}
+          </Tabs.Trigger>
+          <Tabs.Trigger
+            value="agent"
+            disabled={simulatorTabBlocked}
+            title={simulatorTabBlocked ? t("online.feature.unavailable") : undefined}
+            data-testid="workspace-tab-agent"
+            className={clsx(
+              "px-4 py-2 text-sm border-b-2 border-transparent",
+              simulatorTabBlocked
+                ? "text-text-tertiary/60 cursor-not-allowed inline-flex items-center gap-1.5"
+                : "text-text-secondary data-[state=active]:border-accent data-[state=active]:text-text-primary",
+            )}
+          >
+            {simulatorTabBlocked && <Lock size={12} aria-hidden="true" />}
+            {t("workspace.agent.tab")}
           </Tabs.Trigger>
         </Tabs.List>
 
@@ -367,6 +403,15 @@ export default function WorkspacePage() {
 
         <Tabs.Content value="schemas">
           <SchemasSection />
+        </Tabs.Content>
+
+        <Tabs.Content value="agent">
+          {/* Sprint 12.6 P4: online-mode gate. Backend also 403s any
+              /api/simulator/* + /hubs/simulator call so an operator that
+              somehow flips this tab (browser extension, saved URL) still
+              gets the same "not available online" panel Simulator/EMV
+              show elsewhere in the app. */}
+          {simulatorTabBlocked ? <SimulatorLockedPanel /> : <AgentSection />}
         </Tabs.Content>
       </Tabs.Root>
     </AppShell>

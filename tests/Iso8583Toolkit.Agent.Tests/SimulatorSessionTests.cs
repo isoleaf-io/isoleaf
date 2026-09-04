@@ -1,10 +1,11 @@
 using FluentAssertions;
 using Iso8583Toolkit.Agent.Hubs;
-using Iso8583Toolkit.Agent.Models;
 using Iso8583Toolkit.Agent.Services;
 using Iso8583Toolkit.IsoCore.Building;
 using Iso8583Toolkit.IsoCore.Layouts;
+using Iso8583Toolkit.Simulator.Logging;
 using Iso8583Toolkit.Simulator.Protocol;
+using Iso8583Toolkit.Simulator.Sessions;
 using Microsoft.Extensions.Logging.Abstractions;
 using System.Text;
 
@@ -48,8 +49,9 @@ public sealed class SimulatorSessionTests
 
     private static IsoSessionHandler MakeHandler(SessionConfig cfg)
     {
-        var store = new LocalSessionStore();
-        store.AddSession(new SimulatorSession
+        var store = new InMemoryMessageLog();
+        var sessions = new InMemorySessionStore();
+        sessions.AddSession(new SimulatorSession
         {
             SessionId = cfg.SessionId,
             TcpPort = cfg.TcpPort,
@@ -60,7 +62,7 @@ public sealed class SimulatorSessionTests
         // Reuse the NullHubContext defined alongside TpduModeTests — it is internal
         // to the test assembly so both files can share it.
         var hub = new NullHubContext<SimulatorHub>();
-        return new IsoSessionHandler(NullLogger.Instance, cfg, store, hub);
+        return new IsoSessionHandler(NullLogger.Instance, cfg, store, sessions, hub);
     }
 
     private static byte[] FrameAscii(string asciiWire)

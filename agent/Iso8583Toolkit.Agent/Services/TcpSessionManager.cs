@@ -2,30 +2,39 @@ using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Sockets;
 using Iso8583Toolkit.Agent.Hubs;
-using Iso8583Toolkit.Agent.Models;
+using Iso8583Toolkit.Simulator.Logging;
 using Iso8583Toolkit.Simulator.Protocol;
+using Iso8583Toolkit.Simulator.Sessions;
 using Microsoft.AspNetCore.SignalR;
 
 namespace Iso8583Toolkit.Agent.Services;
 
 /// <summary>
-/// Owns local TCP listener sessions and bridges them to the in-memory store
+/// Owns local TCP listener sessions and bridges them to the session store
 /// + SignalR hub for real-time UI updates. Standalone — no broker required.
+///
+/// Session storage moved to <see cref="ISessionStore"/> and message-log
+/// writes to <see cref="IMessageLog"/> in Sprint 12.2 — no more direct
+/// dependency on the host's LocalSessionStore, so this class is portable
+/// to the new dedicated Agent process in P3/P4.
 /// </summary>
 public sealed class TcpSessionManager
 {
     private readonly ILogger<TcpSessionManager> _logger;
-    private readonly LocalSessionStore _store;
+    private readonly IMessageLog _log;
+    private readonly ISessionStore _sessionStore;
     private readonly IHubContext<SimulatorHub> _hub;
     private readonly ConcurrentDictionary<string, ActiveSession> _sessions = new();
 
     public TcpSessionManager(
         ILogger<TcpSessionManager> logger,
-        LocalSessionStore store,
+        IMessageLog log,
+        ISessionStore sessionStore,
         IHubContext<SimulatorHub> hub)
     {
         _logger = logger;
-        _store = store;
+        _log = log;
+        _sessionStore = sessionStore;
         _hub = hub;
     }
 
@@ -61,7 +70,7 @@ public sealed class TcpSessionManager
             EmvResponse = config.EmvResponse,
             Status = SessionStatus.Starting
         };
-        _store.AddSession(session);
+        _sessionStore.AddSession(session);
 
         var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
 
@@ -138,14 +147,14 @@ public sealed class TcpSessionManager
             session.Client?.Dispose();
         }
 
-        var s = _store.GetSession(sessionId);
+        var s = _sessionStore.GetSession(sessionId);
         if (s is not null)
         {
             s.Status = SessionStatus.Stopped;
             s.StoppedAt = DateTime.UtcNow;
             await SimulatorHubEvents.SessionStopped(_hub, s);
         }
-        _store.RemoveSession(sessionId);
+        _sessionStore.RemoveSession(sessionId);
     }
 
     public bool IsSessionActive(string sessionId) => _sessions.ContainsKey(sessionId);
@@ -170,7 +179,7 @@ public sealed class TcpSessionManager
                 catch (SocketException ex) when (ex.SocketErrorCode == SocketError.OperationAborted) { break; }
 
                 _logger.LogInformation("Client connected from {Remote}", client.Client.RemoteEndPoint);
-                var handler = new IsoSessionHandler(_logger, active.Config, _store, _hub);
+                var handler = new IsoSessionHandler(_logger, active.Config, _log, _sessionStore, _hub);
 
                 _ = Task.Run(async () =>
                 {
@@ -201,7 +210,7 @@ public sealed class TcpSessionManager
     {
         try
         {
-            var handler = new IsoSessionHandler(_logger, active.Config, _store, _hub);
+            var handler = new IsoSessionHandler(_logger, active.Config, _log, _sessionStore, _hub);
             // The handler's HandleRebatedorAsync is a generic "frame + parse + emit" loop;
             // for the Injetor we reuse it to read replies from the remote socket.
             await handler.HandleRebatedorAsync(active.Client!, ct);

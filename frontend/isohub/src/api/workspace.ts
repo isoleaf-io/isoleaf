@@ -1,13 +1,11 @@
 import { api } from "./client";
-import type { AppConfig, HealthStatus, WorkspaceConfig } from "@/types";
+import type { AppConfig, WorkspaceConfig } from "@/types";
 
 export const getAppConfig = () => api.get<AppConfig>("/config").then((r) => r.data);
 
 export const getWorkspace = () => api.get<WorkspaceConfig>("/workspace").then((r) => r.data);
 export const updateWorkspace = (cfg: WorkspaceConfig) =>
   api.put<WorkspaceConfig>("/workspace", cfg).then((r) => r.data);
-
-export const getHealth = () => api.get<HealthStatus>("/health").then((r) => r.data);
 
 // Sprint 9.5 — ISO 20022 schemas managed via Workspace.
 export interface SchemaEntry {

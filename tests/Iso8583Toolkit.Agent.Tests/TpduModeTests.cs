@@ -1,10 +1,11 @@
 using System.Text;
 using FluentAssertions;
-using Iso8583Toolkit.Agent.Models;
 using Iso8583Toolkit.Agent.Services;
+using Iso8583Toolkit.Simulator.Logging;
 using Iso8583Toolkit.IsoCore.Building;
 using Iso8583Toolkit.IsoCore.Layouts;
 using Iso8583Toolkit.Simulator.Protocol;
+using Iso8583Toolkit.Simulator.Sessions;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -42,10 +43,11 @@ public sealed class TpduModeTests
         return combined;
     }
 
-    private static (IsoSessionHandler handler, LocalSessionStore store) Build(SessionConfig config)
+    private static (IsoSessionHandler handler, InMemoryMessageLog store) Build(SessionConfig config)
     {
-        var store = new LocalSessionStore();
-        store.AddSession(new SimulatorSession
+        var store = new InMemoryMessageLog();
+        var sessions = new InMemorySessionStore();
+        sessions.AddSession(new SimulatorSession
         {
             SessionId = config.SessionId,
             TcpPort = config.TcpPort,
@@ -53,11 +55,11 @@ public sealed class TpduModeTests
             Role = config.Role,
         });
         var hub = new NullHubContext<Iso8583Toolkit.Agent.Hubs.SimulatorHub>();
-        var handler = new IsoSessionHandler(Logger, config, store, hub);
+        var handler = new IsoSessionHandler(Logger, config, store, sessions, hub);
         return (handler, store);
     }
 
-    private static MessageLogEntry? LastEntry(LocalSessionStore store, MessageDirection direction)
+    private static MessageLogEntry? LastEntry(InMemoryMessageLog store, MessageDirection direction)
     {
         var entries = store.GetLog(limit: 100).ToList();
         return entries.FirstOrDefault(e => e.Direction == direction);

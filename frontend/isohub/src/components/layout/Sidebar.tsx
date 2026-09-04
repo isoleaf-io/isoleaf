@@ -10,9 +10,11 @@ import {
   CreditCard,
   ExternalLink,
   FileText,
+  Github,
   Globe,
   LayoutGrid,
   Lock,
+  Mail,
   QrCode,
   Radio,
   Settings,
@@ -21,8 +23,8 @@ import {
 } from "lucide-react";
 import clsx from "clsx";
 import { StatusDot } from "@/components/ui/StatusDot";
-import { useHealth } from "@/hooks/useHealth";
 import { useAppConfig } from "@/contexts/AppConfigContext";
+import { useAgentConnectionStore } from "@/store/agentConnection";
 import { FEATURES, type FeatureKey } from "@/config/features";
 import { APP_VERSION } from "@/version";
 
@@ -163,6 +165,12 @@ const NAV: NavEntry[] = [
       // Docs live on the dedicated GitHub Pages site so search engines index
       // them and the React bundle stays lean.
       { to: "https://docs.isoleaf.dev", labelKey: "common.nav.docs", icon: BookOpen, external: true },
+      // Sprint 12.7 P2 — GitHub + Contact live in Reference too, one click
+      // away from Documentação. Both are visible in every mode (Reference
+      // has no `feature` gate, and neither of these items carries one) —
+      // finding the repo / reaching the maintainers is never mode-gated.
+      { to: "https://github.com/isoleaf-io/isoleaf", labelKey: "common.nav.github", icon: Github, external: true },
+      { to: "mailto:contato@isoleaf.dev", labelKey: "common.nav.contact", icon: Mail, external: true },
     ],
   },
 ];
@@ -408,8 +416,6 @@ interface SidebarProps {
 
 export function Sidebar({ isOpen = false, onNavigate }: SidebarProps = {}) {
   const { t } = useTranslation();
-  const { data, isError } = useHealth();
-  const online = !isError && data?.status === "ok";
   const config = useAppConfig();
   const { simulatorEnabled, mode } = config;
   const isOnlineMode = mode === "online";
@@ -501,15 +507,22 @@ export function Sidebar({ isOpen = false, onNavigate }: SidebarProps = {}) {
         <NavRow item={FOOTER_NAV} onNavigate={onNavigate} />
       </div>
 
-      {/* Agent status — only meaningful in standalone mode. In online mode
-          the Agent is always running on the demo server and the user has no
-          control over it, so the row would only add noise. */}
+      {/* Simulator Agent indicator (Sprint 12.4 P1). Only meaningful in
+          standalone mode; in online mode both hosts are always running on
+          the demo server and the operator has no control over them.
+          Sprint 12.6 P2 removed the Backend-health row that used to sit
+          above this one — if the Backend goes down, the SPA can't load
+          at all, so a badge for it was noise the operator would never
+          actually see. The Agent is a separate process and CAN be down
+          while the rest of the app renders, so this indicator stays.
+          Reads the shared agentConnection store — no polling of its own;
+          the status is written by the Workspace "Conectar" flow and by
+          the Simulator page's connectivity gate. Clickable → jumps to
+          the Simulator tab in Workspace so the fix (configure / reconnect)
+          is one click away. */}
       {!isOnlineMode && (
-        <div className="px-4 py-3 border-t border-[var(--border)] flex items-center gap-2">
-          <StatusDot status={online ? "online" : "offline"} />
-          <span className="text-xs text-text-secondary">
-            {online ? t("common.agentOnline") : t("common.agentOffline")}
-          </span>
+        <div className="px-4 py-3 border-t border-[var(--border)]">
+          <SimulatorAgentIndicator />
         </div>
       )}
 
@@ -530,5 +543,52 @@ export function Sidebar({ isOpen = false, onNavigate }: SidebarProps = {}) {
         </span>
       </div>
     </aside>
+  );
+}
+
+/**
+ * Sprint 12.4 P1 — visual status of the Simulator Agent (separate host
+ * from the Backend since Sprint 12.2). Deliberately distinct from the
+ * "Backend online/offline" row above (which reflects the Backend's
+ * /api/health): this one reads the shared <c>agentConnection</c> store,
+ * which the Workspace "Conectar" flow and the Simulator page's gate
+ * keep up to date.
+ *
+ * No polling of its own — the store is a Zustand global, so a status
+ * change in the Workspace or on the Simulator page propagates instantly
+ * across every subscriber (including this dot).
+ *
+ * Clickable: jumps to Workspace → Simulator tab so a "disconnected" or
+ * "error" state can be fixed in one click.
+ */
+function SimulatorAgentIndicator() {
+  const { t } = useTranslation();
+  const agentUrl = useAgentConnectionStore((s) => s.agentUrl);
+  const status = useAgentConnectionStore((s) => s.status);
+
+  // Sprint 12.6 P3: only TWO visual states — connected (green) or
+  // disconnected (neutral). Everything else that used to be its own
+  // visual (error, testing, idle, no-URL-yet) collapses into
+  // "disconnected". The specific failure message still surfaces inline
+  // on the Workspace → Simulador tab when a Conectar attempt fails, so
+  // no information is lost — we just stop double-signalling here.
+  const isConnected = status === "connected";
+  const dot: "online" | "neutral" = isConnected ? "online" : "neutral";
+  const label = isConnected
+    ? t("common.simulatorAgent.connected")
+    : t("common.simulatorAgent.disconnected");
+
+  return (
+    <Link
+      to="/workspace?tab=agent"
+      data-testid="sidebar-simulator-agent-indicator"
+      data-status={status}
+      data-visual-state={isConnected ? "connected" : "disconnected"}
+      data-has-url={agentUrl ? "true" : "false"}
+      className="flex items-center gap-2 -mx-1 px-1 py-0.5 rounded hover:bg-bg-tertiary/40 transition-colors"
+    >
+      <StatusDot status={dot} />
+      <span className="text-xs text-text-secondary">{label}</span>
+    </Link>
   );
 }

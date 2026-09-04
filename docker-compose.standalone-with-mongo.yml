@@ -1,31 +1,89 @@
 version: '3.8'
 
+# ISOLeaf v3.0 — two-service local deployment with an experimental
+# MongoDB sidecar for future workspace/session persistence. Same shape
+# as docker-compose.standalone.yml (see that file for the end-user
+# instructions) plus a `mongo` service the Backend can reach at
+# `mongodb://mongo:27017`.
+#
+# NOTE: MongoDB integration is not wired end-to-end in v3.0 yet — the
+# `MongoDB__*` env vars below are placeholders for the persistence work
+# planned post-3.0. Use docker-compose.standalone.yml for day-to-day
+# usage; this file exists so early adopters can pin the mongo topology.
+
 services:
-  agent:
+  backend:
     build:
       context: .
-      dockerfile: agent/Iso8583Toolkit.Agent/Dockerfile
-    container_name: iso8583-agent
+      dockerfile: Dockerfile
+      target: runtime-backend
+    image: ghcr.io/isoleaf-io/isoleaf-backend:latest
+    container_name: isoleaf-backend
     ports:
       - "8080:8080"
-      - "8583:8583"
+    volumes:
+      - isoleaf-data:/app/data
     environment:
-      - Agent__Port=8080
-      - Agent__SimulatorDefaultPort=8583
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:8080
+      - ISOHUB_DATA_PATH=/app/data
+      - AGENT_URL_HINT=http://localhost:8583
       - MongoDB__Enabled=true
       - MongoDB__ConnectionString=mongodb://mongo:27017
       - MongoDB__DatabaseName=iso8583toolkit
-      - Broker__Enabled=false
     depends_on:
       - mongo
+      - agent
     restart: unless-stopped
+    healthcheck:
+      test:
+        - CMD
+        - wget
+        - --quiet
+        - --tries=1
+        - --spider
+        - http://localhost:8080/api/health
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+  agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime-agent
+    image: ghcr.io/isoleaf-io/isoleaf-agent:latest
+    container_name: isoleaf-agent
+    ports:
+      - "8583:8583"
+      - "9100:9100"
+      - "9200:9200"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:8583
+    restart: unless-stopped
+    healthcheck:
+      test:
+        - CMD
+        - wget
+        - --quiet
+        - --tries=1
+        - --spider
+        - http://localhost:8583/api/health
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
 
   mongo:
     image: mongo:7
-    container_name: iso8583-mongo
+    container_name: isoleaf-mongo
     volumes:
       - mongo_data:/data/db
     restart: unless-stopped
 
 volumes:
+  isoleaf-data:
+    driver: local
   mongo_data:

@@ -197,8 +197,13 @@ jobs:
           category: /language:${{ matrix.language }}
 
   # ── Stages 5 + 6 (merged: build-push-action is atomic) ─────────────────────
+  # v3.0 (Sprint 12.5) — the single `isoleaf` image was split into two,
+  # one per host process. Matrix strategy fans out to `backend` and `agent`
+  # runs of build-push-action; the shared frontend+dotnet-build stages in
+  # the Dockerfile are reused via the GHA build cache, so the second job
+  # picks up the layer results of the first almost instantly.
   docker:
-    name: Docker build & push (GHCR)
+    name: Docker build & push — ${{ matrix.image }} (GHCR)
     needs: [backend, frontend, gitleaks, codeql]
     # `always()` forces evaluation even when a `needs` job is skipped —
     # without it, GitHub short-circuits to the implicit `success()` gate
@@ -219,6 +224,20 @@ jobs:
     permissions:
       contents: read
       packages: write
+    strategy:
+      # Each image is independently publishable — one failing (e.g. GHCR
+      # rate limit on the second push) shouldn't cancel the other's
+      # already-in-flight push. Same reason `docker/build-push-action`
+      # uses provenance:false-by-default in a matrix like this.
+      fail-fast: false
+      matrix:
+        include:
+          - image: backend
+            ghcr: ghcr.io/isoleaf-io/isoleaf-backend
+            target: runtime-backend
+          - image: agent
+            ghcr: ghcr.io/isoleaf-io/isoleaf-agent
+            target: runtime-agent
     steps:
       - uses: actions/checkout@v4
 
@@ -236,8 +255,8 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/isoleaf-io/isoleaf
-          # `latest` on main, `1.2.0` on tag `v1.2.0`, `1.2` and `1` on the same.
+          images: ${{ matrix.ghcr }}
+          # `latest` on main, `3.0.0` on tag `v3.0.0`, `3.0` and `3` on the same.
           tags: |
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
             type=semver,pattern={{version}}
@@ -249,11 +268,15 @@ jobs:
         with:
           context: .
           file: ./Dockerfile
+          target: ${{ matrix.target }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          # Shared cache scope so the second matrix leg picks up the
+          # frontend-build + dotnet-build layers the first one populated,
+          # instead of rebuilding them from scratch.
+          cache-from: type=gha,scope=docker-shared
+          cache-to: type=gha,mode=max,scope=docker-shared
 
   # ── Stage 5 (parallel with docker) ────────────────────────────────────────
   # Framework-dependent portable zip attached as a GitHub Release asset on
@@ -308,33 +331,62 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-npm-
 
-      - name: Publish (framework-dependent, cross-platform)
+      - name: Publish Backend + Agent (framework-dependent, cross-platform)
         # No -r/RuntimeIdentifier and no PublishSingleFile: a single .dll
-        # payload runs on Windows/Mac/Linux as long as the .NET 9 Runtime
-        # is installed. BuildFrontend + CopyLandingToWwwroot targets in
-        # Agent.csproj populate wwwroot with the SPA and landing pages.
-        run: dotnet publish agent/Iso8583Toolkit.Agent/Iso8583Toolkit.Agent.csproj -c Release -o publish/portable --no-self-contained
+        # payload per project runs on Windows/Mac/Linux as long as the
+        # .NET 9 Runtime is installed. Backend's csproj target BuildFrontend
+        # runs `npm install && npm run build` during Release publish and
+        # drops the SPA into wwwroot — no separate frontend step needed.
+        # v3.0 (Sprint 12.5) publishes BOTH host processes side by side.
+        run: |
+          dotnet publish agent/Iso8583Toolkit.Backend/Iso8583Toolkit.Backend.csproj \
+            -c Release -o publish/portable/backend --no-self-contained
+          dotnet publish agent/Iso8583Toolkit.Agent/Iso8583Toolkit.Agent.csproj \
+            -c Release -o publish/portable/agent --no-self-contained
 
       - name: Write launcher scripts and README
         run: |
-          # Windows: swallow the console window closing instantly on error
-          # so a double-click user sees the exception before it disappears.
+          # Windows: `start` opens each process in its own console window
+          # so the user can watch both, and closing one doesn't kill the
+          # other. Both windows carry a descriptive title.
           cat > publish/portable/run.bat <<'BAT'
           @echo off
-          echo Starting ISOLeaf on http://localhost:8080 ...
-          echo (requires .NET 9 Runtime: https://dotnet.microsoft.com/download/dotnet/9.0)
-          dotnet Iso8583Toolkit.Agent.dll
+          echo Starting ISOLeaf Backend on http://localhost:8080 ...
+          echo Starting ISOLeaf Agent   on http://localhost:8583 ...
+          echo (both require .NET 9 Runtime: https://dotnet.microsoft.com/download/dotnet/9.0)
+          echo.
+          start "ISOLeaf Backend" cmd /k "cd backend && dotnet Iso8583Toolkit.Backend.dll"
+          start "ISOLeaf Agent"   cmd /k "cd agent   && dotnet Iso8583Toolkit.Agent.dll"
+          echo.
+          echo When both windows report "Now listening on...", open:
+          echo   http://localhost:8080  (Backend + SPA)
+          echo Then Workspace tab "Simulador" -> set Agent URL to http://localhost:8583
           pause
           BAT
 
-          # Mac/Linux: /bin/sh keeps the launcher portable across default
-          # shells (bash on Linux, zsh on modern Mac). No `set -e` so a
-          # normal Ctrl+C exits cleanly without a bash trap.
+          # Mac/Linux: spawn both in the background, wait on either — a
+          # single Ctrl+C then terminates the whole group (trap forwards
+          # SIGINT/SIGTERM). /bin/sh keeps the script portable across
+          # default shells (bash on Linux, zsh on modern Mac).
           cat > publish/portable/run.sh <<'SH'
           #!/bin/sh
-          echo "Starting ISOLeaf on http://localhost:8080 ..."
-          echo "(requires .NET 9 Runtime: https://dotnet.microsoft.com/download/dotnet/9.0)"
-          exec dotnet Iso8583Toolkit.Agent.dll
+          echo "Starting ISOLeaf Backend on http://localhost:8080 ..."
+          echo "Starting ISOLeaf Agent   on http://localhost:8583 ..."
+          echo "(both require .NET 9 Runtime: https://dotnet.microsoft.com/download/dotnet/9.0)"
+
+          HERE="$(cd "$(dirname "$0")" && pwd)"
+
+          (cd "$HERE/backend" && dotnet Iso8583Toolkit.Backend.dll) &
+          BACKEND_PID=$!
+          (cd "$HERE/agent"   && dotnet Iso8583Toolkit.Agent.dll)   &
+          AGENT_PID=$!
+
+          trap 'kill $BACKEND_PID $AGENT_PID 2>/dev/null; wait' INT TERM
+          echo ""
+          echo "Backend PID $BACKEND_PID  ·  Agent PID $AGENT_PID"
+          echo "When both report \"Now listening on...\", open http://localhost:8080"
+          echo "Then Workspace tab 'Simulador' -> set Agent URL to http://localhost:8583"
+          wait
           SH
           chmod +x publish/portable/run.sh
 
@@ -348,7 +400,52 @@ jobs:
             Windows        →  run.bat  (or double-click)
             macOS / Linux  →  ./run.sh
 
-          Then open http://localhost:8080 in your browser.
+          Two processes will start:
+            Backend  on  http://localhost:8080   (SPA + utility APIs)
+            Agent    on  http://localhost:8583   (Simulator + SignalR + TCP)
+
+          Then:
+            1. Open http://localhost:8080 in your browser.
+            2. Go to Workspace, open the "Simulador" tab, enter
+                 http://localhost:8583
+               as the Agent URL and click Conectar.
+
+          The Agent URL is stored in your browser (localStorage) so this
+          only has to be done once per browser profile.
+
+          ─────────────────────────────────────────────────────────────
+          Changing the default ports (8080 / 8583)
+          ─────────────────────────────────────────────────────────────
+
+          Each host reads its port with priority:
+            1. ASPNETCORE_URLS  (standard .NET env var)
+            2. "Agent:Port" key in appsettings.json  (fallback)
+            3. Hardcoded default  (8080 / 8583)
+
+          Option A (recommended for the portable) — edit appsettings.json
+          in each subfolder, then re-run the launcher:
+
+            backend/appsettings.json  ->  "Agent": { "Port": 9090 }
+            agent/appsettings.json    ->  "Agent": { "Port": 9091 }
+
+          The config key is "Agent:Port" in BOTH hosts — carry-over from
+          an earlier rename, not a typo.
+
+          Option B — set ASPNETCORE_URLS before launching. Because
+          run.bat / run.sh start both processes in the same shell, the
+          env var would collide (both hosts trying the same port), so
+          this only works if you launch each host manually:
+
+            Windows CMD:
+              cd backend && set ASPNETCORE_URLS=http://localhost:9090 && dotnet Iso8583Toolkit.Backend.dll
+              cd agent   && set ASPNETCORE_URLS=http://localhost:9091 && dotnet Iso8583Toolkit.Agent.dll
+
+            macOS / Linux (two terminals):
+              cd backend && ASPNETCORE_URLS=http://localhost:9090 dotnet Iso8583Toolkit.Backend.dll
+              cd agent   && ASPNETCORE_URLS=http://localhost:9091 dotnet Iso8583Toolkit.Agent.dll
+
+          If you change the Agent's port, remember to point
+          Workspace -> Simulador at the new URL in the browser.
 
           Same payload runs on Windows, macOS and Linux — no per-OS build.
           TXT

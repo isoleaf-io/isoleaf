@@ -81,6 +81,40 @@ describe("AppConfig — online vs standalone mode", () => {
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
 
+  it("Sprint 12.7 P1: install link is generic ('How to install'), NOT Docker-specific", () => {
+    renderApp(withConfig(<OnlineBanner />, ONLINE_CONFIG));
+    // The old "How to install via Docker" wording is gone — the banner
+    // now points at the docs guides section which covers Docker Compose,
+    // individual containers AND the portable zip.
+    const link = screen.getByRole("link", { name: /How to install|Como instalar/i });
+    expect(link).toBeInTheDocument();
+    expect(link.textContent).not.toMatch(/via Docker/i);
+  });
+
+  it("Sprint 12.7 P3: install link points to the Quick Start matrix in the docs guides section", () => {
+    renderApp(withConfig(<OnlineBanner />, ONLINE_CONFIG));
+    const link = screen.getByRole("link", { name: /How to install|Como instalar/i }) as HTMLAnchorElement;
+    expect(link.href).toContain("docs.isoleaf.dev");
+    // #guides/{slug} — the Quick Start H2 anchor within the guides page,
+    // not the raw #guides which lands at the top of "Self-host with Docker".
+    expect(link.href).toContain("#guides/quick-start-");
+    // Regression guard: the earliest version of this link went to the
+    // GitHub README; the Sprint 12.7 P1 pass replaced it with the docs
+    // #guides top. Both are now dead ends for the user.
+    expect(link.href).not.toContain("github.com");
+    expect(link.href).not.toMatch(/#guides$/);
+  });
+
+  it("Sprint 12.7 P1: banner text mentions running locally without pinning any single install path", () => {
+    renderApp(withConfig(<OnlineBanner />, ONLINE_CONFIG));
+    // The text no longer prescribes "install locally" as if there's one
+    // way — it acknowledges Docker Compose / containers / portable and
+    // steers the user to the docs.
+    expect(
+      screen.getByText(/portable|Compose|containers/i),
+    ).toBeInTheDocument();
+  });
+
   it("Simulator menu stays visible in online mode (locked, not hidden)", () => {
     // Earlier iteration hid /simulator entirely; current behaviour keeps
     // it in the menu with a lock icon so users can discover the feature.
@@ -100,20 +134,44 @@ describe("AppConfig — online vs standalone mode", () => {
     expect(hrefs).toContain("/parser");
   });
 
-  it("Agent status row hidden in online mode", () => {
-    // The "Agent online/offline" row is only meaningful when the user is
-    // running the Agent themselves — hide it on the public demo.
+  it("Simulator Agent indicator hidden in online mode", () => {
+    // The Simulator Agent indicator is only meaningful when the operator
+    // is running their own Agent process — hide it on the public demo.
+    // Sprint 12.6 P2 removed the Backend badge that used to sit above
+    // it; only the Simulator Agent row remains to be asserted.
     renderApp(withConfig(<Sidebar />, ONLINE_CONFIG));
     expect(
-      screen.queryByText(/Agent online|Agent offline|Agente online|Agente offline/i),
+      screen.queryByTestId("sidebar-simulator-agent-indicator"),
     ).not.toBeInTheDocument();
   });
 
-  it("Agent status row visible in standalone mode", () => {
-    renderApp(withConfig(<Sidebar />, STANDALONE_CONFIG));
-    // jsdom can't reach the live agent so it renders "offline" — either label is fine.
+  it("Sprint 12.7 P2: Reference links (GitHub + Contact) visible in ONLINE mode", () => {
+    // Reference has no `feature` gate, so GitHub + Contact must render
+    // regardless of mode — finding the repo / reaching the maintainers
+    // is never mode-gated.
+    renderApp(withConfig(<Sidebar />, ONLINE_CONFIG));
     expect(
-      screen.getByText(/Agent online|Agent offline|Agente online|Agente offline/i),
+      screen.getByRole("link", { name: /^GitHub$/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: /^Contato$|^Contact$/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("Sprint 12.7 P2: Reference links (GitHub + Contact) visible in STANDALONE mode", () => {
+    renderApp(withConfig(<Sidebar />, STANDALONE_CONFIG));
+    expect(
+      screen.getByRole("link", { name: /^GitHub$/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: /^Contato$|^Contact$/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("Simulator Agent indicator visible in standalone mode", () => {
+    renderApp(withConfig(<Sidebar />, STANDALONE_CONFIG));
+    expect(
+      screen.getByTestId("sidebar-simulator-agent-indicator"),
     ).toBeInTheDocument();
   });
 

@@ -5,7 +5,26 @@
 [![License: ELv2](https://img.shields.io/badge/License-ELv2-blue.svg)](./LICENSE)
 [![.NET](https://img.shields.io/badge/.NET-9.0-purple.svg)](https://dotnet.microsoft.com)
 [![React](https://img.shields.io/badge/React-18-61DAFB.svg)](https://react.dev)
-[![Docker](https://img.shields.io/badge/Docker-ready-2496ED.svg)](https://ghcr.io/isoleaf-io/isoleaf)
+[![Docker](https://img.shields.io/badge/Docker-ready-2496ED.svg)](https://ghcr.io/isoleaf-io/isoleaf-backend)
+
+> ### ⚠️ Breaking change in v3.0.0
+>
+> The single `isoleaf` process was split into two: **`isoleaf-backend`**
+> (SPA + utility APIs, port **8080**) and **`isoleaf-agent`** (Simulator +
+> SignalR + TCP listeners, port **8583**). Each ships as its own Docker
+> image and its own portable folder.
+>
+> **What you need to do to upgrade a self-hosted install:**
+> - Swap `docker run ghcr.io/isoleaf-io/isoleaf:latest` for **two** containers
+>   (`isoleaf-backend` and `isoleaf-agent`) — the simplest path is the new
+>   `docker-compose.standalone.yml`, which wires both up on the same network.
+> - After both are up, open http://localhost:8080, go to **Workspace →
+>   Simulador** tab and click **Conectar** — the field is pre-filled with
+>   `http://localhost:8583` (the Agent URL). This saves the URL in your
+>   browser's `localStorage`; it's a per-browser setting, not server state.
+>
+> The old `ghcr.io/isoleaf-io/isoleaf` image is **not** published from v3
+> onwards. Existing tags (v2.1.x) remain available.
 
 ---
 
@@ -71,18 +90,11 @@ your machine — no cloud, no sign-up, no data leaves your environment.
 
 ## Quick Start
 
-### Option 1 — Docker (recommended)
+Since v3.0, ISOLeaf runs as **two processes**: `isoleaf-backend` on port
+`8080` (SPA + utility APIs) and `isoleaf-agent` on port `8583` (Simulator +
+SignalR + TCP listeners). All the quick-start options below spin up both.
 
-```bash
-docker run -p 8080:8080 ghcr.io/isoleaf-io/isoleaf:latest
-```
-
-Open [http://localhost:8080](http://localhost:8080)
-
-> Add `-p 9100:9100 -p 8583:8583` (or any port you plan to use) to expose the
-> Simulator's TCP listeners from inside the container.
-
-### Option 2 — Docker Compose
+### Option 1 — Docker Compose (recommended)
 
 ```bash
 git clone https://github.com/isoleaf-io/isoleaf.git
@@ -90,14 +102,37 @@ cd isoleaf
 docker compose -f docker-compose.standalone.yml up
 ```
 
-The compose file already exposes ports `8080`, `9100`, `9200` and `8583`,
-mounts a `isoleaf-data` volume at `/app/data`, and runs the container with a
-`/api/health` healthcheck.
+Then:
 
-> **Persisting uploaded ISO 20022 schemas.** If you plan to upload custom XSDs
-> via **Workspace → ISO 20022 Schemas** and want them to survive image
-> updates, add `-v isoleaf-schemas:/app/data/schemas` to the `docker run`
-> command (or the equivalent volume entry in your compose override).
+1. Open [http://localhost:8080](http://localhost:8080).
+2. Navigate to **Workspace → Simulador**, confirm the pre-filled Agent URL
+   (`http://localhost:8583`) and click **Conectar**. The URL is stored in
+   your browser's `localStorage`, one-time per browser profile.
+
+The compose file exposes `8080`, `8583`, `9100`, `9200`, mounts an
+`isoleaf-data` volume at `/app/data` (Backend-side XSD persistence), and
+runs `/api/health` healthchecks on both containers. Add or remove TCP
+ports on the `agent` service to match the Simulator ports you plan to
+use — the default in the "Nova sessão" form is `9100`.
+
+### Option 2 — Docker (two containers, no compose)
+
+```bash
+# Create a shared network so the Backend can reach the Agent by hostname.
+docker network create isoleaf-net
+
+# Backend (port 8080) — serves the SPA and the utility APIs.
+docker run -d --name isoleaf-backend --network isoleaf-net \
+  -p 8080:8080 -e AGENT_URL_HINT=http://localhost:8583 \
+  ghcr.io/isoleaf-io/isoleaf-backend:latest
+
+# Agent (port 8583) — Simulator REST + SignalR + TCP listeners.
+docker run -d --name isoleaf-agent --network isoleaf-net \
+  -p 8583:8583 -p 9100:9100 \
+  ghcr.io/isoleaf-io/isoleaf-agent:latest
+```
+
+Open [http://localhost:8080](http://localhost:8080) and follow step 2 above.
 
 ### Option 3 — Build from source
 
@@ -109,17 +144,22 @@ mounts a `isoleaf-data` volume at `/app/data`, and runs the container with a
 git clone https://github.com/isoleaf-io/isoleaf.git
 cd isoleaf
 
-# Build frontend
+# Build frontend (drops into agent/Iso8583Toolkit.Backend/wwwroot)
 cd frontend/isohub
 npm install
 npm run build
 
-# Run the Agent (serves frontend + API on :8080)
-cd ../../agent/Iso8583Toolkit.Agent
+# Terminal 1 — Backend on http://localhost:8080
+cd ../../agent/Iso8583Toolkit.Backend
+dotnet run
+
+# Terminal 2 — Agent on http://localhost:8583
+cd agent/Iso8583Toolkit.Agent
 dotnet run
 ```
 
-Open [http://localhost:8080](http://localhost:8080)
+Open [http://localhost:8080](http://localhost:8080) and follow step 2 of
+Option 1 to point the SPA at the Agent.
 
 ### Option 4 — Portable (no Docker, no git required)
 
@@ -134,14 +174,15 @@ framework-dependent build).
 1. Grab `isoleaf-portable-vX.Y.Z.zip` from the
    [Releases page](https://github.com/isoleaf-io/isoleaf/releases).
 2. Extract anywhere.
-3. Launch:
-   - **Windows** — double-click `run.bat` (or run it from PowerShell / Command Prompt).
-   - **macOS / Linux** — `./run.sh` from a Terminal.
-4. Open [http://localhost:8080](http://localhost:8080).
+3. Launch — the script starts **both** the Backend (`:8080`) and the Agent (`:8583`):
+   - **Windows** — double-click `run.bat` (opens two console windows).
+   - **macOS / Linux** — `./run.sh` from a Terminal (single window, both processes; Ctrl+C stops both).
+4. Open [http://localhost:8080](http://localhost:8080), then Workspace →
+   Simulador → **Conectar** (Agent URL pre-filled with `http://localhost:8583`).
 
 The same zip runs on Windows, macOS and Linux — no per-OS build. Every feature
 present in the Docker image is available (Simulator, EMV crypto, custom XSD
-uploads, etc.). To stop the app, close the terminal window (or `Ctrl+C`).
+uploads, etc.).
 
 ---
 
@@ -150,23 +191,32 @@ uploads, etc.). To stop the app, close the terminal window (or `Ctrl+C`).
 ISOLeaf exposes a REST API for integration with automated test tools
 and data generation pipelines. Available in self-hosted (Docker) mode only.
 
-Interactive documentation (Scalar UI):
+Interactive documentation (Scalar UI, Backend-side only):
 http://localhost:8080/api/docs
 
 ### Key endpoints
 
-| Endpoint | Description |
-|---|---|
-| `POST /api/parse/hex` | Parse an ISO 8583 message from hex, ASCII-wire or binary-hex |
-| `POST /api/emv/parse-bit55` | Parse BER-TLV EMV data from Bit 55 |
-| `POST /api/cards/generate` | Generate a synthetic Luhn-valid test card |
-| `POST /api/emv/generate-arqc` | Compute the ARQC cryptogram |
-| `POST /api/emv/generate-arpc` | Compute the ARPC (issuer response cryptogram) |
-| `POST /api/iso20022/builder/build` | Generate an ISO 20022 message from an ecosystem + scenario cascade |
-| `GET  /api/test-data/person` | Return a fake person fixture (name, CPF, e-mail, Pix phone) |
-| `POST /api/iso20022/validate` | Validate an ISO 20022 XML against its embedded XSD |
-| `POST /api/swift/mt/parse` | Parse a SWIFT MT103 / MT202 / MT202COV message |
-| `POST /api/pix/qrcode/generate` | Generate a Pix Copia-e-Cola payload (EMV-MPM with CRC-16) |
+Since v3.0 the API surface is split across two hosts. Everything on the
+**Backend** (`:8080`) is single-request/response; **Agent** endpoints
+(`:8583`) drive the live TCP Simulator + WebSocket log.
+
+| Host | Endpoint | Description |
+|---|---|---|
+| Backend `:8080` | `POST /api/parse/hex` | Parse an ISO 8583 message from hex, ASCII-wire or binary-hex |
+| Backend `:8080` | `POST /api/emv/parse-bit55` | Parse BER-TLV EMV data from Bit 55 |
+| Backend `:8080` | `POST /api/cards/generate` | Generate a synthetic Luhn-valid test card |
+| Backend `:8080` | `POST /api/emv/generate-arqc` | Compute the ARQC cryptogram |
+| Backend `:8080` | `POST /api/emv/generate-arpc` | Compute the ARPC (issuer response cryptogram) |
+| Backend `:8080` | `POST /api/iso20022/builder/build` | Generate an ISO 20022 message from an ecosystem + scenario cascade |
+| Backend `:8080` | `GET  /api/test-data/person` | Return a fake person fixture (name, CPF, e-mail, Pix phone) |
+| Backend `:8080` | `POST /api/iso20022/validate` | Validate an ISO 20022 XML against its embedded XSD |
+| Backend `:8080` | `POST /api/swift/mt/parse` | Parse a SWIFT MT103 / MT202 / MT202COV message |
+| Backend `:8080` | `POST /api/pix/qrcode/generate` | Generate a Pix Copia-e-Cola payload (EMV-MPM with CRC-16) |
+| **Agent** `:8583` | `GET  /api/simulator/sessions` | List running Simulator sessions |
+| **Agent** `:8583` | `POST /api/simulator/sessions` | Start a new Rebatedor / Injetor session |
+| **Agent** `:8583` | `POST /api/simulator/inject-direct` | Fire-and-await: connect, send one ISO 8583 frame, read the reply |
+| **Agent** `:8583` | `GET  /api/simulator/log` | Read the cross-session Simulator message log |
+| **Agent** `:8583` | `WS   /hubs/simulator` | SignalR hub — live message + session events |
 
 ### Quick example
 
@@ -238,6 +288,12 @@ curl -X POST http://localhost:8080/api/cards/generate \
 
 ## Architecture
 
+Two host processes since v3.0 — the Simulator was split out so its TCP
+listeners can live wherever the operator wants (typically the same
+machine as their local test peers) without bundling the SPA server into
+that footprint. Both hosts share a set of .NET class libraries under
+`src/`.
+
 ```
 isoleaf/
 ├── src/
@@ -245,17 +301,25 @@ isoleaf/
 │   ├── Iso8583Toolkit.Cards/          # Card generation (PAN, tracks, CVV)
 │   ├── Iso8583Toolkit.Cryptography/   # EMV cryptography (ARQC, ARPC, TLV)
 │   ├── Iso8583Toolkit.Iso20022/       # ISO 20022 parsing, building, reference and validation
-│   └── Iso8583Toolkit.Simulator/      # TCP session management
+│   ├── Iso8583Toolkit.Application/    # Shared DTOs + application services
+│   └── Iso8583Toolkit.Simulator/      # Simulator domain ports (Framing, Sessions, Logging, Protocol)
 ├── agent/
-│   └── Iso8583Toolkit.Agent/          # ASP.NET Core host + REST API + SignalR
+│   ├── Iso8583Toolkit.Backend/        # ASP.NET Core host — SPA + utility REST APIs (:8080)
+│   └── Iso8583Toolkit.Agent/          # ASP.NET Core host — Simulator REST + SignalR + TCP (:8583)
 ├── frontend/
-│   └── isohub/                         # React + TypeScript + Vite + Tailwind
+│   └── isohub/                        # React + TypeScript + Vite + Tailwind
 └── tests/
     ├── Iso8583Toolkit.IsoCore.Tests/
     ├── Iso8583Toolkit.Cards.Tests/
+    ├── Iso8583Toolkit.Iso20022.Tests/
     ├── Iso8583Toolkit.Integration.Tests/
-    └── Iso8583Toolkit.Agent.Tests/
+    ├── Iso8583Toolkit.Backend.Tests/   # Backend host — utility controllers, PageRouting, E2E
+    └── Iso8583Toolkit.Agent.Tests/     # Agent host — Simulator, TpduMode, Framer, Injector
 ```
+
+The interactive architecture diagram at
+[docs.isoleaf.dev](https://docs.isoleaf.dev) illustrates how the two
+hosts talk to each other and to the browser.
 
 ---
 

@@ -10,7 +10,7 @@ const DISMISS_KEY = "isoleaf-online-banner-dismissed";
  * Dismissal is sessionStorage-scoped so it returns on a new tab.
  */
 export function OnlineBanner() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { mode } = useAppConfig();
   const [dismissed, setDismissed] = useState<boolean>(() => {
     try { return window.sessionStorage.getItem(DISMISS_KEY) === "1"; }
@@ -24,6 +24,18 @@ export function OnlineBanner() {
     setDismissed(true);
   };
 
+  // Sprint 12.7 P3: point at the Quick Start matrix (three-options index)
+  // that sits at the top of the `guides` section. The slug comes from the
+  // docs-site slugify() run over each language's H2 text — asymmetric on
+  // purpose, one slug per locale. Language suffix mirrors what
+  // pages/Docs/index.tsx does for its cards.
+  const lang = i18n.language?.startsWith("pt") ? "pt" : "en";
+  const quickStartSlug =
+    lang === "pt"
+      ? "quick-start-tres-formas-de-rodar"
+      : "quick-start-three-ways-to-run";
+  const installHref = `https://docs.isoleaf.dev/${lang}/#guides/${quickStartSlug}`;
+
   return (
     <div
       role="status"
@@ -33,7 +45,7 @@ export function OnlineBanner() {
       <span className="flex-1">
         {t("online.banner.text")}{" "}
         <a
-          href="https://github.com/isoleaf-io/isoleaf#readme"
+          href={installHref}
           target="_blank"
           rel="noreferrer"
           className="underline font-medium hover:opacity-80"

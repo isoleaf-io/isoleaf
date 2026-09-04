@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronDown, ChevronRight, Play, RotateCcw, Send, Square } from "lucide-react";
+import { ChevronDown, ChevronRight, Eraser, Play, RotateCcw, Send, Square } from "lucide-react";
 import clsx from "clsx";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -531,9 +531,25 @@ export function InjectorPanel({
           );
         })()}
 
-        {/* Mensagem */}
+        {/* Mensagem — Sprint 12.6 P5: the eraser next to the label clears
+            ONLY this field (host/port/toggles stay intact); the big "Limpar"
+            below still resets everything. Two-tier UX: the small one is
+            for iterating on the payload, the big one is for starting over. */}
         <div>
-          <Label>{t("simulator.injector.message")}</Label>
+          <div className="flex items-center justify-between mb-1">
+            <Label className="mb-0">{t("simulator.injector.message")}</Label>
+            <button
+              type="button"
+              onClick={() => setPersistedField("message", "")}
+              disabled={messageEmpty}
+              title={t("simulator.injector.clearMessageTitle")}
+              data-testid="injector-clear-message"
+              className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[11px] text-text-tertiary hover:text-text-primary rounded hover:bg-bg-tertiary/40 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-text-tertiary disabled:cursor-not-allowed transition-colors"
+            >
+              <Eraser size={11} />
+              {t("simulator.injector.clearMessage")}
+            </button>
+          </div>
           <textarea
             value={persisted.message}
             onChange={(e) => setPersistedField("message", e.target.value)}

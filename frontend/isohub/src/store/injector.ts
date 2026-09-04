@@ -34,7 +34,11 @@ export interface InjectorState {
 
 export const DEFAULTS: InjectorState = {
   targetHost: "localhost",
-  targetPort: 8583,
+  // 9100 matches the "Nova sessão" TCP port default in the Simulator page,
+  // so opening a Rebatedor + firing the injector at localhost works out of
+  // the box. Was 8583 pre-Sprint-12.4, which collided with the Agent host's
+  // own HTTP port after the 12.2 split — do NOT revert.
+  targetPort: 9100,
   message: "",
   includeTpdu: false,
   tpduOverride: null,

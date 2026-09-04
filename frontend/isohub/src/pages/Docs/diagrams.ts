@@ -376,209 +376,197 @@ export const MT103_DIRECT_FLOW_SVG = `
 </svg>
 `.trim();
 
-export const ISOHUB_ARCHITECTURE_SVG = `
+
+/**
+ * Sprint 12.7 P4 — Deploy topology. Sits at the top of the
+ * "Arquitetura & Deploy" section (parallel top-level DocSection to
+ * iso8583/iso20022/guides) and communicates the post-Sprint-12.2
+ * split: one Backend for the whole team + N Agents, each browser
+ * pointing at whichever Agent makes sense for that user (localhost
+ * on their own machine OR a shared team-node).
+ * Sprint 12.9 P1 — became the sole architecture diagram in the file;
+ * the earlier ISOHUB_ARCHITECTURE_SVG (single-machine, pre-split)
+ * was retired after the top-level `architecture` section absorbed
+ * its role.
+ */
+export const ISOHUB_DEPLOY_TOPOLOGY_SVG = `
 <svg xmlns="http://www.w3.org/2000/svg"
-  viewBox="0 0 820 640"
-  style="max-width:820px;width:100%;font-family:system-ui,sans-serif;background:transparent">
+  viewBox="0 0 860 640"
+  style="max-width:860px;width:100%;font-family:system-ui,sans-serif;background:transparent">
   <defs>
-    <marker id="arr-blue" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+    <marker id="dep-arr-blue" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
       <polygon points="0 0,8 3,0 6" fill="#3b82f6"/>
     </marker>
-    <marker id="arr-green" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
-      <polygon points="0 0,8 3,0 6" fill="#16a34a"/>
+    <marker id="dep-arr-green" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <polygon points="0 0,8 3,0 6" fill="#059669"/>
     </marker>
-    <marker id="arr-orange" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
-      <polygon points="0 0,8 3,0 6" fill="#ea580c"/>
-    </marker>
-    <marker id="arr-gray" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
-      <polygon points="0 0,8 3,0 6" fill="#64748b"/>
-    </marker>
-    <marker id="arr-gray-start" markerWidth="8" markerHeight="6" refX="0" refY="3" orient="auto-start-reverse">
+    <marker id="dep-arr-gray" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
       <polygon points="0 0,8 3,0 6" fill="#64748b"/>
     </marker>
   </defs>
 
-  <!-- Máquina do usuário (fundo externo) — abriga também Terminal e Sistema externo -->
-  <rect x="8" y="8" width="620" height="624" rx="14"
-    fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5" stroke-dasharray="10,4"/>
-  <text x="22" y="28" font-size="11" fill="#94a3b8" font-weight="500"
-    letter-spacing="0.5">SUA MÁQUINA</text>
+  <!-- ═══════════════════ Top: Central infra ═══════════════════ -->
+  <rect x="160" y="8" width="540" height="152" rx="14"
+    fill="#f0f4ff" stroke="#93c5fd" stroke-width="1.5" stroke-dasharray="10,4"/>
+  <text x="180" y="28" font-size="11" fill="#3b82f6" font-weight="600"
+    letter-spacing="0.4">INFRAESTRUTURA CENTRAL DA EMPRESA</text>
+  <text x="180" y="42" font-size="9" fill="#64748b"
+    font-style="italic">Kubernetes · AWS ECS · VM tradicional (uma instância central)</text>
 
-  <!-- Docker container -->
-  <rect x="28" y="38" width="580" height="410" rx="10"
-    fill="#eff6ff" stroke="#93c5fd" stroke-width="1.5"/>
-  <!-- Badge Docker -->
-  <rect x="28" y="38" width="110" height="24" rx="5" fill="#2563eb"/>
-  <text x="83" y="54" font-size="11" fill="white" font-weight="700"
-    text-anchor="middle">🐳 Docker</text>
+  <!-- TLS reverse proxy -->
+  <rect x="180" y="58" width="220" height="90" rx="8"
+    fill="#eff6ff" stroke="#60a5fa" stroke-width="1.3"/>
+  <text x="290" y="80" font-size="12" fill="#1d4ed8"
+    text-anchor="middle" font-weight="700">TLS Reverse Proxy</text>
+  <text x="290" y="98" font-size="9" fill="#3b82f6"
+    text-anchor="middle">nginx · ALB · Ingress</text>
+  <text x="290" y="115" font-size="9" fill="#3b82f6"
+    text-anchor="middle">Let's Encrypt / cert-manager</text>
+  <text x="290" y="132" font-size="8.5" fill="#64748b"
+    text-anchor="middle" font-style="italic">HTTPS :443 → HTTP :8080</text>
 
-  <!-- Agent -->
-  <rect x="50" y="74" width="536" height="148" rx="8"
+  <!-- Arrow proxy → backend -->
+  <line x1="400" y1="103" x2="435" y2="103"
+    stroke="#3b82f6" stroke-width="1.5" marker-end="url(#dep-arr-blue)"/>
+
+  <!-- Backend -->
+  <rect x="440" y="58" width="240" height="90" rx="8"
     fill="#dbeafe" stroke="#60a5fa" stroke-width="1.5"/>
-  <text x="318" y="96" font-size="13" fill="#1e40af"
-    text-anchor="middle" font-weight="700">ISOLeaf Agent</text>
-  <text x="318" y="112" font-size="10" fill="#3b82f6"
+  <text x="560" y="80" font-size="13" fill="#1e40af"
+    text-anchor="middle" font-weight="700">isoleaf-backend</text>
+  <text x="560" y="97" font-size="10" fill="#3b82f6"
     text-anchor="middle">ASP.NET Core 9 · porta 8080</text>
+  <text x="560" y="115" font-size="9" fill="#3b82f6"
+    text-anchor="middle">SPA + APIs utilitárias (/api/parse, /api/build, …)</text>
+  <text x="560" y="132" font-size="8.5" fill="#64748b"
+    text-anchor="middle" font-style="italic">Volume /app/data — XSDs persistidos</text>
 
-  <!-- REST API — expanded to 3 lines to include the ISO 20022 route families -->
-  <rect x="70" y="120" width="336" height="90" rx="6"
-    fill="white" stroke="#93c5fd" stroke-width="1"/>
-  <text x="238" y="140" font-size="11" fill="#1d4ed8"
-    text-anchor="middle" font-weight="600">REST API</text>
-  <text x="238" y="158" font-size="9" fill="#3b82f6"
-    text-anchor="middle">/api/parse · /api/build · /api/emv · /api/cards · /api/simulator</text>
-  <text x="238" y="172" font-size="9" fill="#3b82f6"
-    text-anchor="middle">/api/iso20022/* · /api/pix/* · /api/swift/* · /api/iso8583/flow</text>
-  <text x="238" y="186" font-size="9" fill="#3b82f6"
-    text-anchor="middle">/api/workspace · /api/health · /api/config · /api/test-data</text>
-  <text x="238" y="202" font-size="8.5" fill="#64748b"
-    text-anchor="middle" font-style="italic">17 controllers · OpenAPI em /api/docs (Scalar)</text>
+  <!-- ═══════════════════ Middle strip: HTTPS arrows down ═══════════════════ -->
+  <!-- Left: proxy → Browser A -->
+  <path d="M 260 160 Q 260 195 190 220"
+    fill="none" stroke="#64748b" stroke-width="1.5" stroke-dasharray="5,3"
+    marker-end="url(#dep-arr-gray)"/>
+  <text x="180" y="185" font-size="9" fill="#475569"
+    text-anchor="middle" transform="rotate(-24,180,185)">HTTPS · internet/VPN</text>
 
-  <!-- SignalR — matched height (90) for row alignment -->
-  <rect x="424" y="120" width="142" height="90" rx="6"
-    fill="white" stroke="#93c5fd" stroke-width="1"/>
-  <text x="495" y="142" font-size="11" fill="#1d4ed8"
-    text-anchor="middle" font-weight="600">SignalR Hub</text>
-  <text x="495" y="160" font-size="9" fill="#3b82f6"
-    text-anchor="middle">WebSocket</text>
-  <text x="495" y="174" font-size="9" fill="#3b82f6"
-    text-anchor="middle">log ao vivo</text>
-  <text x="495" y="188" font-size="9" fill="#3b82f6"
-    text-anchor="middle">Simulador</text>
-  <text x="495" y="202" font-size="8.5" fill="#64748b"
-    text-anchor="middle" font-style="italic">/hubs/simulator</text>
+  <!-- Right: proxy → Browser B -->
+  <path d="M 620 160 Q 620 195 690 220"
+    fill="none" stroke="#64748b" stroke-width="1.5" stroke-dasharray="5,3"
+    marker-end="url(#dep-arr-gray)"/>
+  <text x="700" y="185" font-size="9" fill="#475569"
+    text-anchor="middle" transform="rotate(24,700,185)">HTTPS · internet/VPN</text>
 
-  <!-- Seta Agent → Frontend -->
-  <line x1="318" y1="222" x2="318" y2="246"
-    stroke="#60a5fa" stroke-width="1.5" marker-end="url(#arr-blue)"/>
+  <!-- ═══════════════════ Bottom-left: Cenário A (Agent local) ═══════════════════ -->
+  <rect x="20" y="220" width="380" height="404" rx="14"
+    fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5" stroke-dasharray="10,4"/>
+  <text x="34" y="240" font-size="11" fill="#94a3b8" font-weight="600"
+    letter-spacing="0.4">CENÁRIO A — MÁQUINA DO DEV</text>
+  <text x="34" y="253" font-size="9" fill="#64748b"
+    font-style="italic">Cada desenvolvedor roda o Agent na própria máquina (localhost)</text>
 
-  <!-- Frontend -->
-  <rect x="50" y="246" width="536" height="58" rx="8"
-    fill="#f3e8ff" stroke="#c084fc" stroke-width="1.5"/>
-  <text x="318" y="272" font-size="13" fill="#6b21a8"
-    text-anchor="middle" font-weight="700">ISOLeaf Frontend</text>
-  <text x="318" y="288" font-size="9" fill="#9333ea"
-    text-anchor="middle">React · TypeScript · Vite · Tailwind CSS (servido como arquivos estáticos pelo Agent)</text>
-
-  <!-- Seta Frontend → Libs -->
-  <line x1="318" y1="304" x2="318" y2="326"
-    stroke="#a78bfa" stroke-width="1.5" marker-end="url(#arr-blue)"/>
-
-  <!-- Bibliotecas — 4 caixas ISO 8583 na linha 1 -->
-  <rect x="50" y="326" width="120" height="44" rx="6"
-    fill="#dcfce7" stroke="#86efac" stroke-width="1.3"/>
-  <text x="110" y="344" font-size="10" fill="#14532d"
-    text-anchor="middle" font-weight="600">IsoCore</text>
-  <text x="110" y="358" font-size="8.5" fill="#16a34a"
-    text-anchor="middle">Parser · Builder · Bitmap</text>
-
-  <rect x="184" y="326" width="126" height="44" rx="6"
-    fill="#dcfce7" stroke="#86efac" stroke-width="1.3"/>
-  <text x="247" y="344" font-size="10" fill="#14532d"
-    text-anchor="middle" font-weight="600">Cryptography</text>
-  <text x="247" y="358" font-size="8.5" fill="#16a34a"
-    text-anchor="middle">ARQC · ARPC · TLV · 3DES</text>
-
-  <rect x="324" y="326" width="110" height="44" rx="6"
-    fill="#dcfce7" stroke="#86efac" stroke-width="1.3"/>
-  <text x="379" y="344" font-size="10" fill="#14532d"
-    text-anchor="middle" font-weight="600">Cards</text>
-  <text x="379" y="358" font-size="8.5" fill="#16a34a"
-    text-anchor="middle">PAN · CVV · Trilhas</text>
-
-  <rect x="448" y="326" width="138" height="44" rx="6"
-    fill="#dcfce7" stroke="#86efac" stroke-width="1.3"/>
-  <text x="517" y="344" font-size="10" fill="#14532d"
-    text-anchor="middle" font-weight="600">Simulator</text>
-  <text x="517" y="358" font-size="8.5" fill="#16a34a"
-    text-anchor="middle">TcpListener · TcpClient</text>
-
-  <!-- Bibliotecas — linha 2: novo bloco Iso20022 ocupando full width -->
-  <rect x="50" y="380" width="536" height="52" rx="6"
-    fill="#dcfce7" stroke="#86efac" stroke-width="1.3"/>
-  <text x="318" y="400" font-size="10" fill="#14532d"
-    text-anchor="middle" font-weight="600">Iso8583Toolkit.Iso20022</text>
-  <text x="318" y="416" font-size="8.5" fill="#16a34a"
-    text-anchor="middle">Parser · Builder · Referência · Validador · Comparador · Pix · SWIFT MT · Flows</text>
-  <text x="318" y="428" font-size="8" fill="#166534"
-    text-anchor="middle" font-style="italic">SchemaRegistry (44 XSDs — camt/head/pacs/pain) · recarrega ao upload</text>
-
-  <!-- Storage local — ganhou 3ª linha para /app/data/schemas -->
-  <rect x="50" y="452" width="536" height="54" rx="6"
-    fill="#fefce8" stroke="#fde047" stroke-width="1"/>
-  <text x="318" y="468" font-size="9.5" fill="#713f12"
-    text-anchor="middle">💾 Armazenamento local: Workspace (JSON) · Templates (localStorage) · Sessões TCP (memória)</text>
-  <text x="318" y="482" font-size="9" fill="#713f12"
-    text-anchor="middle">📁 /app/data/schemas — XSDs ISO 20022 (pré-carregados na imagem, graváveis via upload)</text>
-  <text x="318" y="498" font-size="8.5" fill="#92400e"
-    text-anchor="middle" font-style="italic">Volume Docker opcional: -v isoleaf-schemas:/app/data/schemas (persiste uploads entre updates)</text>
-
-  <!-- Portas TCP do Simulador -->
-  <rect x="50" y="516" width="536" height="32" rx="6"
-    fill="#fff1f2" stroke="#fca5a5" stroke-width="1"/>
-  <text x="318" y="536" font-size="9" fill="#9f1239"
-    text-anchor="middle">🔌 Portas TCP abertas pelo Simulador: configuradas pelo usuário (ex: 9100, 8583...)</text>
-
-  <!-- Browser -->
-  <rect x="664" y="38" width="148" height="60" rx="8"
+  <!-- Browser A -->
+  <rect x="120" y="266" width="180" height="52" rx="8"
     fill="#f1f5f9" stroke="#94a3b8" stroke-width="1.5"/>
-  <text x="738" y="62" font-size="20" text-anchor="middle">🖥️</text>
-  <text x="738" y="82" font-size="11" fill="#334155"
-    text-anchor="middle" font-weight="600">Browser</text>
+  <text x="210" y="288" font-size="16" text-anchor="middle">🖥️</text>
+  <text x="210" y="308" font-size="10" fill="#334155"
+    text-anchor="middle" font-weight="600">Browser (dev A)</text>
 
-  <!-- Seta Browser ↔ Agent -->
-  <line x1="664" y1="68" x2="612" y2="120"
-    stroke="#64748b" stroke-width="1.5" stroke-dasharray="5,3"
-    marker-start="url(#arr-gray-start)" marker-end="url(#arr-gray)"/>
-  <text x="650" y="103" font-size="9" fill="#475569"
-    text-anchor="middle" transform="rotate(-40,650,103)">HTTP :8080</text>
+  <!-- Arrow Browser → Agent A -->
+  <line x1="210" y1="322" x2="210" y2="470"
+    stroke="#059669" stroke-width="1.5" marker-end="url(#dep-arr-green)"/>
+  <rect x="80" y="352" width="260" height="46" rx="6"
+    fill="white" stroke="#6ee7b7" stroke-width="1"/>
+  <text x="210" y="370" font-size="9.5" fill="#065f46"
+    text-anchor="middle" font-weight="600">HTTP · localhost:8583</text>
+  <text x="210" y="386" font-size="8.5" fill="#059669"
+    text-anchor="middle" font-style="italic">HTTP puro é aceitável — não sai da loopback</text>
 
-  <!-- Terminal/POS — moved down to y=572 to sit below Simulador ports -->
-  <rect x="28" y="572" width="164" height="52" rx="8"
-    fill="#fff7ed" stroke="#fb923c" stroke-width="1.5"/>
-  <text x="110" y="594" font-size="18" text-anchor="middle">📟</text>
-  <text x="110" y="612" font-size="10" fill="#c2410c"
-    text-anchor="middle" font-weight="600">Terminal / POS</text>
+  <!-- Agent A -->
+  <rect x="60" y="474" width="300" height="130" rx="8"
+    fill="#d1fae5" stroke="#34d399" stroke-width="1.5"/>
+  <text x="210" y="497" font-size="13" fill="#065f46"
+    text-anchor="middle" font-weight="700">isoleaf-agent</text>
+  <text x="210" y="513" font-size="10" fill="#059669"
+    text-anchor="middle">ASP.NET Core 9 · porta 8583</text>
+  <text x="210" y="533" font-size="9" fill="#059669"
+    text-anchor="middle">/api/simulator · /hubs/simulator</text>
+  <text x="210" y="551" font-size="9" fill="#059669"
+    text-anchor="middle">TCP listeners escolhidos pelo dev</text>
+  <text x="210" y="571" font-size="8.5" fill="#64748b"
+    text-anchor="middle" font-style="italic">docker run · dotnet run · portable</text>
+  <text x="210" y="590" font-size="8.5" fill="#64748b"
+    text-anchor="middle" font-style="italic">Configurado no Workspace do browser (localStorage)</text>
 
-  <!-- Seta Terminal → Simulador (Rebatedor) -->
-  <line x1="190" y1="582" x2="280" y2="550"
-    stroke="#ea580c" stroke-width="1.5"
-    marker-end="url(#arr-orange)"/>
-  <text x="220" y="565" font-size="9" fill="#c2410c"
-    text-anchor="middle">TCP · Rebatedor</text>
+  <!-- ═══════════════════ Bottom-right: Cenário B (Agent shared) ═══════════════════ -->
+  <rect x="440" y="220" width="400" height="404" rx="14"
+    fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5" stroke-dasharray="10,4"/>
+  <text x="454" y="240" font-size="11" fill="#94a3b8" font-weight="600"
+    letter-spacing="0.4">CENÁRIO B — NÓ COMPARTILHADO DO TIME</text>
+  <text x="454" y="253" font-size="9" fill="#64748b"
+    font-style="italic">1 instância na rede/nuvem — todo o time acessa por VPN/VPC</text>
 
-  <!-- Sistema externo — moved down to y=572 -->
-  <rect x="460" y="572" width="168" height="52" rx="8"
-    fill="#fef2f2" stroke="#f87171" stroke-width="1.5"/>
-  <text x="544" y="594" font-size="18" text-anchor="middle">🖧</text>
-  <text x="544" y="612" font-size="10" fill="#991b1b"
-    text-anchor="middle" font-weight="600">Sistema externo</text>
+  <!-- Browser B -->
+  <rect x="550" y="266" width="180" height="52" rx="8"
+    fill="#f1f5f9" stroke="#94a3b8" stroke-width="1.5"/>
+  <text x="640" y="288" font-size="16" text-anchor="middle">🖥️</text>
+  <text x="640" y="308" font-size="10" fill="#334155"
+    text-anchor="middle" font-weight="600">Browsers do time (B, C, D…)</text>
 
-  <!-- Seta Simulador → Sistema (Injetor) -->
-  <line x1="400" y1="550" x2="470" y2="582"
-    stroke="#16a34a" stroke-width="1.5"
-    marker-end="url(#arr-green)"/>
-  <text x="450" y="565" font-size="9" fill="#166534"
-    text-anchor="middle">TCP · Injetor</text>
+  <!-- Arrow Browser B → TLS proxy shared -->
+  <line x1="640" y1="322" x2="640" y2="352"
+    stroke="#059669" stroke-width="1.5" marker-end="url(#dep-arr-green)"/>
 
-  <!-- Legenda — inalterada; Iso20022 reusa a cor "Bibliotecas (.NET)" -->
-  <rect x="664" y="130" width="148" height="144" rx="8"
+  <!-- TLS proxy on shared node -->
+  <rect x="490" y="358" width="300" height="68" rx="8"
+    fill="#eff6ff" stroke="#60a5fa" stroke-width="1.3"/>
+  <text x="640" y="378" font-size="11" fill="#1d4ed8"
+    text-anchor="middle" font-weight="700">TLS Reverse Proxy</text>
+  <text x="640" y="394" font-size="9" fill="#3b82f6"
+    text-anchor="middle">HTTPS :443 → HTTP :8583</text>
+  <text x="640" y="411" font-size="8.5" fill="#dc2626"
+    text-anchor="middle" font-weight="600">⚠ Obrigatório em rede compartilhada</text>
+
+  <!-- Arrow TLS → Agent -->
+  <line x1="640" y1="426" x2="640" y2="456"
+    stroke="#3b82f6" stroke-width="1.5" marker-end="url(#dep-arr-blue)"/>
+
+  <!-- Agent shared -->
+  <rect x="470" y="460" width="340" height="144" rx="8"
+    fill="#d1fae5" stroke="#34d399" stroke-width="1.5"/>
+  <text x="640" y="483" font-size="13" fill="#065f46"
+    text-anchor="middle" font-weight="700">isoleaf-agent</text>
+  <text x="640" y="500" font-size="10" fill="#059669"
+    text-anchor="middle">ASP.NET Core 9 · porta 8583 (interna)</text>
+  <text x="640" y="519" font-size="9" fill="#059669"
+    text-anchor="middle">1 instância — nunca multi-réplica atrás de LB</text>
+  <text x="640" y="537" font-size="9" fill="#059669"
+    text-anchor="middle">Sessões TCP em memória, não replicadas</text>
+  <text x="640" y="556" font-size="8.5" fill="#64748b"
+    text-anchor="middle" font-style="italic">VM avulsa · container no cluster interno</text>
+  <text x="640" y="574" font-size="8.5" fill="#dc2626"
+    text-anchor="middle" font-weight="600">Restrinja acesso: VPC / VPN / firewall</text>
+  <text x="640" y="592" font-size="8.5" fill="#64748b"
+    text-anchor="middle" font-style="italic">(sem autenticação própria no Agent hoje)</text>
+
+  <!-- ═══════════════════ Legenda ═══════════════════ -->
+  <!-- (compacta no canto — não sobrepõe as caixas) -->
+  <rect x="710" y="8" width="140" height="150" rx="8"
     fill="white" stroke="#e2e8f0" stroke-width="1"/>
-  <text x="738" y="150" font-size="10" fill="#475569"
+  <text x="780" y="26" font-size="10" fill="#475569"
     text-anchor="middle" font-weight="600">LEGENDA</text>
-  <rect x="676" y="160" width="12" height="12" rx="3" fill="#dbeafe" stroke="#60a5fa"/>
-  <text x="696" y="171" font-size="9" fill="#334155">Agent (ASP.NET Core)</text>
-  <rect x="676" y="180" width="12" height="12" rx="3" fill="#f3e8ff" stroke="#c084fc"/>
-  <text x="696" y="191" font-size="9" fill="#334155">Frontend (React)</text>
-  <rect x="676" y="200" width="12" height="12" rx="3" fill="#dcfce7" stroke="#86efac"/>
-  <text x="696" y="211" font-size="9" fill="#334155">Bibliotecas (.NET)</text>
-  <rect x="676" y="220" width="12" height="12" rx="3" fill="#fefce8" stroke="#fde047"/>
-  <text x="696" y="231" font-size="9" fill="#334155">Armazenamento local</text>
-  <rect x="676" y="240" width="12" height="12" rx="3" fill="#eff6ff" stroke="#93c5fd"
+  <rect x="722" y="36" width="12" height="12" rx="3" fill="#dbeafe" stroke="#60a5fa"/>
+  <text x="742" y="46" font-size="9" fill="#334155">Backend host</text>
+  <rect x="722" y="54" width="12" height="12" rx="3" fill="#d1fae5" stroke="#34d399"/>
+  <text x="742" y="64" font-size="9" fill="#334155">Agent host</text>
+  <rect x="722" y="72" width="12" height="12" rx="3" fill="#eff6ff" stroke="#60a5fa"/>
+  <text x="742" y="82" font-size="9" fill="#334155">TLS proxy</text>
+  <rect x="722" y="90" width="12" height="12" rx="3" fill="#f1f5f9" stroke="#94a3b8"/>
+  <text x="742" y="100" font-size="9" fill="#334155">Browser</text>
+  <rect x="722" y="108" width="12" height="12" rx="3" fill="#f0f4ff" stroke="#93c5fd"
     stroke-dasharray="4,2"/>
-  <text x="696" y="251" font-size="9" fill="#334155">Docker container</text>
-  <rect x="676" y="260" width="12" height="12" rx="3" fill="#f8fafc" stroke="#cbd5e1"
+  <text x="742" y="118" font-size="9" fill="#334155">Infra central</text>
+  <rect x="722" y="126" width="12" height="12" rx="3" fill="#f8fafc" stroke="#cbd5e1"
     stroke-dasharray="6,3"/>
-  <text x="696" y="271" font-size="9" fill="#334155">Máquina local</text>
+  <text x="742" y="136" font-size="9" fill="#334155">Máquina/nó</text>
 </svg>
 `.trim();

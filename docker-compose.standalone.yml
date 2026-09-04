@@ -1,34 +1,50 @@
 version: '3.8'
 
-# Single-container, no-dependencies deployment. The Agent serves both the
-# REST API and the React SPA on port 8080. Additional ports are exposed for
-# the Simulator's TCP listeners — add or remove to fit your test scenarios.
+# ISOLeaf v3.0 — two-service local deployment. The Sprint 12.2 split
+# separated the SPA host (Backend, port 8080) from the Simulator host
+# (Agent, port 8583). Both share the compose default network, so the
+# Backend can reach the Agent as `http://agent:8583` (service name =
+# hostname). Users still see them as two ports on localhost from the
+# browser.
+#
+# After `docker compose up`:
+#   1. Open http://localhost:8080
+#   2. Workspace tab "Simulador" is pre-filled with the Agent URL hint
+#      (http://localhost:8583 — from AGENT_URL_HINT below); click
+#      "Conectar" to save the URL in your browser's localStorage.
+#   3. The Simulador page will then work end-to-end (create sessions,
+#      inject messages, watch the live log via SignalR).
 
 services:
-  isoleaf:
+  backend:
     build:
       context: .
       dockerfile: Dockerfile
-    image: ghcr.io/isoleaf-io/isoleaf:latest
-    container_name: isoleaf
+      target: runtime-backend
+    image: ghcr.io/isoleaf-io/isoleaf-backend:latest
+    container_name: isoleaf-backend
     ports:
-      - "8080:8080"            # HTTP — UI + REST API + SignalR
-      # Simulator TCP listeners — extend as needed.
-      - "9100:9100"
-      - "9200:9200"
-      - "8583:8583"
+      - "8080:8080"            # HTTP — UI + utility REST APIs
     volumes:
-      # Reserved for workspace persistence. Current build keeps workspace in
-      # memory; the mount means future persistent storage will survive restarts
-      # without changing compose.
+      # Persists uploaded ISO 20022 XSDs (Workspace → Schemas tab).
+      # Backend seeds this volume with the 44 shipped defaults on first
+      # start, and every upload lands here — survives image updates.
       - isoleaf-data:/app/data
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
       - ASPNETCORE_URLS=http://+:8080
       - ISOHUB_DATA_PATH=/app/data
-      - MongoDB__Enabled=false
-      - Broker__Enabled=false
+      # Pre-fills the "Agent URL" field on Workspace so the user doesn't
+      # have to guess. Uses `agent` (compose service name → hostname) so
+      # the hint is right whether the browser and Docker share hostnames
+      # or not — from the browser side the user still uses localhost:8583.
+      - AGENT_URL_HINT=http://localhost:8583
     restart: unless-stopped
+    depends_on:
+      # The Backend renders fine on its own — the Simulator page is
+      # gated separately. `depends_on` without a condition is a lifecycle
+      # ordering hint only, not a hard dependency.
+      - agent
     healthcheck:
       test:
         - CMD
@@ -37,6 +53,37 @@ services:
         - --tries=1
         - --spider
         - http://localhost:8080/api/health
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+  agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime-agent
+    image: ghcr.io/isoleaf-io/isoleaf-agent:latest
+    container_name: isoleaf-agent
+    ports:
+      - "8583:8583"            # HTTP — /api/simulator/* + /hubs/simulator
+      # Simulator TCP listeners — new sessions bind whatever port the
+      # user picks in the "Nova sessão" form (default 9100 since v3).
+      # Add or remove entries to match the ports you plan to use.
+      - "9100:9100"
+      - "9200:9200"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:8583
+    restart: unless-stopped
+    healthcheck:
+      test:
+        - CMD
+        - wget
+        - --quiet
+        - --tries=1
+        - --spider
+        - http://localhost:8583/api/health
       interval: 30s
       timeout: 10s
       retries: 3

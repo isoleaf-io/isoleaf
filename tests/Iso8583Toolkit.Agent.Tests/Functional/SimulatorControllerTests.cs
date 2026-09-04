@@ -2,7 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using FluentAssertions;
-using Iso8583Toolkit.Agent.Models;
+using Iso8583Toolkit.Simulator.Logging;
 using Iso8583Toolkit.Simulator.Protocol;
 
 namespace Iso8583Toolkit.Agent.Tests.Functional;

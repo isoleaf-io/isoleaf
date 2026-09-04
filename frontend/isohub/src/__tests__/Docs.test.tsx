@@ -15,7 +15,9 @@ describe("Docs page", () => {
     // Sprint 10.x — split into two ISO 20022 cards: one for the
     // protocol overview (iso20022) and one for the roles/participants
     // page (iso20022Roles).
-    expect(cards.length).toBe(10);
+    // Sprint 12.7 P4 — added `architecture` card between guides and
+    // community for production topology + K8s/ECS/VM deploy manifests.
+    expect(cards.length).toBe(11);
     // The DOM order of the cards drives the nav ordering on the docs
     // site. It must match the section-key sequence in DOCS_PT/DOCS_EN.
     const ids = cards.map((c) => c.getAttribute("data-testid"));
@@ -28,6 +30,7 @@ describe("Docs page", () => {
       "docs-card-iso20022Roles",
       "docs-card-glossary",
       "docs-card-guides",
+      "docs-card-architecture",
       "docs-card-community",
       "docs-card-apiDocs",
     ]);
@@ -38,6 +41,12 @@ describe("Docs page", () => {
       // range covers iso20022Roles (capital R) as well.
       expect(c.getAttribute("href")).toMatch(/^https:\/\/docs\.isoleaf\.dev\/(pt|en)\/#[a-z0-9]+$/i);
     }
+  });
+
+  it("Architecture & Deployment card links to the architecture section (Sprint 12.7 P4)", () => {
+    renderApp(<DocsPage />);
+    const card = screen.getByTestId("docs-card-architecture");
+    expect(card.getAttribute("href")).toMatch(/#architecture$/);
   });
 
   it("ISO 8583 card links to the iso8583 section", () => {
